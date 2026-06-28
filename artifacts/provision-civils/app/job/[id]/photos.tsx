@@ -51,12 +51,14 @@ export default function JobPhotosScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+      mediaTypes: "images" as any,
+      quality: 0.5,
       base64: true,
+      exif: false,
     });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
+      if (!asset.base64) { Alert.alert("Error", "Could not read image data"); return; }
       const uri = `data:image/jpeg;base64,${asset.base64}`;
       addPhoto.mutate({ id: jobId, data: { uri } });
     }
@@ -69,11 +71,13 @@ export default function JobPhotosScreen() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
+      quality: 0.5,
       base64: true,
+      exif: false,
     });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
+      if (!asset.base64) { Alert.alert("Error", "Could not read image data"); return; }
       const uri = `data:image/jpeg;base64,${asset.base64}`;
       addPhoto.mutate({ id: jobId, data: { uri } });
     }
