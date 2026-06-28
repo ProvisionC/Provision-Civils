@@ -1,22 +1,33 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Provision Civils - Construction Job Management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: dashboard
+    description: Dashboard stats
+  - name: jobs
+    description: Job management
+  - name: employees
+    description: Employee management
+  - name: invoices
+    description: Invoice management
+  - name: notifications
+    description: Notifications
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +35,1030 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List all jobs
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: supervisorId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+    post:
+      operationId: createJob
+      tags: [jobs]
+      summary: Create a new job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobInput"
+      responses:
+        "201":
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Get a job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobDetail"
+        "404":
+          description: Not found
+
+    put:
+      operationId: updateJob
+      tags: [jobs]
+      summary: Update a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobUpdate"
+      responses:
+        "200":
+          description: Job updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Not found
+
+    delete:
+      operationId: deleteJob
+      tags: [jobs]
+      summary: Delete a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /jobs/{id}/photos:
+    get:
+      operationId: listJobPhotos
+      tags: [jobs]
+      summary: List photos for a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobPhoto"
+
+    post:
+      operationId: addJobPhoto
+      tags: [jobs]
+      summary: Add a photo to a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobPhotoInput"
+      responses:
+        "201":
+          description: Photo added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobPhoto"
+
+  /jobs/{id}/photos/{photoId}:
+    delete:
+      operationId: deleteJobPhoto
+      tags: [jobs]
+      summary: Delete a job photo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /jobs/{id}/gps-logs:
+    get:
+      operationId: listJobGpsLogs
+      tags: [jobs]
+      summary: List GPS logs for a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: GPS logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GpsLog"
+
+    post:
+      operationId: createJobGpsLog
+      tags: [jobs]
+      summary: Create a GPS log entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GpsLogInput"
+      responses:
+        "201":
+          description: GPS log created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GpsLog"
+
+  /jobs/{id}/daily-reports:
+    get:
+      operationId: listDailyReports
+      tags: [jobs]
+      summary: List daily reports for a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Daily reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyReport"
+
+    post:
+      operationId: createDailyReport
+      tags: [jobs]
+      summary: Create a daily report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyReportInput"
+      responses:
+        "201":
+          description: Daily report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport"
+
+  /employees:
+    get:
+      operationId: listEmployees
+      tags: [employees]
+      summary: List all employees
+      responses:
+        "200":
+          description: Employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Employee"
+
+    post:
+      operationId: createEmployee
+      tags: [employees]
+      summary: Create an employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInput"
+      responses:
+        "201":
+          description: Employee created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{id}:
+    put:
+      operationId: updateEmployee
+      tags: [employees]
+      summary: Update an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdate"
+      responses:
+        "200":
+          description: Employee updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "404":
+          description: Not found
+
+    delete:
+      operationId: deleteEmployee
+      tags: [employees]
+      summary: Delete an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List all invoices
+      responses:
+        "200":
+          description: Invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create an invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceInput"
+      responses:
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "404":
+          description: Not found
+
+    put:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update invoice status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceUpdate"
+      responses:
+        "200":
+          description: Invoice updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "404":
+          description: Not found
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    put:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    User:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, worker]
+        phone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    DashboardStats:
+      type: object
+      required: [activeJobs, completedJobs, overdueJobs, jobsDueToday, totalEmployees, totalInvoices]
+      properties:
+        activeJobs:
+          type: integer
+        completedJobs:
+          type: integer
+        overdueJobs:
+          type: integer
+        jobsDueToday:
+          type: integer
+        totalEmployees:
+          type: integer
+        totalInvoices:
+          type: integer
+
+    Job:
+      type: object
+      required: [id, jobNumber, clientName, status, createdAt]
+      properties:
+        id:
+          type: integer
+        jobNumber:
+          type: string
+        clientName:
+          type: string
+        clientPhone:
+          type: ["string", "null"]
+        clientEmail:
+          type: ["string", "null"]
+        siteAddress:
+          type: ["string", "null"]
+        gpsLat:
+          type: ["number", "null"]
+        gpsLng:
+          type: ["number", "null"]
+        description:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        labourHours:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [pending, in_progress, waiting_for_materials, completed, cancelled]
+        supervisorId:
+          type: ["integer", "null"]
+        dueDate:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    JobDetail:
+      type: object
+      required: [id, jobNumber, clientName, status, createdAt, workers, materials, equipment]
+      properties:
+        id:
+          type: integer
+        jobNumber:
+          type: string
+        clientName:
+          type: string
+        clientPhone:
+          type: ["string", "null"]
+        clientEmail:
+          type: ["string", "null"]
+        siteAddress:
+          type: ["string", "null"]
+        gpsLat:
+          type: ["number", "null"]
+        gpsLng:
+          type: ["number", "null"]
+        description:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        labourHours:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [pending, in_progress, waiting_for_materials, completed, cancelled]
+        supervisorId:
+          type: ["integer", "null"]
+        dueDate:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        workers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Employee"
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobMaterial"
+        equipment:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobEquipment"
+
+    JobInput:
+      type: object
+      required: [clientName]
+      properties:
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        clientEmail:
+          type: string
+        siteAddress:
+          type: string
+        gpsLat:
+          type: number
+        gpsLng:
+          type: number
+        description:
+          type: string
+        notes:
+          type: string
+        labourHours:
+          type: number
+        supervisorId:
+          type: integer
+        dueDate:
+          type: string
+        workerIds:
+          type: array
+          items:
+            type: integer
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobMaterialInput"
+        equipment:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobEquipmentInput"
+
+    JobUpdate:
+      type: object
+      properties:
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        clientEmail:
+          type: string
+        siteAddress:
+          type: string
+        gpsLat:
+          type: number
+        gpsLng:
+          type: number
+        description:
+          type: string
+        notes:
+          type: string
+        labourHours:
+          type: number
+        status:
+          type: string
+          enum: [pending, in_progress, waiting_for_materials, completed, cancelled]
+        supervisorId:
+          type: integer
+        dueDate:
+          type: string
+        workerIds:
+          type: array
+          items:
+            type: integer
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobMaterialInput"
+        equipment:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobEquipmentInput"
+
+    JobMaterial:
+      type: object
+      required: [id, jobId, name, quantity, unit]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        name:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        cost:
+          type: ["number", "null"]
+
+    JobMaterialInput:
+      type: object
+      required: [name, quantity, unit]
+      properties:
+        name:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        cost:
+          type: number
+
+    JobEquipment:
+      type: object
+      required: [id, jobId, name, quantity]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        name:
+          type: string
+        quantity:
+          type: number
+        cost:
+          type: ["number", "null"]
+
+    JobEquipmentInput:
+      type: object
+      required: [name, quantity]
+      properties:
+        name:
+          type: string
+        quantity:
+          type: number
+        cost:
+          type: number
+
+    JobPhoto:
+      type: object
+      required: [id, jobId, uri, createdAt]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        uri:
+          type: string
+        caption:
+          type: ["string", "null"]
+        uploadedById:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    JobPhotoInput:
+      type: object
+      required: [uri]
+      properties:
+        uri:
+          type: string
+        caption:
+          type: string
+
+    GpsLog:
+      type: object
+      required: [id, jobId, userId, arrivalLat, arrivalLng, arrivalTime]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        userId:
+          type: integer
+        arrivalLat:
+          type: number
+        arrivalLng:
+          type: number
+        arrivalTime:
+          type: string
+        departureLat:
+          type: ["number", "null"]
+        departureLng:
+          type: ["number", "null"]
+        departureTime:
+          type: ["string", "null"]
+
+    GpsLogInput:
+      type: object
+      required: [arrivalLat, arrivalLng, arrivalTime]
+      properties:
+        arrivalLat:
+          type: number
+        arrivalLng:
+          type: number
+        arrivalTime:
+          type: string
+        departureLat:
+          type: number
+        departureLng:
+          type: number
+        departureTime:
+          type: string
+
+    DailyReport:
+      type: object
+      required: [id, jobId, userId, date, createdAt]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        userId:
+          type: integer
+        date:
+          type: string
+        notes:
+          type: ["string", "null"]
+        progressNotes:
+          type: ["string", "null"]
+        photoUris:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+
+    DailyReportInput:
+      type: object
+      required: [date]
+      properties:
+        date:
+          type: string
+        notes:
+          type: string
+        progressNotes:
+          type: string
+        photoUris:
+          type: array
+          items:
+            type: string
+
+    Employee:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, worker]
+        phone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    EmployeeInput:
+      type: object
+      required: [name, email, role, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, worker]
+        phone:
+          type: string
+        password:
+          type: string
+
+    EmployeeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, worker]
+        phone:
+          type: string
+
+    Invoice:
+      type: object
+      required: [id, jobId, invoiceNumber, labourCost, materialsCost, equipmentCost, vat, total, status, createdAt]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        invoiceNumber:
+          type: string
+        labourCost:
+          type: number
+        materialsCost:
+          type: number
+        equipmentCost:
+          type: number
+        vat:
+          type: number
+        total:
+          type: number
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        job:
+          $ref: "#/components/schemas/Job"
+
+    InvoiceInput:
+      type: object
+      required: [jobId, labourCost, materialsCost, equipmentCost, vat]
+      properties:
+        jobId:
+          type: integer
+        labourCost:
+          type: number
+        materialsCost:
+          type: number
+        equipmentCost:
+          type: number
+        vat:
+          type: number
+        notes:
+          type: string
+
+    InvoiceUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue]
+        notes:
+          type: string
+        labourCost:
+          type: number
+        materialsCost:
+          type: number
+        equipmentCost:
+          type: number
+        vat:
+          type: number
+
+    Notification:
+      type: object
+      required: [id, userId, message, type, read, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        message:
+          type: string
+        type:
+          type: string
+          enum: [job_assigned, job_updated, job_completed, invoice_created]
+        read:
+          type: boolean
+        jobId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string

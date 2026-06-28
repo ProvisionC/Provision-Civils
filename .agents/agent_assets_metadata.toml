@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "90XuTUgW0Sj0sbUgNvrLg"
+uri = "file://artifacts/provision-civils/assets/images/icon.png"
+type = "image"
+title = "provision-civils-app-icon"

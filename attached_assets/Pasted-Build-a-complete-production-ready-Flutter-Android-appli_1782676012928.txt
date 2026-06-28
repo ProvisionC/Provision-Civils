@@ -1,0 +1,169 @@
+Build a complete production-ready Flutter Android application called Provision Civils.
+
+This is a professional construction job management application for a civil engineering company.
+
+The project must be complete from start to finish.
+
+Requirements
+
+Login
+
+- Email and password login
+- User roles:
+  - Admin
+  - Supervisor
+  - Worker
+
+Dashboard
+
+Show:
+
+- Active Jobs
+- Completed Jobs
+- Overdue Jobs
+- Jobs Due Today
+- Total Employees
+- Total Invoices
+
+Job Management
+
+Users can:
+
+- Create jobs
+- Edit jobs
+- Delete jobs
+- Search jobs
+- Filter jobs
+- Assign workers
+- Assign supervisors
+- Change status
+
+Statuses:
+
+- Pending
+- In Progress
+- Waiting for Materials
+- Completed
+- Cancelled
+
+Job Details
+
+Every job stores:
+
+- Job Number (automatic)
+- Client Name
+- Client Phone
+- Client Email
+- Site Address
+- GPS Location
+- Google Maps Navigation
+- Description
+- Notes
+- Labour Hours
+- Materials Used
+- Equipment Used
+
+Photos
+
+Allow users to:
+
+- Take photos with camera
+- Upload photos
+- View photo gallery
+- Delete photos
+
+GPS
+
+Capture:
+
+- Arrival location
+- Departure location
+- Date
+- Time
+
+Daily Reports
+
+Workers can:
+
+- Add notes
+- Add photos
+- Record progress
+
+Invoice System
+
+Generate professional PDF invoices automatically.
+
+Include:
+
+- Company Logo
+- Company Information
+- Client Information
+- Job Information
+- Labour
+- Materials
+- Equipment
+- VAT
+- Total Amount
+
+Allow:
+
+- Download PDF
+- Email PDF
+- Share PDF
+
+Reports
+
+Generate:
+
+- Daily Report
+- Weekly Report
+- Monthly Report
+- Employee Productivity
+- Revenue Report
+
+Notifications
+
+Notify users when:
+
+- Job assigned
+- Job updated
+- Job completed
+- Invoice created
+
+Offline Support
+
+The application must work offline.
+Synchronize automatically when internet becomes available.
+
+Database
+
+Use SQLite for offline storage.
+
+The architecture must allow future migration to Firebase or Supabase without major code changes.
+
+UI
+
+Use Material Design 3.
+
+Professional blue, orange and white colour scheme.
+
+Responsive layout.
+
+Dark Mode and Light Mode.
+
+Project Structure
+
+lib/
+├── main.dart
+├── models
+├── screens
+├── services
+├── widgets
+├── database
+├── utils
+├── reports
+└── invoices
+
+The code must be fully functional, properly structured, documented and ready to compile without missing files.
+
+Do not generate placeholders. Generate complete working code for every screen, model, service and feature.
