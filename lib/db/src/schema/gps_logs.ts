@@ -1,10 +1,11 @@
 import { pgTable, serial, integer, numeric, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { jobsTable } from "./jobs";
 
 export const gpsLogsTable = pgTable("gps_logs", {
   id: serial("id").primaryKey(),
-  jobId: integer("job_id").notNull(),
+  jobId: integer("job_id").notNull().references(() => jobsTable.id, { onDelete: "cascade" }),
   userId: integer("user_id").notNull(),
   arrivalLat: numeric("arrival_lat", { precision: 10, scale: 7 }).notNull(),
   arrivalLng: numeric("arrival_lng", { precision: 10, scale: 7 }).notNull(),

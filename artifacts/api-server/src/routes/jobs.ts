@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, jobsTable, usersTable, jobWorkersTable, jobMaterialsTable, jobEquipmentTable, jobPhotosTable, gpsLogsTable, dailyReportsTable } from "@workspace/db";
+import { db, jobsTable, usersTable, jobWorkersTable, jobMaterialsTable, jobEquipmentTable, jobPhotosTable, gpsLogsTable, dailyReportsTable, expensesTable, invoicesTable, notificationsTable } from "@workspace/db";
 import { eq, and, ilike, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -321,11 +321,23 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.delete("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  const [deleted] = await db.delete(jobsTable).where(eq(jobsTable.id, id)).returning();
-  if (!deleted) {
+  // Verify job exists first
+  const [existing] = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.id, id));
+  if (!existing) {
     res.status(404).json({ error: "Job not found" });
     return;
   }
+  // Explicitly remove all child records (belt-and-suspenders alongside DB cascade FKs)
+  await db.delete(notificationsTable).where(eq(notificationsTable.jobId, id));
+  await db.delete(expensesTable).where(eq(expensesTable.jobId, id));
+  await db.delete(invoicesTable).where(eq(invoicesTable.jobId, id));
+  await db.delete(jobPhotosTable).where(eq(jobPhotosTable.jobId, id));
+  await db.delete(gpsLogsTable).where(eq(gpsLogsTable.jobId, id));
+  await db.delete(dailyReportsTable).where(eq(dailyReportsTable.jobId, id));
+  await db.delete(jobMaterialsTable).where(eq(jobMaterialsTable.jobId, id));
+  await db.delete(jobEquipmentTable).where(eq(jobEquipmentTable.jobId, id));
+  await db.delete(jobWorkersTable).where(eq(jobWorkersTable.jobId, id));
+  await db.delete(jobsTable).where(eq(jobsTable.id, id));
   res.sendStatus(204);
 });
 

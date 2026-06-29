@@ -1,10 +1,11 @@
 import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { jobsTable } from "./jobs";
 
 export const jobPhotosTable = pgTable("job_photos", {
   id: serial("id").primaryKey(),
-  jobId: integer("job_id").notNull(),
+  jobId: integer("job_id").notNull().references(() => jobsTable.id, { onDelete: "cascade" }),
   uri: text("uri").notNull(),
   caption: text("caption"),
   uploadedById: integer("uploaded_by_id"),

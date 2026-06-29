@@ -1,10 +1,11 @@
 import { pgTable, text, serial, integer, numeric, timestamp, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { jobsTable } from "./jobs";
 
 export const expensesTable = pgTable("expenses", {
   id: serial("id").primaryKey(),
-  jobId: integer("job_id").notNull(),
+  jobId: integer("job_id").notNull().references(() => jobsTable.id, { onDelete: "cascade" }),
   createdById: integer("created_by_id").notNull(),
   date: date("date", { mode: "string" }).notNull(),
   category: text("category", {

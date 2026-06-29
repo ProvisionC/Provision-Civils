@@ -12,6 +12,7 @@ import { useColors } from "@/hooks/useColors";
 import {
   useGetJob, useDeleteJob, useUpdateJob, useListJobPhotos,
   getListJobsQueryKey, getGetJobQueryKey, getListJobPhotosQueryKey,
+  getGetDashboardStatsQueryKey,
 } from "@workspace/api-client-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
@@ -60,6 +61,7 @@ export default function JobDetailScreen() {
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListJobsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
         router.back();
       },
     },
