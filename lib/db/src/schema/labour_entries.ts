@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, date, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { jobsTable } from "./jobs";
@@ -15,6 +15,7 @@ export const labourEntriesTable = pgTable("labour_entries", {
   payrollType: text("payroll_type", { enum: ["hourly", "piece_work"] }).notNull(),
   clockIn: text("clock_in"),
   clockOut: text("clock_out"),
+  lunchBreakTaken: boolean("lunch_break_taken").notNull().default(false),
   breakMinutes: integer("break_minutes").notNull().default(0),
   hoursWorked: numeric("hours_worked", { precision: 6, scale: 2 }),
   startChainage: numeric("start_chainage", { precision: 10, scale: 2 }),

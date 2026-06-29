@@ -33,9 +33,10 @@ function parseTime(t: string): number {
   return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
 }
 
-function calcHours(clockIn: string, clockOut: string): number | null {
+function calcHours(clockIn: string, clockOut: string, lunchBreakTaken: boolean): number | null {
   if (!clockIn || !clockOut) return null;
-  const diff = parseTime(clockOut) - parseTime(clockIn) - 30;
+  const breakMins = lunchBreakTaken ? 30 : 0;
+  const diff = parseTime(clockOut) - parseTime(clockIn) - breakMins;
   return diff > 0 ? diff / 60 : null;
 }
 
@@ -54,9 +55,10 @@ export default function DailyLabourScreen() {
   const [date, setDate] = useState(today);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Hourly section: shared times + which employees worked
+  // Hourly section: shared times + lunch break + which employees worked
   const [clockIn, setClockIn] = useState("");
   const [clockOut, setClockOut] = useState("");
+  const [lunchBreakTaken, setLunchBreakTaken] = useState(false);
   const [hourlyEmpIds, setHourlyEmpIds] = useState<Set<number>>(new Set());
 
   // Per meter section: individual rows
@@ -107,7 +109,7 @@ export default function DailyLabourScreen() {
     setMeterEntries(prev => prev.filter(e => e.uid !== uid));
   };
 
-  const hours = calcHours(clockIn, clockOut);
+  const hours = calcHours(clockIn, clockOut, lunchBreakTaken);
   const hourlyAmount = hours !== null ? hours * 25 : 0;
 
   const meterTotal = meterEntries.reduce((sum, e) => {
@@ -138,6 +140,7 @@ export default function DailyLabourScreen() {
         payrollType: "hourly" as const,
         clockIn: clockIn || undefined,
         clockOut: clockOut || undefined,
+        lunchBreakTaken,
         status: "complete" as const,
       })),
       ...meterEntries.filter(e => e.employeeId).map(e => ({
@@ -204,7 +207,7 @@ export default function DailyLabourScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[s.sectionTitle, { color: colors.foreground }]}>Hourly Workers</Text>
-              <Text style={[s.sectionSub, { color: colors.mutedForeground }]}>R25/hr · 30-min lunch auto-deducted</Text>
+              <Text style={[s.sectionSub, { color: colors.mutedForeground }]}>R25/hr · Tick lunch break to deduct 30 min</Text>
             </View>
           </View>
 
@@ -238,6 +241,7 @@ export default function DailyLabourScreen() {
                 <Feather name="check-circle" size={13} color="#2563EB" />
                 <Text style={{ color: "#2563EB", fontFamily: "Inter_700Bold", fontSize: 13 }}>
                   {hours.toFixed(2)}h × R25 = R{hourlyAmount.toFixed(2)} per employee
+                  {lunchBreakTaken ? "  (30 min lunch deducted)" : ""}
                 </Text>
               </View>
             ) : (
@@ -248,6 +252,28 @@ export default function DailyLabourScreen() {
                 </Text>
               </View>
             )}
+
+            {/* Lunch break checkbox */}
+            <TouchableOpacity
+              style={[s.lunchRow, { borderColor: lunchBreakTaken ? "#2563EB" : colors.border, backgroundColor: lunchBreakTaken ? "#2563EB0D" : "transparent" }]}
+              onPress={() => { setLunchBreakTaken(prev => !prev); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              activeOpacity={0.7}
+            >
+              <View style={[s.checkbox, { borderColor: lunchBreakTaken ? "#2563EB" : colors.border, backgroundColor: lunchBreakTaken ? "#2563EB" : "transparent" }]}>
+                {lunchBreakTaken && <Feather name="check" size={12} color="#FFF" />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.lunchLabel, { color: colors.foreground }]}>Lunch Break Taken</Text>
+                <Text style={[s.lunchSub, { color: colors.mutedForeground }]}>
+                  {lunchBreakTaken ? "30 minutes deducted from total hours" : "No deduction — uncheck means full shift counted"}
+                </Text>
+              </View>
+              {lunchBreakTaken && (
+                <View style={[s.lunchBadge, { backgroundColor: "#2563EB20" }]}>
+                  <Text style={{ color: "#2563EB", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>−30 min</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Employee checkboxes */}
@@ -524,6 +550,10 @@ function makeStyles(colors: any) {
     fieldLabel: { fontFamily: "Inter_500Medium", fontSize: 12, marginBottom: 6 },
     timeInput: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Inter_600SemiBold", fontSize: 16, textAlign: "center" },
     calcRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
+    lunchRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10, borderRadius: 10, borderWidth: 1.5, padding: 10 },
+    lunchLabel: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+    lunchSub: { fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 },
+    lunchBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
 
     pickLabel: { fontFamily: "Inter_500Medium", fontSize: 12, marginBottom: 8 },
     empRow: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 6 },

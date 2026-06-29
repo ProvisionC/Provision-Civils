@@ -10,26 +10,43 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 
-// ─── Date helpers ────────────────────────────────────────────────────────────
+// ─── Payroll period helpers (26th → 25th cycle) ──────────────────────────────
 function fmt(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-function weekRange() {
-  const today = new Date();
-  const day = today.getDay();
-  const mon = new Date(today); mon.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
-  const sun = new Date(mon);   sun.setDate(mon.getDate() + 6);
-  return { start: fmt(mon), end: fmt(sun) };
-}
-function monthRange() {
-  const t = new Date();
-  return {
-    start: fmt(new Date(t.getFullYear(), t.getMonth(), 1)),
-    end:   fmt(new Date(t.getFullYear(), t.getMonth() + 1, 0)),
-  };
+function fmtLabel(d: Date, showYear = false) {
+  return d.toLocaleDateString("en-ZA", { day: "numeric", month: "short", ...(showYear ? { year: "numeric" } : {}) });
 }
 
-type Period = "week" | "month" | "custom";
+type PayrollPeriod = { key: string; label: string; start: string; end: string };
+
+function buildPayrollPeriods(count = 6): PayrollPeriod[] {
+  const today = new Date();
+  const day   = today.getDate();
+  // current period start: the 26th of this month if day>=26, else 26th of last month
+  const baseStartMonth = day >= 26 ? today.getMonth() : today.getMonth() - 1;
+  const baseStartYear  = today.getFullYear() + Math.floor(baseStartMonth / 12);
+  const normStartMonth = ((baseStartMonth % 12) + 12) % 12;
+
+  const periods: PayrollPeriod[] = [];
+  for (let i = 0; i < count; i++) {
+    const sMonth = ((normStartMonth - i) % 12 + 12) % 12;
+    const sYear  = baseStartYear + Math.floor((normStartMonth - i) / 12);
+    const eMonth = (sMonth + 1) % 12;
+    const eYear  = sMonth === 11 ? sYear + 1 : sYear;
+
+    const start = fmt(new Date(sYear, sMonth, 26));
+    const end   = fmt(new Date(eYear, eMonth, 25));
+    const label = i === 0
+      ? `Current  (${fmtLabel(new Date(sYear, sMonth, 26))} – ${fmtLabel(new Date(eYear, eMonth, 25), true)})`
+      : `${fmtLabel(new Date(sYear, sMonth, 26))} – ${fmtLabel(new Date(eYear, eMonth, 25), true)}`;
+
+    periods.push({ key: start, label, start, end });
+  }
+  return periods;
+}
+
+type Period = "custom" | string; // period key = start date string, or "custom"
 
 // ─── CSV generator ───────────────────────────────────────────────────────────
 function buildCSV(rows: any[], startDate: string, endDate: string): string {
@@ -183,15 +200,15 @@ export default function PayrollScreen() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const [period, setPeriod] = useState<Period>("month");
-  const [customStart, setCustomStart] = useState(() => monthRange().start);
-  const [customEnd,   setCustomEnd]   = useState(() => monthRange().end);
+  const PERIODS = React.useMemo(() => buildPayrollPeriods(6), []);
 
-  const { start: wStart, end: wEnd } = weekRange();
-  const { start: mStart, end: mEnd } = monthRange();
+  const [period, setPeriod] = useState<Period>(PERIODS[0].key);
+  const [customStart, setCustomStart] = useState(PERIODS[0].start);
+  const [customEnd,   setCustomEnd]   = useState(PERIODS[0].end);
 
-  const startDate = period === "week" ? wStart : period === "month" ? mStart : customStart;
-  const endDate   = period === "week" ? wEnd   : period === "month" ? mEnd   : customEnd;
+  const selectedPeriod = PERIODS.find(p => p.key === period);
+  const startDate = period === "custom" ? customStart : (selectedPeriod?.start ?? PERIODS[0].start);
+  const endDate   = period === "custom" ? customEnd   : (selectedPeriod?.end   ?? PERIODS[0].end);
 
   const { data: summary, isLoading, isError, refetch } = useGetPayrollSummary(
     { startDate, endDate },
@@ -298,20 +315,39 @@ export default function PayrollScreen() {
         </View>
       </View>
 
-      {/* ── Period selector ── */}
-      <View style={[s.periodRow, { backgroundColor: colors.muted }]}>
-        {(["week", "month", "custom"] as Period[]).map(p => (
+      {/* ── Period selector — 26th → 25th payroll cycle ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[s.periodScroll, { borderBottomColor: colors.border }]}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}
+      >
+        {PERIODS.map(p => (
           <TouchableOpacity
-            key={p}
-            style={[s.periodBtn, period === p && { backgroundColor: colors.card }]}
-            onPress={() => setPeriod(p)}
+            key={p.key}
+            style={[s.periodChip, {
+              backgroundColor: period === p.key ? colors.primary : colors.muted,
+              borderColor: period === p.key ? colors.primary : colors.border,
+            }]}
+            onPress={() => setPeriod(p.key)}
           >
-            <Text style={[s.periodBtnText, { color: period === p ? colors.primary : colors.mutedForeground }]}>
-              {p === "week" ? "This Week" : p === "month" ? "This Month" : "Custom"}
+            <Text style={[s.periodChipText, { color: period === p.key ? "#FFF" : colors.foreground }]}>
+              {p.label}
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+        <TouchableOpacity
+          key="custom"
+          style={[s.periodChip, {
+            backgroundColor: period === "custom" ? colors.primary : colors.muted,
+            borderColor: period === "custom" ? colors.primary : colors.border,
+          }]}
+          onPress={() => setPeriod("custom")}
+        >
+          <Feather name="calendar" size={13} color={period === "custom" ? "#FFF" : colors.foreground} />
+          <Text style={[s.periodChipText, { color: period === "custom" ? "#FFF" : colors.foreground }]}>Custom</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* ── Custom date inputs ── */}
       {period === "custom" && (
@@ -512,9 +548,10 @@ function makeStyles(colors: any) {
                      paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1 },
     actionBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
 
-    periodRow:     { flexDirection: "row", margin: 12, borderRadius: 12, padding: 4 },
-    periodBtn:     { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: "center" },
-    periodBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+    periodScroll:    { borderBottomWidth: 1 },
+    periodChip:      { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 20, borderWidth: 1,
+                       paddingHorizontal: 14, paddingVertical: 7 },
+    periodChipText:  { fontFamily: "Inter_600SemiBold", fontSize: 12.5 },
 
     dateRow:    { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16,
                   paddingBottom: 12, borderBottomWidth: 1 },

@@ -1852,7 +1852,7 @@ components:
 
     LabourEntry:
       type: object
-      required: [id, jobId, employeeId, date, workType, payrollType, breakMinutes, status, createdById, createdAt]
+      required: [id, jobId, employeeId, date, workType, payrollType, lunchBreakTaken, breakMinutes, status, createdById, createdAt]
       properties:
         id:
           type: integer
@@ -1872,6 +1872,8 @@ components:
           type: ["string", "null"]
         clockOut:
           type: ["string", "null"]
+        lunchBreakTaken:
+          type: boolean
         breakMinutes:
           type: integer
         hoursWorked:
@@ -2149,6 +2151,8 @@ components:
           type: string
         clockOut:
           type: string
+        lunchBreakTaken:
+          type: boolean
         metersCompleted:
           type: number
         ratePerMeter:

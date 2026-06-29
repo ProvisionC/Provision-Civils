@@ -8,7 +8,7 @@ const router: IRouter = Router();
 type AuthReq = Request & { auth: AuthPayload };
 
 const HOURLY_RATE = 25;
-const BREAK_MINUTES = 30;
+const LUNCH_MINUTES = 30;
 const VALID_METER_RATES = [25, 30] as const;
 type MeterRate = typeof VALID_METER_RATES[number];
 
@@ -22,8 +22,9 @@ function parseTime(t: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
-function calcHours(clockIn: string, clockOut: string): number {
-  const diff = parseTime(clockOut) - parseTime(clockIn) - BREAK_MINUTES;
+function calcHours(clockIn: string, clockOut: string, lunchBreakTaken: boolean): number {
+  const breakMins = lunchBreakTaken ? LUNCH_MINUTES : 0;
+  const diff = parseTime(clockOut) - parseTime(clockIn) - breakMins;
   return Math.max(0, diff) / 60;
 }
 
@@ -53,6 +54,7 @@ function formatEntry(e: typeof labourEntriesTable.$inferSelect & { employee?: ty
     payrollType: e.payrollType,
     clockIn: e.clockIn ?? null,
     clockOut: e.clockOut ?? null,
+    lunchBreakTaken: e.lunchBreakTaken,
     breakMinutes: e.breakMinutes,
     hoursWorked: e.hoursWorked ? String(e.hoursWorked) : null,
     metersCompleted: e.metersCompleted ? String(e.metersCompleted) : null,
@@ -100,6 +102,7 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
       workType?: string;
       clockIn?: string;
       clockOut?: string;
+      lunchBreakTaken?: boolean;
       metersCompleted?: number;
       ratePerMeter?: number;
       status?: string;
@@ -137,36 +140,40 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
     let rate: number | null = null;
     let amount = 0;
 
+    const lunchTaken = payrollType === "hourly" && e.lunchBreakTaken === true;
+    const breakMins  = lunchTaken ? LUNCH_MINUTES : 0;
+
     if (payrollType === "hourly") {
       if (e.clockIn && e.clockOut) {
-        hw = calcHours(e.clockIn, e.clockOut);
+        hw = calcHours(e.clockIn, e.clockOut, lunchTaken);
       }
-      rate = HOURLY_RATE;
+      rate   = HOURLY_RATE;
       amount = calcAmount({ payrollType: "hourly", status: entryStatus, hoursWorked: hw, rateUsed: rate });
     } else {
-      rate = e.ratePerMeter ? Number(e.ratePerMeter) : null;
+      rate   = e.ratePerMeter ? Number(e.ratePerMeter) : null;
       const meters = e.metersCompleted ? Number(e.metersCompleted) : null;
       amount = calcAmount({ payrollType: "piece_work", status: entryStatus, metersCompleted: meters, rateUsed: rate });
     }
 
     return {
-      jobId: Number(jobId),
-      employeeId: Number(e.employeeId),
+      jobId:           Number(jobId),
+      employeeId:      Number(e.employeeId),
       date,
-      workType: (e.workType ?? (payrollType === "piece_work" ? "trenching" : "other")) as any,
-      payrollType: payrollType as "hourly" | "piece_work",
-      clockIn: e.clockIn ?? null,
-      clockOut: e.clockOut ?? null,
-      breakMinutes: payrollType === "hourly" ? BREAK_MINUTES : 0,
-      hoursWorked: hw != null ? String(hw.toFixed(2)) : null,
-      startChainage: null,
-      endChainage: null,
+      workType:        (e.workType ?? (payrollType === "piece_work" ? "trenching" : "other")) as any,
+      payrollType:     payrollType as "hourly" | "piece_work",
+      clockIn:         e.clockIn ?? null,
+      clockOut:        e.clockOut ?? null,
+      lunchBreakTaken: lunchTaken,
+      breakMinutes:    breakMins,
+      hoursWorked:     hw != null ? String(hw.toFixed(2)) : null,
+      startChainage:   null,
+      endChainage:     null,
       metersCompleted: e.metersCompleted != null ? String(e.metersCompleted) : null,
-      rateUsed: rate != null ? String(rate) : null,
-      amountPayable: String(amount.toFixed(2)),
-      status: entryStatus,
-      notes: e.notes ?? null,
-      createdById: auth.userId,
+      rateUsed:        rate != null ? String(rate) : null,
+      amountPayable:   String(amount.toFixed(2)),
+      status:          entryStatus,
+      notes:           e.notes ?? null,
+      createdById:     auth.userId,
     };
   });
 
@@ -189,7 +196,7 @@ router.put("/labour-entries/:id", requireAuth, requireRole("admin", "supervisor"
 
   let newHours: number | null = current.hoursWorked ? Number(current.hoursWorked) : null;
   if (current.payrollType === "hourly" && newClockIn && newClockOut) {
-    newHours = calcHours(newClockIn, newClockOut);
+    newHours = calcHours(newClockIn, newClockOut, current.lunchBreakTaken);
   }
 
   const currentRate = current.rateUsed ? Number(current.rateUsed) : null;

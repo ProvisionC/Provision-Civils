@@ -715,6 +715,7 @@ export interface LabourEntry {
   clockIn?: string | null;
   /** @nullable */
   clockOut?: string | null;
+  lunchBreakTaken: boolean;
   breakMinutes: number;
   /** @nullable */
   hoursWorked?: string | null;
@@ -1017,6 +1018,7 @@ export interface DailyLabourEntryInput {
   workType?: DailyLabourEntryInputWorkType;
   clockIn?: string;
   clockOut?: string;
+  lunchBreakTaken?: boolean;
   metersCompleted?: number;
   ratePerMeter?: DailyLabourEntryInputRatePerMeter;
   status?: DailyLabourEntryInputStatus;
