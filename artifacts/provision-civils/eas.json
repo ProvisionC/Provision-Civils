@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "158ce7b7-e673-41b0-a506-83549a90038d-00-14bbcydpv1bnz.worf.replit.dev"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "158ce7b7-e673-41b0-a506-83549a90038d-00-14bbcydpv1bnz.worf.replit.dev"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "158ce7b7-e673-41b0-a506-83549a90038d-00-14bbcydpv1bnz.worf.replit.dev"
+      }
+    }
+  }
+}

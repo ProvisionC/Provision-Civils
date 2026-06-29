@@ -1,16 +1,9 @@
 import { Platform, Alert } from "react-native";
 import { useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { downloadAsync } from "expo-file-system";
-import { cacheDirectory } from "expo-file-system/legacy";
+import { downloadAsync, cacheDirectory } from "expo-file-system/legacy";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
-
-const RAW_DOMAIN = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-const API_DOMAIN = RAW_DOMAIN
-  ? RAW_DOMAIN.startsWith("http")
-    ? RAW_DOMAIN
-    : `https://${RAW_DOMAIN}`
-  : "";
+import { getBaseUrl } from "@workspace/api-client-react";
 
 export interface PdfExportOptions {
   endpoint: string;
@@ -26,7 +19,7 @@ export function usePdfExport() {
   const exportPdf = useCallback(
     async ({ endpoint, filename, onSuccess, onError }: PdfExportOptions) => {
       setIsExporting(true);
-      const url = `${API_DOMAIN}${endpoint}`;
+      const url = `${getBaseUrl()}${endpoint}`;
       const headers: Record<string, string> = token
         ? { Authorization: `Bearer ${token}` }
         : {};
@@ -49,9 +42,7 @@ export function usePdfExport() {
           onSuccess?.();
         } else {
           const fileUri = (cacheDirectory ?? "") + filename;
-          const { status } = await downloadAsync(url, fileUri, {
-            headers,
-          });
+          const { status } = await downloadAsync(url, fileUri, { headers });
           if (status !== 200) {
             throw new Error(`Download failed: HTTP ${status}`);
           }
@@ -63,7 +54,7 @@ export function usePdfExport() {
               UTI: "com.adobe.pdf",
             });
           } else {
-            Alert.alert("Saved", `PDF saved to device cache.`);
+            Alert.alert("Saved", "PDF saved to device cache.");
           }
           onSuccess?.();
         }

@@ -21,9 +21,20 @@
       }
     },
     "android": {
+      "package": "com.provisioncivils.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#1565C0"
+      },
       "permissions": [
         "RECORD_AUDIO",
-        "INTERNET"
+        "INTERNET",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -38,6 +49,19 @@
       ],
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Provision Civils to record GPS location for daily reports."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Provision Civils to access your photo library to attach site photos.",
+          "cameraPermission": "Allow Provision Civils to use your camera to capture site photos."
+        }
+      ],
       [
         "expo-speech-recognition",
         {

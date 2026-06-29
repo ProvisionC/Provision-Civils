@@ -8,8 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
-import { downloadAsync } from "expo-file-system";
-import { cacheDirectory, writeAsStringAsync, EncodingType } from "expo-file-system/legacy";
+import { downloadAsync, cacheDirectory, writeAsStringAsync, EncodingType } from "expo-file-system/legacy";
 import { isAvailableAsync as isSharingAvailable, shareAsync } from "expo-sharing";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -18,15 +17,13 @@ import {
   useListJobPhotos, useAddJobPhoto, useDeleteJobPhoto,
   useListDailyReports,
   getListJobPhotosQueryKey, getListDailyReportsQueryKey,
+  getBaseUrl,
 } from "@workspace/api-client-react";
 
 const { width: SW } = Dimensions.get("window");
 const COLS = 3;
 const GAP = 3;
 const PHOTO_SIZE = (SW - GAP * (COLS + 1)) / COLS;
-
-const RAW_DOMAIN = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-const API_DOMAIN = RAW_DOMAIN.startsWith("http") ? RAW_DOMAIN : RAW_DOMAIN ? `https://${RAW_DOMAIN}` : "";
 
 type Filter = "all" | "job" | "report";
 type Sort = "newest" | "oldest";
@@ -225,7 +222,7 @@ export default function JobPhotosScreen() {
     if (isDownloading) return;
     if (combined.length === 0) { Alert.alert("No Photos", "There are no photos to download."); return; }
     setIsDownloading(true);
-    const url = `${API_DOMAIN}/api/jobs/${jobId}/photos/zip`;
+    const url = `${getBaseUrl()}/api/jobs/${jobId}/photos/zip`;
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     const filename = `Job-${jobId}-Photos.zip`;
     try {
@@ -262,7 +259,7 @@ export default function JobPhotosScreen() {
   const downloadPhotoReport = useCallback(async () => {
     if (isDownloading) return;
     setIsDownloading(true);
-    const url = `${API_DOMAIN}/api/jobs/${jobId}/pdf/photos`;
+    const url = `${getBaseUrl()}/api/jobs/${jobId}/pdf/photos`;
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     const filename = `Job-${jobId}-PhotoReport.pdf`;
     try {
