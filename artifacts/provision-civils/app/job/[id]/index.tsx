@@ -15,6 +15,7 @@ import {
 } from "@workspace/api-client-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
+import { usePdfExport } from "@/hooks/usePdfExport";
 
 const { width: SW } = Dimensions.get("window");
 const THUMB = (SW - 32 - 12 * 4) / 4;
@@ -42,6 +43,8 @@ export default function JobDetailScreen() {
   const isPM = user?.role === "project_manager";
   const isSupervisor = user?.role === "supervisor";
   const canEdit = isAdmin || isSupervisor || isPM;
+
+  const { isExporting, exportPdf } = usePdfExport();
 
   const [viewerUri, setViewerUri] = useState<string | null>(null);
 
@@ -517,6 +520,61 @@ export default function JobDetailScreen() {
         )}
 
         {isAdmin && (
+          <View style={[styles.exportCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.exportHeader}>
+              <Feather name="file-text" size={16} color={colors.primary} />
+              <Text style={[styles.exportTitle, { color: colors.foreground }]}>PDF Reports</Text>
+              {isExporting && <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: "auto" }} />}
+            </View>
+            <Text style={[styles.exportSub, { color: colors.mutedForeground }]}>
+              Generate professional A4 reports for this job
+            </Text>
+
+            <View style={styles.exportBtns}>
+              <TouchableOpacity
+                style={[styles.exportBtn, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}
+                onPress={() => exportPdf({
+                  endpoint: `/api/jobs/${jobId}/pdf/materials`,
+                  filename: `${(job as any)?.jobNumber ?? "JOB"}-Materials.pdf`,
+                })}
+                disabled={isExporting}
+              >
+                <Feather name="package" size={18} color={colors.primary} />
+                <Text style={[styles.exportBtnLabel, { color: colors.primary }]}>Materials{"\n"}Report</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.exportBtn, { backgroundColor: "#FF6F0012", borderColor: "#FF6F0030" }]}
+                onPress={() => exportPdf({
+                  endpoint: `/api/jobs/${jobId}/pdf/reports`,
+                  filename: `${(job as any)?.jobNumber ?? "JOB"}-DailyReports.pdf`,
+                })}
+                disabled={isExporting}
+              >
+                <Feather name="clipboard" size={18} color="#FF6F00" />
+                <Text style={[styles.exportBtnLabel, { color: "#FF6F00" }]}>Daily{"\n"}Reports</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.exportBtn, { backgroundColor: "#2E7D3212", borderColor: "#2E7D3230" }]}
+                onPress={() => exportPdf({
+                  endpoint: `/api/jobs/${jobId}/pdf/completion`,
+                  filename: `${(job as any)?.jobNumber ?? "JOB"}-CompletionPack.pdf`,
+                })}
+                disabled={isExporting}
+              >
+                <Feather name="award" size={18} color="#2E7D32" />
+                <Text style={[styles.exportBtnLabel, { color: "#2E7D32" }]}>Completion{"\n"}Pack</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.exportHint, { color: colors.mutedForeground }]}>
+              PDFs include company branding, page numbers, and all job data
+            </Text>
+          </View>
+        )}
+
+        {isAdmin && (
           <TouchableOpacity
             style={[styles.deleteBtn, { borderColor: colors.destructive }]}
             onPress={handleDelete}
@@ -605,6 +663,14 @@ const styles = StyleSheet.create({
   materialsCta: { flexDirection: "row", alignItems: "center", gap: 12 },
   ctaTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   ctaSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  exportCard: { marginHorizontal: 12, marginBottom: 10, borderRadius: 14, padding: 14, borderWidth: 1 },
+  exportHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  exportTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  exportSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 12 },
+  exportBtns: { flexDirection: "row", gap: 8, marginBottom: 10 },
+  exportBtn: { flex: 1, borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: "center", gap: 6 },
+  exportBtnLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  exportHint: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center" },
   deleteBtn: { marginHorizontal: 12, marginBottom: 16, borderRadius: 12, borderWidth: 1, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   deleteBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   viewer: { flex: 1, backgroundColor: "#000" },

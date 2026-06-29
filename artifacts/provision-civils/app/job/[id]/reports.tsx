@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, Modal, ScrollView,
+  Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -13,8 +14,11 @@ import {
   getListDailyReportsQueryKey,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
 
 const TODAY = new Date().toISOString().split("T")[0];
+
+type FieldKey = "workCompleted" | "labourOnSite" | "problemsEncountered" | "tomorrowWork" | "notes";
 
 export default function DailyReportsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,6 +43,64 @@ export default function DailyReportsScreen() {
     progressNotes: "",
   });
 
+  const [activeField, setActiveField] = useState<FieldKey | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const { isListening, isAvailable, partialTranscript, startListening, stopListening } = useSpeechToText();
+
+  const startPulse = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  const stopPulse = () => {
+    pulseAnim.stopAnimation();
+    Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+  };
+
+  const handleMicPress = async (field: FieldKey) => {
+    if (!isAvailable) {
+      Alert.alert(
+        "Voice Not Available",
+        "Speech recognition is not available on this device or browser. Please type your notes manually.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    if (isListening && activeField === field) {
+      stopListening();
+      stopPulse();
+      setActiveField(null);
+      return;
+    }
+
+    if (isListening) {
+      stopListening();
+      stopPulse();
+    }
+
+    setActiveField(field);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    startPulse();
+
+    await startListening((text) => {
+      setForm(f => ({
+        ...f,
+        [field]: f[field as keyof typeof f]
+          ? (f[field as keyof typeof f] as string).trim() + " " + text
+          : text,
+      }));
+      stopPulse();
+      setActiveField(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }, "af-ZA");
+  };
+
   const createReport = useCreateDailyReport({
     mutation: {
       onSuccess: () => {
@@ -53,6 +115,7 @@ export default function DailyReportsScreen() {
 
   const handleSubmit = () => {
     if (!form.date) { Alert.alert("Validation", "Date is required"); return; }
+    if (isListening) stopListening();
     createReport.mutate({
       id: jobId,
       data: {
@@ -67,16 +130,25 @@ export default function DailyReportsScreen() {
     });
   };
 
+  const handleModalClose = () => {
+    if (isListening) stopListening();
+    stopPulse();
+    setActiveField(null);
+    setShowModal(false);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.toolbar, { borderBottomColor: colors.border }]}>
         <Text style={[styles.count, { color: colors.mutedForeground }]}>
           {reports?.length ?? 0} report{reports?.length !== 1 ? "s" : ""}
         </Text>
-        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={() => setShowModal(true)}>
-          <Feather name="plus" size={18} color="#FFF" />
-          <Text style={styles.addBtnText}>New Report</Text>
-        </TouchableOpacity>
+        {isSupervisor && (
+          <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={() => setShowModal(true)}>
+            <Feather name="plus" size={18} color="#FFF" />
+            <Text style={styles.addBtnText}>New Report</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {isLoading ? (
@@ -111,7 +183,6 @@ export default function DailyReportsScreen() {
                     {new Date(item.createdAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
                   </Text>
                 </View>
-
                 {(r.workCompleted || item.progressNotes) && (
                   <ReportSection colors={colors} icon="check-square" title="Work Completed" text={r.workCompleted || item.progressNotes} />
                 )}
@@ -125,7 +196,7 @@ export default function DailyReportsScreen() {
                   <ReportSection colors={colors} icon="users" title="Labour on Site" text={r.labourOnSite} />
                 )}
                 {item.notes && (
-                  <ReportSection colors={colors} icon="file-text" title="Additional Notes" text={item.notes} />
+                  <ReportSection colors={colors} icon="mic" title="Voice / Additional Notes" text={item.notes} />
                 )}
               </View>
             );
@@ -133,15 +204,27 @@ export default function DailyReportsScreen() {
         />
       )}
 
-      <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
+      <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleModalClose}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Supervisor Daily Report</Text>
-            <TouchableOpacity onPress={() => setShowModal(false)}>
+            <View>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Supervisor Daily Report</Text>
+              {isListening && (
+                <View style={styles.listeningBanner}>
+                  <Animated.View style={[styles.listeningDot, { transform: [{ scale: pulseAnim }] }]} />
+                  <Text style={styles.listeningText}>
+                    Listening{partialTranscript ? `: ${partialTranscript}` : "… (Afrikaans / English)"}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <TouchableOpacity onPress={handleModalClose}>
               <Feather name="x" size={24} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
+
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
+            {/* Date */}
             <View>
               <Text style={[styles.label, { color: colors.foreground }]}>Date *</Text>
               <TextInput
@@ -153,64 +236,71 @@ export default function DailyReportsScreen() {
               />
             </View>
 
-            <View>
-              <Text style={[styles.label, { color: colors.foreground }]}>Work Completed Today *</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.foreground }, styles.multiline]}
-                value={form.workCompleted}
-                onChangeText={v => setForm(f => ({ ...f, workCompleted: v }))}
-                placeholder="Describe all work completed today..."
-                placeholderTextColor={colors.mutedForeground}
-                multiline
-              />
-            </View>
+            <VoiceField
+              label="Work Completed Today *"
+              value={form.workCompleted}
+              onChangeText={v => setForm(f => ({ ...f, workCompleted: v }))}
+              placeholder="Describe all work completed today…"
+              field="workCompleted"
+              activeField={activeField}
+              isListening={isListening}
+              onMicPress={handleMicPress}
+              colors={colors}
+              pulseAnim={pulseAnim}
+            />
 
-            <View>
-              <Text style={[styles.label, { color: colors.foreground }]}>Labour on Site</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.foreground }]}
-                value={form.labourOnSite}
-                onChangeText={v => setForm(f => ({ ...f, labourOnSite: v }))}
-                placeholder="e.g. 4 workers, 1 operator"
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
+            <VoiceField
+              label="Labour on Site"
+              value={form.labourOnSite}
+              onChangeText={v => setForm(f => ({ ...f, labourOnSite: v }))}
+              placeholder="e.g. 4 workers, 1 operator"
+              field="labourOnSite"
+              activeField={activeField}
+              isListening={isListening}
+              onMicPress={handleMicPress}
+              colors={colors}
+              pulseAnim={pulseAnim}
+              multiline={false}
+            />
 
-            <View>
-              <Text style={[styles.label, { color: colors.foreground }]}>Problems / Delays Encountered</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.foreground }, styles.multiline]}
-                value={form.problemsEncountered}
-                onChangeText={v => setForm(f => ({ ...f, problemsEncountered: v }))}
-                placeholder="Any problems, delays, or safety issues encountered..."
-                placeholderTextColor={colors.mutedForeground}
-                multiline
-              />
-            </View>
+            <VoiceField
+              label="Problems / Delays Encountered"
+              value={form.problemsEncountered}
+              onChangeText={v => setForm(f => ({ ...f, problemsEncountered: v }))}
+              placeholder="Any problems, delays, or safety issues…"
+              field="problemsEncountered"
+              activeField={activeField}
+              isListening={isListening}
+              onMicPress={handleMicPress}
+              colors={colors}
+              pulseAnim={pulseAnim}
+            />
 
-            <View>
-              <Text style={[styles.label, { color: colors.foreground }]}>Tomorrow's Planned Work</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.foreground }, styles.multiline]}
-                value={form.tomorrowWork}
-                onChangeText={v => setForm(f => ({ ...f, tomorrowWork: v }))}
-                placeholder="Describe planned work for tomorrow..."
-                placeholderTextColor={colors.mutedForeground}
-                multiline
-              />
-            </View>
+            <VoiceField
+              label="Tomorrow's Planned Work"
+              value={form.tomorrowWork}
+              onChangeText={v => setForm(f => ({ ...f, tomorrowWork: v }))}
+              placeholder="Describe planned work for tomorrow…"
+              field="tomorrowWork"
+              activeField={activeField}
+              isListening={isListening}
+              onMicPress={handleMicPress}
+              colors={colors}
+              pulseAnim={pulseAnim}
+            />
 
-            <View>
-              <Text style={[styles.label, { color: colors.foreground }]}>Additional Notes</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.foreground }, styles.multiline]}
-                value={form.notes}
-                onChangeText={v => setForm(f => ({ ...f, notes: v }))}
-                placeholder="Any other remarks..."
-                placeholderTextColor={colors.mutedForeground}
-                multiline
-              />
-            </View>
+            <VoiceField
+              label="Voice Notes / Additional Remarks"
+              value={form.notes}
+              onChangeText={v => setForm(f => ({ ...f, notes: v }))}
+              placeholder="Tap the mic and speak in Afrikaans or English…"
+              field="notes"
+              activeField={activeField}
+              isListening={isListening}
+              onMicPress={handleMicPress}
+              colors={colors}
+              pulseAnim={pulseAnim}
+            />
 
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: colors.primary }, createReport.isPending && { opacity: 0.7 }]}
@@ -228,6 +318,66 @@ export default function DailyReportsScreen() {
           </ScrollView>
         </View>
       </Modal>
+    </View>
+  );
+}
+
+interface VoiceFieldProps {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder: string;
+  field: FieldKey;
+  activeField: FieldKey | null;
+  isListening: boolean;
+  onMicPress: (field: FieldKey) => void;
+  colors: any;
+  pulseAnim: Animated.Value;
+  multiline?: boolean;
+}
+
+function VoiceField({
+  label, value, onChangeText, placeholder,
+  field, activeField, isListening, onMicPress,
+  colors, pulseAnim, multiline = true,
+}: VoiceFieldProps) {
+  const isActive = isListening && activeField === field;
+  const micColor = isActive ? "#E53935" : colors.primary;
+  const borderColor = isActive ? "#E53935" : colors.border;
+
+  return (
+    <View>
+      <View style={styles.labelRow}>
+        <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+        <TouchableOpacity
+          style={[styles.micBtn, { backgroundColor: isActive ? "#FFEBEE" : colors.primary + "15", borderColor }]}
+          onPress={() => onMicPress(field)}
+          activeOpacity={0.7}
+        >
+          {isActive ? (
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <Feather name="mic" size={14} color="#E53935" />
+            </Animated.View>
+          ) : (
+            <Feather name="mic" size={14} color={colors.primary} />
+          )}
+          <Text style={[styles.micLabel, { color: isActive ? "#E53935" : colors.primary }]}>
+            {isActive ? "Stop" : "Dictate"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <TextInput
+        style={[
+          styles.input,
+          { backgroundColor: colors.input, borderColor: isActive ? "#E53935" : colors.border, color: colors.foreground },
+          multiline && styles.multiline,
+        ]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.mutedForeground}
+        multiline={multiline}
+      />
     </View>
   );
 }
@@ -266,9 +416,15 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontFamily: "Inter_700Bold" },
   sectionText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginLeft: 19 },
   modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
+  modalHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
   modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  label: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
+  listeningBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
+  listeningDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#E53935" },
+  listeningText: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#E53935", maxWidth: 240 },
+  labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  label: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  micBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1 },
+  micLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   input: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: "Inter_400Regular" },
   multiline: { minHeight: 90, textAlignVertical: "top" },
   submitBtn: { borderRadius: 12, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },

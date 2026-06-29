@@ -14,9 +14,18 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Provision Civils uses your microphone for Afrikaans voice-to-text on daily reports.",
+        "NSSpeechRecognitionUsageDescription": "Provision Civils uses speech recognition to convert spoken Afrikaans notes into text."
+      }
     },
-    "android": {},
+    "android": {
+      "permissions": [
+        "RECORD_AUDIO",
+        "INTERNET"
+      ]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -28,7 +37,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Provision Civils to use the microphone for voice-to-text on daily reports.",
+          "speechRecognitionPermission": "Allow Provision Civils to recognise speech for Afrikaans voice notes."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

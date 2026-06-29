@@ -8,6 +8,7 @@ import expensesRouter from "./expenses.js";
 import employeesRouter from "./employees.js";
 import invoicesRouter from "./invoices.js";
 import notificationsRouter from "./notifications.js";
+import pdfRouter from "./pdf.js";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(expensesRouter);
 router.use(employeesRouter);
 router.use(invoicesRouter);
 router.use(notificationsRouter);
+router.use(pdfRouter);
 
 export default router;
