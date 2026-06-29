@@ -24,12 +24,12 @@ args = "EAS Build"
 name = "EAS Build"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash /tmp/eas-build.sh"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace/artifacts/provision-civils && eas build:view 98bd520a-4c78-4b81-9465-71b1ba078dc8 --json 2>&1"
 
 [agent]
 stack = "PNPM_WORKSPACE"
