@@ -912,6 +912,10 @@ paths:
           in: query
           schema:
             type: integer
+        - name: jobId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: Payroll summary
@@ -937,6 +941,10 @@ paths:
           schema:
             type: string
         - name: employeeId
+          in: query
+          schema:
+            type: integer
+        - name: jobId
           in: query
           schema:
             type: integer

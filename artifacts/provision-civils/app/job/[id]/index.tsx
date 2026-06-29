@@ -611,6 +611,15 @@ export default function JobDetailScreen() {
                 <Feather name="image" size={18} color="#1565C0" />
                 <Text style={[styles.exportBtnLabel, { color: "#1565C0" }]}>Photo{"\n"}Report</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.exportBtn, { backgroundColor: "#7B1FA212", borderColor: "#7B1FA230" }]}
+                onPress={() => router.push(`/payroll/job/${jobId}` as any)}
+                disabled={isExporting}
+              >
+                <Feather name="dollar-sign" size={18} color="#7B1FA2" />
+                <Text style={[styles.exportBtnLabel, { color: "#7B1FA2" }]}>Payroll{"\n"}Cost</Text>
+              </TouchableOpacity>
             </View>
 
             <Text style={[styles.exportHint, { color: colors.mutedForeground }]}>

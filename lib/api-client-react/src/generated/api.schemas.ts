@@ -1093,11 +1093,13 @@ export type GetPayrollSummaryParams = {
 startDate?: string;
 endDate?: string;
 employeeId?: number;
+jobId?: number;
 };
 
 export type GetPayrollEntriesParams = {
 startDate?: string;
 endDate?: string;
 employeeId?: number;
+jobId?: number;
 };
 

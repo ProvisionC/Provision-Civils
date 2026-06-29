@@ -917,3 +917,415 @@ export function generatePhotosPDF(
   addFooters(doc);
   doc.end();
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAYROLL PDF GENERATORS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Payroll summary table helper ──────────────────────────────────────────────
+function drawPayrollTable(
+  doc: PDFKit.PDFDocument,
+  rows: any[],
+  subtitle: string
+): void {
+  const COLS = [135, 45, 45, 52, 66, 55, 61, 56];
+  const HEADERS = ["Employee Name", "Emp #", "Clock #", "Hours", "Hourly Pay", "Meters", "Piece Pay", "Gross Pay"];
+  const ROW_H = 20;
+  const HEAD_H = 22;
+
+  const drawHead = (ty: number): number => {
+    let x = MARGIN;
+    doc.rect(MARGIN, ty, CONTENT_W, HEAD_H).fill("#0D47A1");
+    for (let i = 0; i < HEADERS.length; i++) {
+      doc.fillColor(WHITE).fontSize(7.5).font("Helvetica-Bold")
+        .text(HEADERS[i], x + 3, ty + 8, { width: COLS[i] - 4, lineBreak: false });
+      x += COLS[i];
+    }
+    doc.fillColor(DARK).font("Helvetica");
+    return ty + HEAD_H;
+  };
+
+  let y = doc.y;
+  y = drawHead(y);
+
+  if (!rows.length) {
+    doc.rect(MARGIN, y, CONTENT_W, ROW_H).fill(LIGHT);
+    doc.fillColor(MUTED).fontSize(9).font("Helvetica-Oblique")
+      .text("No payroll data for this period.", MARGIN + 6, y + 6, { lineBreak: false });
+    doc.fillColor(DARK).font("Helvetica");
+    doc.y = y + ROW_H + 8;
+    return;
+  }
+
+  let grandTotal = 0, grandHourly = 0, grandPiece = 0;
+
+  for (let ri = 0; ri < rows.length; ri++) {
+    if (y + ROW_H > SAFE_BOTTOM - 30) {
+      doc.addPage(); drawHeader(doc, subtitle);
+      y = HEADER_H + 16; y = drawHead(y);
+    }
+    const r = rows[ri];
+    grandTotal  += r.totalAmount  ?? 0;
+    grandHourly += r.hourlyAmount ?? 0;
+    grandPiece  += r.pieceAmount  ?? 0;
+
+    doc.rect(MARGIN, y, CONTENT_W, ROW_H).fill(ri % 2 === 0 ? WHITE : LIGHT);
+    const vals = [
+      { t: r.employeeName ?? "—",    c: DARK,     bold: true  },
+      { t: r.employeeNumber ?? "—",  c: MUTED,    bold: false },
+      { t: r.clockNumber ?? "—",     c: MUTED,    bold: false },
+      { t: r.totalHours > 0 ? r.totalHours.toFixed(1) + " h" : "—", c: DARK, bold: false },
+      { t: r.hourlyAmount > 0 ? formatCurrency(r.hourlyAmount) : "—", c: "#2563EB", bold: false },
+      { t: r.totalMeters > 0 ? r.totalMeters.toFixed(0) + " m" : "—", c: DARK, bold: false },
+      { t: r.pieceAmount > 0 ? formatCurrency(r.pieceAmount) : "—", c: "#8B5CF6", bold: false },
+      { t: formatCurrency(r.totalAmount), c: GREEN, bold: true },
+    ];
+    let x = MARGIN;
+    for (let ci = 0; ci < vals.length; ci++) {
+      doc.fillColor(vals[ci].c).fontSize(8.5)
+        .font(vals[ci].bold ? "Helvetica-Bold" : "Helvetica")
+        .text(vals[ci].t, x + 3, y + 5, { width: COLS[ci] - 4, lineBreak: false });
+      x += COLS[ci];
+    }
+    y += ROW_H;
+  }
+
+  // Totals footer row
+  if (y + ROW_H + 4 > SAFE_BOTTOM) { doc.addPage(); drawHeader(doc, subtitle); y = HEADER_H + 16; }
+  doc.rect(MARGIN, y, CONTENT_W, ROW_H + 4).fill("#E3F2FD");
+  doc.fillColor(BLUE).fontSize(9).font("Helvetica-Bold")
+    .text(`TOTAL — ${rows.length} employee${rows.length !== 1 ? "s" : ""}`, MARGIN + 4, y + 8, { lineBreak: false });
+
+  const totX4 = MARGIN + COLS[0] + COLS[1] + COLS[2] + COLS[3];
+  const totX6 = totX4 + COLS[4] + COLS[5];
+  const totX7 = totX6 + COLS[6];
+
+  doc.fillColor(BLUE).fontSize(9).font("Helvetica-Bold")
+    .text(formatCurrency(grandHourly), totX4 + 3, y + 8, { width: COLS[4] - 4, lineBreak: false });
+  doc.fillColor(BLUE).fontSize(9).font("Helvetica-Bold")
+    .text(formatCurrency(grandPiece), totX6 + 3, y + 8, { width: COLS[6] - 4, lineBreak: false });
+  doc.fillColor(ORANGE).fontSize(10).font("Helvetica-Bold")
+    .text(formatCurrency(grandTotal), totX7 + 3, y + 7, { width: COLS[7] - 4, lineBreak: false });
+  doc.fillColor(DARK).font("Helvetica");
+  doc.y = y + ROW_H + 16;
+}
+
+// ── 1. Payroll Summary PDF ────────────────────────────────────────────────────
+export function generatePayrollSummaryPDF(
+  rows: any[],
+  startDate: string,
+  endDate: string,
+  res: Response
+): void {
+  const doc = new PDFDocument({ size: "A4", bufferPages: true });
+  const filename = `Payroll-Summary-${startDate || "all"}-${endDate || "all"}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Cache-Control", "no-cache");
+  doc.pipe(res);
+
+  const subtitle = "PAYROLL SUMMARY REPORT";
+  drawHeader(doc, subtitle);
+  let y = HEADER_H + 16;
+
+  doc.fillColor(DARK).fontSize(20).font("Helvetica-Bold").text("PAYROLL SUMMARY REPORT", MARGIN, y);
+  y += 30;
+  const periodStr = startDate && endDate
+    ? `${formatDate(startDate)} – ${formatDate(endDate)}`
+    : "All dates";
+  doc.fillColor(MUTED).fontSize(9).font("Helvetica")
+    .text(`Period: ${periodStr}  ·  Generated: ${new Date().toLocaleDateString("en-ZA", { dateStyle: "medium" })}`, MARGIN, y);
+  y += 22;
+  y = rule(doc, y);
+
+  const grandTotal  = rows.reduce((s, r) => s + (r.totalAmount  ?? 0), 0);
+  const grandHourly = rows.reduce((s, r) => s + (r.hourlyAmount ?? 0), 0);
+  const grandPiece  = rows.reduce((s, r) => s + (r.pieceAmount  ?? 0), 0);
+
+  y = sectionBar(doc, "PAYROLL OVERVIEW", y);
+  y = infoGrid(doc, [
+    ["Payroll Period",            periodStr],
+    ["Total Employees",           String(rows.length)],
+    ["Total Hourly Payroll",      formatCurrency(grandHourly)],
+    ["Total Piece Work Payroll",  formatCurrency(grandPiece)],
+  ], y, 2);
+
+  // Grand total banner
+  y += 4;
+  doc.rect(MARGIN, y, CONTENT_W, 34).fill(BLUE);
+  doc.fillColor(WHITE).fontSize(10).font("Helvetica-Bold")
+    .text("GRAND TOTAL PAYROLL", MARGIN + 10, y + 12, { lineBreak: false });
+  doc.fillColor(ORANGE).fontSize(14).font("Helvetica-Bold")
+    .text(formatCurrency(grandTotal), 0, y + 10, { align: "right", width: PAGE_W - MARGIN - 10 });
+  doc.fillColor(DARK).font("Helvetica");
+  y += 44;
+
+  y = rule(doc, y);
+  y = sectionBar(doc, `EMPLOYEE BREAKDOWN — ${rows.length} EMPLOYEE${rows.length !== 1 ? "S" : ""}`, y);
+  doc.y = y;
+  drawPayrollTable(doc, rows, subtitle);
+
+  addFooters(doc);
+  doc.end();
+}
+
+// ── 2. Individual Employee Payroll PDF ────────────────────────────────────────
+export function generateEmployeePayrollPDF(
+  employee: { name: string; employeeNumber: string | null; clockNumber: string | null },
+  summary: { totalHours: number; hourlyAmount: number; metersAt25: number; metersAt30: number; totalMeters: number; pieceAmount: number; totalAmount: number },
+  entries: any[],
+  startDate: string,
+  endDate: string,
+  res: Response
+): void {
+  const doc = new PDFDocument({ size: "A4", bufferPages: true });
+  const safeName = employee.name.replace(/[^a-z0-9]/gi, "-");
+  const filename = `Payroll-${safeName}-${startDate || "all"}-${endDate || "all"}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Cache-Control", "no-cache");
+  doc.pipe(res);
+
+  const subtitle = "INDIVIDUAL PAYROLL REPORT";
+  drawHeader(doc, subtitle);
+  let y = HEADER_H + 16;
+
+  doc.fillColor(DARK).fontSize(20).font("Helvetica-Bold").text("INDIVIDUAL PAYROLL REPORT", MARGIN, y);
+  y += 30;
+  const periodStr = startDate && endDate ? `${formatDate(startDate)} – ${formatDate(endDate)}` : "All dates";
+  doc.fillColor(MUTED).fontSize(9).font("Helvetica")
+    .text(`Generated: ${new Date().toLocaleDateString("en-ZA", { dateStyle: "medium" })}  ·  Period: ${periodStr}`, MARGIN, y);
+  y += 22;
+  y = rule(doc, y);
+
+  y = sectionBar(doc, "EMPLOYEE DETAILS", y);
+  y = infoGrid(doc, [
+    ["Full Name",        employee.name],
+    ["Employee Number",  employee.employeeNumber ?? "—"],
+    ["Clock Number",     employee.clockNumber ?? "—"],
+    ["Report Period",    periodStr],
+  ], y, 2);
+
+  y = rule(doc, y);
+
+  // Earnings summary boxes
+  y = sectionBar(doc, "EARNINGS SUMMARY", y);
+  const boxW = (CONTENT_W - 16) / 3;
+  const boxes = [
+    { label: "Hourly Earnings",    value: formatCurrency(summary.hourlyAmount), sub: summary.totalHours > 0 ? `${summary.totalHours.toFixed(1)} hours worked` : null, color: "#2563EB" },
+    { label: "Piece Work Earnings", value: formatCurrency(summary.pieceAmount),  sub: summary.totalMeters > 0 ? `${summary.totalMeters.toFixed(0)} m total` : null, color: "#8B5CF6" },
+    { label: "TOTAL GROSS PAY",     value: formatCurrency(summary.totalAmount),   sub: null, color: ORANGE, dark: true },
+  ];
+  for (let i = 0; i < boxes.length; i++) {
+    const bx = MARGIN + i * (boxW + 8);
+    const bh = 56;
+    doc.rect(bx, y, boxW, bh).fill(boxes[i].dark ? BLUE : boxes[i].color + "14");
+    doc.rect(bx, y, boxW, 3).fill(boxes[i].color);
+    doc.fillColor(boxes[i].dark ? "#BBDEFB" : MUTED).fontSize(7.5).font("Helvetica")
+      .text(boxes[i].label, bx + 8, y + 10, { lineBreak: false });
+    doc.fillColor(boxes[i].dark ? ORANGE : boxes[i].color).fontSize(14).font("Helvetica-Bold")
+      .text(boxes[i].value, bx + 8, y + 22, { width: boxW - 16, lineBreak: false });
+    if (boxes[i].sub) {
+      doc.fillColor(boxes[i].dark ? "#93C5FD" : MUTED).fontSize(7.5).font("Helvetica")
+        .text(boxes[i].sub!, bx + 8, y + 40, { lineBreak: false });
+    }
+  }
+  doc.fillColor(DARK).font("Helvetica");
+  y += 68;
+
+  // Piece work breakdown if applicable
+  if (summary.metersAt25 > 0 || summary.metersAt30 > 0) {
+    y = infoGrid(doc, [
+      ["Meters @ R25/m", summary.metersAt25 > 0 ? `${summary.metersAt25.toFixed(0)} m` : "—"],
+      ["Meters @ R30/m", summary.metersAt30 > 0 ? `${summary.metersAt30.toFixed(0)} m` : "—"],
+    ], y, 4);
+  }
+
+  y = rule(doc, y);
+
+  const hourlyEntries = entries.filter(e => e.payrollType === "hourly").sort((a, b) => a.date < b.date ? -1 : 1);
+  const pieceEntries  = entries.filter(e => e.payrollType === "piece_work").sort((a, b) => a.date < b.date ? -1 : 1);
+
+  // Hourly entries table
+  if (hourlyEntries.length > 0) {
+    y = ensureSpace(doc, y, 50, subtitle);
+    y = sectionBar(doc, `HOURLY ENTRIES — ${hourlyEntries.length}`, y);
+
+    const HCOLS = [70, 95, 60, 60, 60, 60, 110];
+    const HHDRS = ["Date", "Clock In/Out", "Hours", "Lunch", "Rate", "Amount", "Job"];
+    const HROW  = 19;
+    const HHEAD = 21;
+
+    const drawHHead = (ty: number): number => {
+      let x = MARGIN;
+      doc.rect(MARGIN, ty, CONTENT_W, HHEAD).fill(BLUE);
+      for (let i = 0; i < HHDRS.length; i++) {
+        doc.fillColor(WHITE).fontSize(7.5).font("Helvetica-Bold")
+          .text(HHDRS[i], x + 3, ty + 8, { width: HCOLS[i] - 4, lineBreak: false });
+        x += HCOLS[i];
+      }
+      doc.fillColor(DARK).font("Helvetica");
+      return ty + HHEAD;
+    };
+
+    y = drawHHead(y);
+
+    for (let ri = 0; ri < hourlyEntries.length; ri++) {
+      if (y + HROW > SAFE_BOTTOM - 20) {
+        doc.addPage(); drawHeader(doc, subtitle); y = HEADER_H + 16; y = drawHHead(y);
+      }
+      const e = hourlyEntries[ri];
+      doc.rect(MARGIN, y, CONTENT_W, HROW).fill(ri % 2 === 0 ? WHITE : LIGHT);
+      const lunchStr = e.lunchBreakTaken ? "Yes (30 min)" : "No";
+      const vals = [
+        { t: formatDate(e.date),   c: DARK },
+        { t: `${e.clockIn ?? "—"} – ${e.clockOut ?? "—"}`, c: MUTED },
+        { t: e.hoursWorked ? Number(e.hoursWorked).toFixed(2) + " h" : "—", c: DARK },
+        { t: lunchStr, c: e.lunchBreakTaken ? MUTED : "#F59E0B" },
+        { t: e.rateUsed ? `R${e.rateUsed}/hr` : "—", c: MUTED },
+        { t: formatCurrency(e.amountPayable ? Number(e.amountPayable) : 0), c: "#2563EB" },
+        { t: e.jobNumber ? `${e.jobNumber}` : (e.jobName ?? "—"), c: MUTED },
+      ];
+      let x = MARGIN;
+      for (let ci = 0; ci < vals.length; ci++) {
+        doc.fillColor(vals[ci].c).fontSize(8.5).font("Helvetica")
+          .text(vals[ci].t, x + 3, y + 5, { width: HCOLS[ci] - 4, lineBreak: false });
+        x += HCOLS[ci];
+      }
+      y += HROW;
+    }
+    y += 10;
+  }
+
+  // Piece work entries table
+  if (pieceEntries.length > 0) {
+    y = ensureSpace(doc, y, 50, subtitle);
+    y = sectionBar(doc, `PIECE WORK ENTRIES — ${pieceEntries.length}`, y);
+
+    const PCOLS = [70, 90, 65, 65, 65, 60, 100];
+    const PHDRS = ["Date", "Job", "Meters", "Rate", "Status", "Amount", "Chainage"];
+    const PROW  = 19;
+    const PHEAD = 21;
+
+    const drawPHead = (ty: number): number => {
+      let x = MARGIN;
+      doc.rect(MARGIN, ty, CONTENT_W, PHEAD).fill("#6D28D9");
+      for (let i = 0; i < PHDRS.length; i++) {
+        doc.fillColor(WHITE).fontSize(7.5).font("Helvetica-Bold")
+          .text(PHDRS[i], x + 3, ty + 8, { width: PCOLS[i] - 4, lineBreak: false });
+        x += PCOLS[i];
+      }
+      doc.fillColor(DARK).font("Helvetica");
+      return ty + PHEAD;
+    };
+
+    y = drawPHead(y);
+
+    for (let ri = 0; ri < pieceEntries.length; ri++) {
+      if (y + PROW > SAFE_BOTTOM - 20) {
+        doc.addPage(); drawHeader(doc, subtitle); y = HEADER_H + 16; y = drawPHead(y);
+      }
+      const e = pieceEntries[ri];
+      const isComplete = e.status === "complete";
+      doc.rect(MARGIN, y, CONTENT_W, PROW).fill(ri % 2 === 0 ? WHITE : LIGHT);
+      const chainageStr = e.startChainage && e.endChainage
+        ? `${Number(e.startChainage).toFixed(0)}–${Number(e.endChainage).toFixed(0)} m`
+        : "—";
+      const vals = [
+        { t: formatDate(e.date),  c: DARK },
+        { t: e.jobNumber ?? (e.jobName ?? "—"), c: MUTED },
+        { t: e.metersCompleted ? Number(e.metersCompleted).toFixed(0) + " m" : "—", c: DARK },
+        { t: e.rateUsed ? `R${e.rateUsed}/m` : "—", c: MUTED },
+        { t: isComplete ? "✓ Complete" : "Open", c: isComplete ? GREEN : ORANGE },
+        { t: isComplete ? formatCurrency(Number(e.amountPayable ?? 0)) : "—", c: "#8B5CF6" },
+        { t: chainageStr, c: MUTED },
+      ];
+      let x = MARGIN;
+      for (let ci = 0; ci < vals.length; ci++) {
+        doc.fillColor(vals[ci].c).fontSize(8.5).font("Helvetica")
+          .text(vals[ci].t, x + 3, y + 5, { width: PCOLS[ci] - 4, lineBreak: false });
+        x += PCOLS[ci];
+      }
+      y += PROW;
+    }
+    y += 10;
+  }
+
+  addFooters(doc);
+  doc.end();
+}
+
+// ── 3. Job Payroll Cost PDF ───────────────────────────────────────────────────
+export function generateJobPayrollCostPDF(
+  job: any,
+  rows: any[],
+  startDate: string,
+  endDate: string,
+  res: Response
+): void {
+  const doc = new PDFDocument({ size: "A4", bufferPages: true });
+  const filename = `Payroll-Job-${job.jobNumber ?? "JOB"}-${startDate || "all"}-${endDate || "all"}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Cache-Control", "no-cache");
+  doc.pipe(res);
+
+  const subtitle = "JOB PAYROLL COST REPORT";
+  drawHeader(doc, subtitle);
+  let y = HEADER_H + 16;
+
+  doc.fillColor(DARK).fontSize(20).font("Helvetica-Bold").text("JOB PAYROLL COST REPORT", MARGIN, y);
+  y += 30;
+  const periodStr = startDate && endDate ? `${formatDate(startDate)} – ${formatDate(endDate)}` : "All dates";
+  doc.fillColor(MUTED).fontSize(9).font("Helvetica")
+    .text(`Generated: ${new Date().toLocaleDateString("en-ZA", { dateStyle: "medium" })}  ·  Period: ${periodStr}`, MARGIN, y);
+  y += 22;
+  y = rule(doc, y);
+
+  const totalLabour = rows.reduce((s, r) => s + (r.totalAmount ?? 0), 0);
+
+  y = sectionBar(doc, "JOB DETAILS", y);
+  y = infoGrid(doc, [
+    ["Job Number",       job.jobNumber ?? "—"],
+    ["Project Name",     job.projectName ?? "—"],
+    ["Client",           job.clientName ?? "—"],
+    ["Site Address",     job.siteAddress ?? "—"],
+    ["Contract Value",   formatCurrency(job.contractValue)],
+    ["Status",           (job.status ?? "").replace(/_/g, " ").toUpperCase()],
+  ], y, 2);
+
+  // Labour cost summary banner
+  doc.rect(MARGIN, y, CONTENT_W, 34).fill(BLUE);
+  doc.fillColor(WHITE).fontSize(10).font("Helvetica-Bold")
+    .text(`TOTAL LABOUR COST — ${rows.length} WORKER${rows.length !== 1 ? "S" : ""}`, MARGIN + 10, y + 12, { lineBreak: false });
+  doc.fillColor(ORANGE).fontSize(14).font("Helvetica-Bold")
+    .text(formatCurrency(totalLabour), 0, y + 10, { align: "right", width: PAGE_W - MARGIN - 10 });
+  doc.fillColor(DARK).font("Helvetica");
+  y += 44;
+
+  y = rule(doc, y);
+  y = sectionBar(doc, `LABOUR BREAKDOWN BY EMPLOYEE — ${periodStr}`, y);
+  doc.y = y;
+  drawPayrollTable(doc, rows, subtitle);
+
+  // Labour vs contract value
+  if (job.contractValue) {
+    const cv = Number(job.contractValue);
+    if (!isNaN(cv) && cv > 0) {
+      y = doc.y;
+      y = ensureSpace(doc, y, 60, subtitle);
+      y = rule(doc, y);
+      y = sectionBar(doc, "COST ANALYSIS", y);
+      const labourPct = totalLabour / cv * 100;
+      y = infoGrid(doc, [
+        ["Contract Value",      formatCurrency(cv)],
+        ["Total Labour Cost",   formatCurrency(totalLabour)],
+        ["Labour as % of Contract", `${labourPct.toFixed(1)}%`],
+        ["Remaining Budget",    formatCurrency(cv - totalLabour)],
+      ], y, 2);
+    }
+  }
+
+  addFooters(doc);
+  doc.end();
+}

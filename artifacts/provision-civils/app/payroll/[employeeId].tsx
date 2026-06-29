@@ -1,7 +1,7 @@
-import React, { useCallback } from "react";
+import React from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Platform, Share, Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
@@ -11,125 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
-
-// ─── Print/share for one employee ────────────────────────────────────────────
-function buildEmployeePrintHTML(
-  emp: { name: string; employeeNumber?: string | null; clockNumber?: string | null },
-  summary: { totalHours: number; hourlyAmount: number; metersAt25: number; metersAt30: number; totalMeters: number; pieceAmount: number; totalAmount: number },
-  entries: any[],
-  startDate: string,
-  endDate: string,
-): string {
-  const hourlyEntries = entries.filter(e => e.payrollType === "hourly");
-  const pieceEntries  = entries.filter(e => e.payrollType === "piece_work");
-
-  const hourlyRows = hourlyEntries.map(e => `
-    <tr>
-      <td>${e.date}</td>
-      <td>${e.clockIn ?? "—"} – ${e.clockOut ?? "—"}</td>
-      <td>${e.hoursWorked ? Number(e.hoursWorked).toFixed(2) + " h" : "—"}</td>
-      <td>${e.rateUsed ? "R " + e.rateUsed + "/hr" : "—"}</td>
-      <td class="highlight">R ${e.amountPayable ? Number(e.amountPayable).toFixed(2) : "0.00"}</td>
-    </tr>`).join("");
-
-  const pieceRows = pieceEntries.map(e => `
-    <tr>
-      <td>${e.date}</td>
-      <td>${e.metersCompleted ? Number(e.metersCompleted).toFixed(0) + " m" : "—"}</td>
-      <td>${e.rateUsed ? "R " + e.rateUsed + "/m" : "—"}</td>
-      <td>${e.status === "complete" ? "Complete" : "Open"}</td>
-      <td class="highlight">R ${e.amountPayable ? Number(e.amountPayable).toFixed(2) : "0.00"}</td>
-    </tr>`).join("");
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Payroll – ${emp.name}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1a1a1a; background: #fff; }
-  .header { background: #1565C0; color: #fff; padding: 20px 24px 16px; display: flex; justify-content: space-between; align-items: flex-end; }
-  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
-  .header .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-  .orange { color: #FF6F00; }
-  .body { padding: 20px 24px; }
-  .emp-info { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #f0f5ff;
-    border: 1px solid #dde3ef; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
-  .emp-info .label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 3px; }
-  .emp-info .value { font-size: 13px; font-weight: 700; color: #1565C0; }
-  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-    color: #1565C0; border-bottom: 2px solid #1565C0; padding-bottom: 4px; margin: 14px 0 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px; }
-  th { background: #1565C0; color: #fff; padding: 7px 8px; text-align: left; font-weight: 600; font-size: 9.5px;
-    text-transform: uppercase; letter-spacing: 0.4px; }
-  td { padding: 7px 8px; border-bottom: 1px solid #e8ecf0; }
-  tr:nth-child(even) td { background: #f5f8ff; }
-  td.highlight { font-weight: 700; color: #1565C0; }
-  .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
-  .total-box { border: 1px solid #dde3ef; border-radius: 8px; padding: 12px 14px; }
-  .total-box .label { font-size: 9.5px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
-  .total-box .value { font-size: 16px; font-weight: 700; color: #1565C0; }
-  .total-box.grand { background: #1565C0; border-color: #1565C0; }
-  .total-box.grand .label { color: #93c5fd; }
-  .total-box.grand .value { color: #FF6F00; font-size: 20px; }
-  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #dde3ef;
-    font-size: 9.5px; color: #94a3b8; display: flex; justify-content: space-between; }
-  @media print {
-    .header, th, tr:nth-child(even) td, .total-box.grand { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  }
-</style>
-</head>
-<body>
-<div class="header">
-  <div>
-    <h1>PROVISION <span class="orange">CIVILS</span></h1>
-    <div class="sub">Individual Payroll Summary</div>
-  </div>
-  <div style="text-align:right;font-size:11px;opacity:.9;">
-    <div><strong>Period:</strong> ${startDate} to ${endDate}</div>
-    <div><strong>Generated:</strong> ${new Date().toLocaleDateString("en-ZA", { dateStyle: "medium" })}</div>
-  </div>
-</div>
-
-<div class="body">
-  <div class="section-title">Employee Details</div>
-  <div class="emp-info">
-    <div><div class="label">Full Name</div><div class="value">${emp.name}</div></div>
-    <div><div class="label">Employee Number</div><div class="value">${emp.employeeNumber ?? "—"}</div></div>
-    <div><div class="label">Clock Number</div><div class="value">${emp.clockNumber ?? "—"}</div></div>
-    <div><div class="label">Report Period</div><div class="value">${startDate} – ${endDate}</div></div>
-  </div>
-
-  ${hourlyRows ? `
-  <div class="section-title">Hourly Labour Entries</div>
-  <table>
-    <thead><tr><th>Date</th><th>Clock In/Out</th><th>Hours</th><th>Rate</th><th>Amount</th></tr></thead>
-    <tbody>${hourlyRows}</tbody>
-  </table>` : ""}
-
-  ${pieceRows ? `
-  <div class="section-title">Piece Work Entries</div>
-  <table>
-    <thead><tr><th>Date</th><th>Meters</th><th>Rate</th><th>Status</th><th>Amount</th></tr></thead>
-    <tbody>${pieceRows}</tbody>
-  </table>` : ""}
-
-  <div class="section-title">Earnings Summary</div>
-  <div class="totals">
-    <div class="total-box"><div class="label">Hourly Earnings</div><div class="value">R ${summary.hourlyAmount.toFixed(2)}</div></div>
-    <div class="total-box"><div class="label">Piece Work Earnings</div><div class="value">R ${summary.pieceAmount.toFixed(2)}</div></div>
-    <div class="total-box grand"><div class="label">Total Gross Pay</div><div class="value">R ${summary.totalAmount.toFixed(2)}</div></div>
-  </div>
-
-  <div class="footer">
-    <span>Provision Civils (Pty) Ltd — Confidential Payroll Document</span>
-    <span>Printed: ${new Date().toLocaleString("en-ZA")}</span>
-  </div>
-</div>
-</body>
-</html>`;
-}
+import { usePdfExport } from "@/hooks/usePdfExport";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function EmployeePayrollScreen() {
@@ -151,6 +33,7 @@ export default function EmployeePayrollScreen() {
     { query: { queryKey: getGetPayrollEntriesQueryKey(summaryParams) } },
   );
 
+  const { isExporting, exportPdf } = usePdfExport();
   const s = makeStyles(colors);
 
   // Admin-only
@@ -169,40 +52,6 @@ export default function EmployeePayrollScreen() {
   const hourlyEntries = entries?.filter((e: any) => e.payrollType === "hourly") ?? [];
   const pieceEntries  = entries?.filter((e: any) => e.payrollType === "piece_work") ?? [];
 
-  const handlePrint = useCallback(async () => {
-    if (!summary) { Alert.alert("No Data", "No payroll data to print."); return; }
-    const html = buildEmployeePrintHTML(
-      { name: summary.employeeName, employeeNumber: summary.employeeNumber, clockNumber: summary.clockNumber },
-      summary,
-      entries ?? [],
-      startDate,
-      endDate,
-    );
-    if (Platform.OS === "web") {
-      const win = window.open("", "_blank");
-      if (win) { win.document.write(html); win.document.close(); win.focus(); win.print(); }
-    } else {
-      const lines = [
-        "PROVISION CIVILS – INDIVIDUAL PAYROLL SUMMARY",
-        `Employee: ${summary.employeeName}`,
-        `Emp#: ${summary.employeeNumber ?? "—"}   Clock#: ${summary.clockNumber ?? "—"}`,
-        `Period: ${startDate} to ${endDate}`,
-        "─".repeat(50),
-        "",
-        summary.totalHours > 0 ? `Hourly Hours:   ${summary.totalHours.toFixed(2)} h` : "",
-        summary.totalHours > 0 ? `Hourly Pay:     R ${summary.hourlyAmount.toFixed(2)}` : "",
-        summary.metersAt25 > 0 ? `Meters @ R25:   ${summary.metersAt25.toFixed(0)} m` : "",
-        summary.metersAt30 > 0 ? `Meters @ R30:   ${summary.metersAt30.toFixed(0)} m` : "",
-        summary.totalMeters > 0 ? `Piece Work Pay: R ${summary.pieceAmount.toFixed(2)}` : "",
-        "",
-        `TOTAL GROSS PAY: R ${summary.totalAmount.toFixed(2)}`,
-        "",
-        `Generated: ${new Date().toLocaleString("en-ZA")}`,
-      ].filter(l => l !== "").join("\n");
-      await Share.share({ title: `Payroll – ${summary.employeeName}`, message: lines });
-    }
-  }, [summary, entries, startDate, endDate]);
-
   return (
     <View style={s.container}>
       {/* Header */}
@@ -218,12 +67,20 @@ export default function EmployeePayrollScreen() {
             {startDate} → {endDate}
           </Text>
         </View>
+        {isExporting && <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 4 }} />}
         <TouchableOpacity
-          style={[s.printBtn, { backgroundColor: colors.primary }]}
-          onPress={handlePrint}
+          style={[s.printBtn, { backgroundColor: colors.primary, opacity: isExporting ? 0.6 : 1 }]}
+          onPress={() => {
+            if (!summary) return;
+            exportPdf({
+              endpoint: `/api/payroll/pdf/employee/${employeeId}?startDate=${startDate}&endDate=${endDate}`,
+              filename: `Payroll-${summary.employeeName.replace(/[^a-z0-9]/gi, "-")}-${startDate}-${endDate}.pdf`,
+            });
+          }}
+          disabled={isExporting}
         >
-          <Feather name="printer" size={15} color="#FFF" />
-          <Text style={s.printBtnText}>Print</Text>
+          <Feather name="file-text" size={15} color="#FFF" />
+          <Text style={s.printBtnText}>Export PDF</Text>
         </TouchableOpacity>
       </View>
 

@@ -6,6 +6,7 @@ export default function PayrollLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="[employeeId]" />
+      <Stack.Screen name="job/[jobId]" />
     </Stack>
   );
 }

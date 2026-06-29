@@ -1225,7 +1225,8 @@ export const DeleteLeaveResponse = zod.void()
 export const GetPayrollSummaryQueryParams = zod.object({
   "startDate": zod.coerce.string().optional(),
   "endDate": zod.coerce.string().optional(),
-  "employeeId": zod.coerce.number().optional()
+  "employeeId": zod.coerce.number().optional(),
+  "jobId": zod.coerce.number().optional()
 })
 
 export const GetPayrollSummaryResponseItem = zod.object({
@@ -1251,7 +1252,8 @@ export const GetPayrollSummaryResponse = zod.array(GetPayrollSummaryResponseItem
 export const GetPayrollEntriesQueryParams = zod.object({
   "startDate": zod.coerce.string().optional(),
   "endDate": zod.coerce.string().optional(),
-  "employeeId": zod.coerce.number().optional()
+  "employeeId": zod.coerce.number().optional(),
+  "jobId": zod.coerce.number().optional()
 })
 
 export const GetPayrollEntriesResponseItem = zod.object({

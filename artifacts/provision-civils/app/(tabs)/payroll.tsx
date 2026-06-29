@@ -1,14 +1,15 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, TextInput, Platform, Share, Alert,
+  ActivityIndicator, TextInput,
 } from "react-native";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
-import { useGetPayrollSummary, useGetPayrollEntries, getGetPayrollSummaryQueryKey } from "@workspace/api-client-react";
+import { useGetPayrollSummary, getGetPayrollSummaryQueryKey } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePdfExport } from "@/hooks/usePdfExport";
 
 // ─── Payroll period helpers (26th → 25th cycle) ──────────────────────────────
 function fmt(d: Date) {
@@ -48,157 +49,12 @@ function buildPayrollPeriods(count = 6): PayrollPeriod[] {
 
 type Period = "custom" | string; // period key = start date string, or "custom"
 
-// ─── CSV generator ───────────────────────────────────────────────────────────
-function buildCSV(rows: any[], startDate: string, endDate: string): string {
-  const headers = [
-    "Employee Name", "Employee Number", "Clock Number",
-    "Hours Worked", "Hourly Pay (R)",
-    "Meters @ R25", "Meters @ R30", "Total Meters",
-    "Piece Work Pay (R)", "Gross Pay (R)",
-  ];
-  const totals = {
-    hours:  rows.reduce((s, r) => s + r.totalHours, 0),
-    hourly: rows.reduce((s, r) => s + r.hourlyAmount, 0),
-    m25:    rows.reduce((s, r) => s + r.metersAt25, 0),
-    m30:    rows.reduce((s, r) => s + r.metersAt30, 0),
-    meters: rows.reduce((s, r) => s + r.totalMeters, 0),
-    piece:  rows.reduce((s, r) => s + r.pieceAmount, 0),
-    gross:  rows.reduce((s, r) => s + r.totalAmount, 0),
-  };
-  const q = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
-  const lines = [
-    [`"PROVISION CIVILS – PAYROLL REPORT"`, `"Period: ${startDate} to ${endDate}"`],
-    [],
-    headers.map(q),
-    ...rows.map(r => [
-      q(r.employeeName), q(r.employeeNumber ?? ""), q(r.clockNumber ?? ""),
-      q(r.totalHours.toFixed(2)), q(r.hourlyAmount.toFixed(2)),
-      q(r.metersAt25.toFixed(0)), q(r.metersAt30.toFixed(0)),
-      q(r.totalMeters.toFixed(0)),
-      q(r.pieceAmount.toFixed(2)), q(r.totalAmount.toFixed(2)),
-    ]),
-    [],
-    [q("TOTAL"), q(""), q(""),
-     q(totals.hours.toFixed(2)), q(totals.hourly.toFixed(2)),
-     q(totals.m25.toFixed(0)), q(totals.m30.toFixed(0)), q(totals.meters.toFixed(0)),
-     q(totals.piece.toFixed(2)), q(totals.gross.toFixed(2))],
-  ];
-  return lines.map(row => row.join(",")).join("\n");
-}
-
-// ─── HTML/Print generator ────────────────────────────────────────────────────
-function buildPrintHTML(rows: any[], startDate: string, endDate: string): string {
-  const totalEmployees = rows.length;
-  const grandHourly = rows.reduce((s, r) => s + r.hourlyAmount, 0);
-  const grandPiece  = rows.reduce((s, r) => s + r.pieceAmount, 0);
-  const grandTotal  = rows.reduce((s, r) => s + r.totalAmount, 0);
-  const employeeRows = rows.map(r => `
-    <tr>
-      <td>${r.employeeName}</td>
-      <td>${r.employeeNumber ?? "—"}</td>
-      <td>${r.clockNumber ?? "—"}</td>
-      <td>${r.totalHours > 0 ? r.totalHours.toFixed(1) + " h" : "—"}</td>
-      <td>${r.hourlyAmount > 0 ? "R " + r.hourlyAmount.toFixed(2) : "—"}</td>
-      <td>${r.metersAt25 > 0 ? r.metersAt25.toFixed(0) + " m" : "—"}</td>
-      <td>${r.metersAt30 > 0 ? r.metersAt30.toFixed(0) + " m" : "—"}</td>
-      <td>${r.totalMeters > 0 ? r.totalMeters.toFixed(0) + " m" : "—"}</td>
-      <td>${r.pieceAmount > 0 ? "R " + r.pieceAmount.toFixed(2) : "—"}</td>
-      <td class="highlight">R ${r.totalAmount.toFixed(2)}</td>
-    </tr>`).join("");
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Provision Civils – Payroll Report</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1a1a1a; background: #fff; }
-  .header { background: #1565C0; color: #fff; padding: 20px 24px 16px; display: flex; justify-content: space-between; align-items: flex-end; }
-  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
-  .header .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-  .header .period { text-align: right; font-size: 11px; opacity: 0.9; }
-  .orange { color: #FF6F00; }
-  .body { padding: 20px 24px; }
-  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-    color: #1565C0; border-bottom: 2px solid #1565C0; padding-bottom: 4px; margin: 16px 0 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-  th { background: #1565C0; color: #fff; padding: 7px 8px; text-align: left; font-weight: 600; font-size: 9.5px;
-    text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
-  td { padding: 7px 8px; border-bottom: 1px solid #e8ecf0; vertical-align: middle; }
-  tr:nth-child(even) td { background: #f5f8ff; }
-  td.highlight { font-weight: 700; color: #1565C0; }
-  .totals { margin-top: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .total-box { border: 1px solid #dde3ef; border-radius: 8px; padding: 12px 14px; }
-  .total-box .label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 4px; }
-  .total-box .value { font-size: 17px; font-weight: 700; color: #1565C0; }
-  .total-box.grand .value { color: #15803d; font-size: 20px; }
-  .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #dde3ef;
-    font-size: 9.5px; color: #94a3b8; display: flex; justify-content: space-between; }
-  @media print {
-    .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    tr:nth-child(even) td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .total-box { break-inside: avoid; }
-  }
-</style>
-</head>
-<body>
-<div class="header">
-  <div>
-    <h1>PROVISION <span class="orange">CIVILS</span></h1>
-    <div class="sub">Payroll Report</div>
-  </div>
-  <div class="period">
-    <div><strong>Period:</strong> ${startDate} to ${endDate}</div>
-    <div><strong>Generated:</strong> ${new Date().toLocaleDateString("en-ZA", { dateStyle: "medium" })}</div>
-  </div>
-</div>
-
-<div class="body">
-  <div class="section-title">Employee Payroll Summary</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Employee Name</th><th>Emp #</th><th>Clock #</th>
-        <th>Hours</th><th>Hourly Pay</th>
-        <th>Meters @ R25</th><th>Meters @ R30</th><th>Total Meters</th>
-        <th>Piece Pay</th><th>Gross Pay</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${employeeRows}
-      <tr style="background:#1565C0 !important;">
-        <td colspan="3" style="color:#fff;font-weight:700;background:#1565C0">TOTAL (${totalEmployees} employees)</td>
-        <td style="color:#fff;background:#1565C0">—</td>
-        <td style="color:#fff;font-weight:700;background:#1565C0">R ${grandHourly.toFixed(2)}</td>
-        <td colspan="3" style="background:#1565C0"></td>
-        <td style="color:#fff;font-weight:700;background:#1565C0">R ${grandPiece.toFixed(2)}</td>
-        <td style="color:#FF6F00;font-weight:700;font-size:12px;background:#1565C0">R ${grandTotal.toFixed(2)}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="totals">
-    <div class="total-box"><div class="label">Total Employees</div><div class="value">${totalEmployees}</div></div>
-    <div class="total-box"><div class="label">Total Hourly Payroll</div><div class="value">R ${grandHourly.toFixed(2)}</div></div>
-    <div class="total-box"><div class="label">Total Piece Work Payroll</div><div class="value">R ${grandPiece.toFixed(2)}</div></div>
-    <div class="total-box grand"><div class="label">Grand Total Payroll</div><div class="value">R ${grandTotal.toFixed(2)}</div></div>
-  </div>
-
-  <div class="footer">
-    <span>Provision Civils (Pty) Ltd — Confidential Payroll Document</span>
-    <span>Printed: ${new Date().toLocaleString("en-ZA")}</span>
-  </div>
-</div>
-</body>
-</html>`;
-}
-
 // ─── Main screen ─────────────────────────────────────────────────────────────
 export default function PayrollScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { isExporting, exportPdf } = usePdfExport();
 
   const PERIODS = React.useMemo(() => buildPayrollPeriods(6), []);
 
@@ -236,59 +92,6 @@ export default function PayrollScreen() {
   const grandPiece     = summary?.reduce((s, r) => s + r.pieceAmount,  0) ?? 0;
   const grandTotal     = summary?.reduce((s, r) => s + r.totalAmount,  0) ?? 0;
 
-  // ── Export CSV ────────────────────────────────────────────────────────────
-  const handleExportCSV = useCallback(async () => {
-    if (!summary?.length) { Alert.alert("No Data", "No payroll data to export for this period."); return; }
-    const csv = buildCSV(summary, startDate, endDate);
-    const filename = `payroll_${startDate}_${endDate}.csv`;
-
-    if (Platform.OS === "web") {
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
-    } else {
-      await Share.share({ title: filename, message: csv });
-    }
-  }, [summary, startDate, endDate]);
-
-  // ── Print / PDF ────────────────────────────────────────────────────────────
-  const handlePrint = useCallback(async () => {
-    if (!summary?.length) { Alert.alert("No Data", "No payroll data to print for this period."); return; }
-    const html = buildPrintHTML(summary, startDate, endDate);
-
-    if (Platform.OS === "web") {
-      const win = window.open("", "_blank");
-      if (win) { win.document.write(html); win.document.close(); win.focus(); win.print(); }
-    } else {
-      // Native: share as formatted text report
-      const lines = [
-        "PROVISION CIVILS – PAYROLL REPORT",
-        `Period: ${startDate} to ${endDate}`,
-        "─".repeat(60),
-        "",
-        ...(summary ?? []).map(r =>
-          `${r.employeeName.padEnd(25)} Emp#: ${(r.employeeNumber ?? "—").padEnd(8)} Clock: ${r.clockNumber ?? "—"}\n` +
-          (r.totalHours > 0 ? `  Hourly: ${r.totalHours.toFixed(1)}h = R ${r.hourlyAmount.toFixed(2)}\n` : "") +
-          (r.totalMeters > 0
-            ? `  Piece: ${r.metersAt25 > 0 ? `${r.metersAt25.toFixed(0)}m@R25 ` : ""}${r.metersAt30 > 0 ? `${r.metersAt30.toFixed(0)}m@R30 ` : ""}= R ${r.pieceAmount.toFixed(2)}\n`
-            : "") +
-          `  GROSS PAY: R ${r.totalAmount.toFixed(2)}`
-        ),
-        "",
-        "─".repeat(60),
-        `Total Employees    : ${totalEmployees}`,
-        `Total Hourly       : R ${grandHourly.toFixed(2)}`,
-        `Total Piece Work   : R ${grandPiece.toFixed(2)}`,
-        `GRAND TOTAL        : R ${grandTotal.toFixed(2)}`,
-        "",
-        `Generated: ${new Date().toLocaleString("en-ZA")}`,
-      ];
-      await Share.share({ title: `Payroll Report ${startDate} to ${endDate}`, message: lines.join("\n") });
-    }
-  }, [summary, startDate, endDate, totalEmployees, grandHourly, grandPiece, grandTotal]);
-
   return (
     <View style={s.container}>
       {/* ── Header ── */}
@@ -298,19 +101,17 @@ export default function PayrollScreen() {
           <Text style={[s.subtitle, { color: colors.mutedForeground }]}>Admin · Payroll Report</Text>
         </View>
         <View style={s.headerActions}>
+          {isExporting && <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 6 }} />}
           <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
-            onPress={handleExportCSV}
+            style={[s.actionBtn, { backgroundColor: colors.primary, opacity: isExporting ? 0.6 : 1 }]}
+            onPress={() => exportPdf({
+              endpoint: `/api/payroll/pdf/summary?startDate=${startDate}&endDate=${endDate}`,
+              filename: `Payroll-Summary-${startDate}-${endDate}.pdf`,
+            })}
+            disabled={isExporting}
           >
-            <Feather name="file-text" size={15} color={colors.foreground} />
-            <Text style={[s.actionBtnText, { color: colors.foreground }]}>Excel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: colors.primary }]}
-            onPress={handlePrint}
-          >
-            <Feather name="printer" size={15} color="#FFF" />
-            <Text style={[s.actionBtnText, { color: "#FFF" }]}>Print</Text>
+            <Feather name="file-text" size={15} color="#FFF" />
+            <Text style={[s.actionBtnText, { color: "#FFF" }]}>Export PDF</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -598,7 +399,7 @@ function makeStyles(colors: any) {
     cardHintText:{ fontFamily: "Inter_400Regular", fontSize: 11 },
 
     footer:     { borderTopWidth: 1, paddingHorizontal: 16, paddingTop: 14,
-                  paddingBottom: Platform.OS === "ios" ? 34 : 16 },
+                  paddingBottom: 20 },
     footerRow:  { flexDirection: "row", gap: 0 },
     footerStat: { flex: 1, alignItems: "center" },
     footerStatBorder: { borderLeftWidth: 1 },
