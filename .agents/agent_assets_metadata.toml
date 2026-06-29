@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "90XuTUgW0Sj0sbUgNvrLg"
 uri = "file://artifacts/provision-civils/assets/images/icon.png"
 type = "image"
 title = "provision-civils-app-icon"
+
+[[outputs]]
+id = "VsSnC2Ku6eKCiEqzWYO3A"
+uri = "file://provision-civils-apk.tar.gz"
+type = "unspecified"
+title = "Provision Civils APK (Android)"

@@ -16,8 +16,8 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Provision Civils uses your microphone for Afrikaans voice-to-text on daily reports.",
-        "NSSpeechRecognitionUsageDescription": "Provision Civils uses speech recognition to convert spoken Afrikaans notes into text."
+        "NSMicrophoneUsageDescription": "Allow Provision Civils to use the microphone for voice-to-text on daily reports.",
+        "NSSpeechRecognitionUsageDescription": "Allow Provision Civils to recognise speech for Afrikaans voice notes."
       }
     },
     "android": {
@@ -27,14 +27,14 @@
         "backgroundColor": "#1565C0"
       },
       "permissions": [
-        "RECORD_AUDIO",
-        "INTERNET",
-        "CAMERA",
-        "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -73,6 +73,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a6093da0-719f-4eee-86e4-a87d0059c219"
+      }
+    },
+    "owner": "marconagel"
   }
 }
