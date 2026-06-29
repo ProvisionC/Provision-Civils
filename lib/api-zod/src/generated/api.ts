@@ -331,7 +331,22 @@ export const GetJobResponse = zod.object({
   "email": zod.string(),
   "role": zod.enum(['admin', 'project_manager', 'supervisor', 'worker']),
   "phone": zod.string().nullish(),
-  "createdAt": zod.string().optional()
+  "employeeNumber": zod.string().nullish(),
+  "clockNumber": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "homeAddress": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactNumber": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "department": zod.string().nullish(),
+  "supervisorId": zod.number().nullish(),
+  "employmentStartDate": zod.string().nullish(),
+  "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']),
+  "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
+  "hourlyRate": zod.string().nullish(),
+  "meterRate": zod.string().nullish(),
+  "createdAt": zod.string()
 })),
   "materials": zod.array(zod.object({
   "id": zod.number(),
@@ -711,7 +726,22 @@ export const ListEmployeesResponseItem = zod.object({
   "email": zod.string(),
   "role": zod.enum(['admin', 'project_manager', 'supervisor', 'worker']),
   "phone": zod.string().nullish(),
-  "createdAt": zod.string().optional()
+  "employeeNumber": zod.string().nullish(),
+  "clockNumber": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "homeAddress": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactNumber": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "department": zod.string().nullish(),
+  "supervisorId": zod.number().nullish(),
+  "employmentStartDate": zod.string().nullish(),
+  "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']),
+  "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
+  "hourlyRate": zod.string().nullish(),
+  "meterRate": zod.string().nullish(),
+  "createdAt": zod.string()
 })
 export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
 
@@ -724,7 +754,22 @@ export const CreateEmployeeBody = zod.object({
   "email": zod.string(),
   "role": zod.enum(['admin', 'project_manager', 'supervisor', 'worker']),
   "phone": zod.string().optional(),
-  "password": zod.string()
+  "password": zod.string(),
+  "employeeNumber": zod.string().optional(),
+  "clockNumber": zod.string().optional(),
+  "idNumber": zod.string().optional(),
+  "dateOfBirth": zod.string().optional(),
+  "homeAddress": zod.string().optional(),
+  "emergencyContactName": zod.string().optional(),
+  "emergencyContactNumber": zod.string().optional(),
+  "jobTitle": zod.string().optional(),
+  "department": zod.string().optional(),
+  "supervisorId": zod.number().optional(),
+  "employmentStartDate": zod.string().optional(),
+  "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']).optional(),
+  "payrollType": zod.enum(['hourly', 'piece_work']).optional(),
+  "hourlyRate": zod.number().optional(),
+  "meterRate": zod.number().optional()
 })
 
 export const CreateEmployeeResponse = zod.object({
@@ -733,7 +778,22 @@ export const CreateEmployeeResponse = zod.object({
   "email": zod.string(),
   "role": zod.enum(['admin', 'project_manager', 'supervisor', 'worker']),
   "phone": zod.string().nullish(),
-  "createdAt": zod.string().optional()
+  "employeeNumber": zod.string().nullish(),
+  "clockNumber": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "homeAddress": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactNumber": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "department": zod.string().nullish(),
+  "supervisorId": zod.number().nullish(),
+  "employmentStartDate": zod.string().nullish(),
+  "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']),
+  "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
+  "hourlyRate": zod.string().nullish(),
+  "meterRate": zod.string().nullish(),
+  "createdAt": zod.string()
 })
 
 
@@ -748,7 +808,22 @@ export const UpdateEmployeeBody = zod.object({
   "name": zod.string().optional(),
   "email": zod.string().optional(),
   "role": zod.enum(['admin', 'project_manager', 'supervisor', 'worker']).optional(),
-  "phone": zod.string().optional()
+  "phone": zod.string().optional(),
+  "employeeNumber": zod.string().optional(),
+  "clockNumber": zod.string().optional(),
+  "idNumber": zod.string().optional(),
+  "dateOfBirth": zod.string().optional(),
+  "homeAddress": zod.string().optional(),
+  "emergencyContactName": zod.string().optional(),
+  "emergencyContactNumber": zod.string().optional(),
+  "jobTitle": zod.string().optional(),
+  "department": zod.string().optional(),
+  "supervisorId": zod.number().optional(),
+  "employmentStartDate": zod.string().optional(),
+  "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']).optional(),
+  "payrollType": zod.enum(['hourly', 'piece_work']).optional(),
+  "hourlyRate": zod.number().optional(),
+  "meterRate": zod.number().optional()
 })
 
 export const UpdateEmployeeResponse = zod.object({
@@ -757,7 +832,22 @@ export const UpdateEmployeeResponse = zod.object({
   "email": zod.string(),
   "role": zod.enum(['admin', 'project_manager', 'supervisor', 'worker']),
   "phone": zod.string().nullish(),
-  "createdAt": zod.string().optional()
+  "employeeNumber": zod.string().nullish(),
+  "clockNumber": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "homeAddress": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactNumber": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "department": zod.string().nullish(),
+  "supervisorId": zod.number().nullish(),
+  "employmentStartDate": zod.string().nullish(),
+  "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']),
+  "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
+  "hourlyRate": zod.string().nullish(),
+  "meterRate": zod.string().nullish(),
+  "createdAt": zod.string()
 })
 
 
@@ -769,6 +859,349 @@ export const DeleteEmployeeParams = zod.object({
 })
 
 export const DeleteEmployeeResponse = zod.void()
+
+
+/**
+ * @summary Get employee banking details (admin only)
+ */
+export const GetEmployeeBankingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetEmployeeBankingResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "bankName": zod.string(),
+  "accountHolder": zod.string(),
+  "accountNumber": zod.string(),
+  "branchCode": zod.string(),
+  "accountType": zod.enum(['cheque', 'savings', 'transmission'])
+})
+
+
+/**
+ * @summary Create or update employee banking details (admin only)
+ */
+export const UpsertEmployeeBankingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpsertEmployeeBankingBody = zod.object({
+  "bankName": zod.string(),
+  "accountHolder": zod.string(),
+  "accountNumber": zod.string(),
+  "branchCode": zod.string(),
+  "accountType": zod.enum(['cheque', 'savings', 'transmission'])
+})
+
+export const UpsertEmployeeBankingResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "bankName": zod.string(),
+  "accountHolder": zod.string(),
+  "accountNumber": zod.string(),
+  "branchCode": zod.string(),
+  "accountType": zod.enum(['cheque', 'savings', 'transmission'])
+})
+
+
+/**
+ * @summary List labour entries
+ */
+export const ListLabourEntriesQueryParams = zod.object({
+  "jobId": zod.coerce.number().optional(),
+  "employeeId": zod.coerce.number().optional()
+})
+
+export const ListLabourEntriesResponseItem = zod.object({
+  "id": zod.number(),
+  "jobId": zod.number(),
+  "employeeId": zod.number(),
+  "date": zod.string(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "clockIn": zod.string().nullish(),
+  "clockOut": zod.string().nullish(),
+  "breakMinutes": zod.number(),
+  "hoursWorked": zod.string().nullish(),
+  "startChainage": zod.string().nullish(),
+  "endChainage": zod.string().nullish(),
+  "metersCompleted": zod.string().nullish(),
+  "rateUsed": zod.string().nullish(),
+  "amountPayable": zod.string().nullish(),
+  "status": zod.enum(['open', 'complete']),
+  "notes": zod.string().nullish(),
+  "createdById": zod.number(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+export const ListLabourEntriesResponse = zod.array(ListLabourEntriesResponseItem)
+
+
+/**
+ * @summary Create a labour entry
+ */
+export const CreateLabourEntryBody = zod.object({
+  "jobId": zod.number(),
+  "employeeId": zod.number(),
+  "date": zod.string(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "clockIn": zod.string().optional(),
+  "clockOut": zod.string().optional(),
+  "breakMinutes": zod.number().optional(),
+  "hoursWorked": zod.number().optional(),
+  "startChainage": zod.number().optional(),
+  "endChainage": zod.number().optional(),
+  "metersCompleted": zod.number().optional(),
+  "rateUsed": zod.number().optional(),
+  "amountPayable": zod.number().optional(),
+  "status": zod.enum(['open', 'complete']).optional(),
+  "notes": zod.string().optional()
+})
+
+export const CreateLabourEntryResponse = zod.object({
+  "id": zod.number(),
+  "jobId": zod.number(),
+  "employeeId": zod.number(),
+  "date": zod.string(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "clockIn": zod.string().nullish(),
+  "clockOut": zod.string().nullish(),
+  "breakMinutes": zod.number(),
+  "hoursWorked": zod.string().nullish(),
+  "startChainage": zod.string().nullish(),
+  "endChainage": zod.string().nullish(),
+  "metersCompleted": zod.string().nullish(),
+  "rateUsed": zod.string().nullish(),
+  "amountPayable": zod.string().nullish(),
+  "status": zod.enum(['open', 'complete']),
+  "notes": zod.string().nullish(),
+  "createdById": zod.number(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+
+
+/**
+ * @summary Update a labour entry
+ */
+export const UpdateLabourEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateLabourEntryBody = zod.object({
+  "date": zod.string().optional(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']).optional(),
+  "payrollType": zod.enum(['hourly', 'piece_work']).optional(),
+  "clockIn": zod.string().optional(),
+  "clockOut": zod.string().optional(),
+  "breakMinutes": zod.number().optional(),
+  "hoursWorked": zod.number().optional(),
+  "startChainage": zod.number().optional(),
+  "endChainage": zod.number().optional(),
+  "metersCompleted": zod.number().optional(),
+  "rateUsed": zod.number().optional(),
+  "amountPayable": zod.number().optional(),
+  "status": zod.enum(['open', 'complete']).optional(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateLabourEntryResponse = zod.object({
+  "id": zod.number(),
+  "jobId": zod.number(),
+  "employeeId": zod.number(),
+  "date": zod.string(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "clockIn": zod.string().nullish(),
+  "clockOut": zod.string().nullish(),
+  "breakMinutes": zod.number(),
+  "hoursWorked": zod.string().nullish(),
+  "startChainage": zod.string().nullish(),
+  "endChainage": zod.string().nullish(),
+  "metersCompleted": zod.string().nullish(),
+  "rateUsed": zod.string().nullish(),
+  "amountPayable": zod.string().nullish(),
+  "status": zod.enum(['open', 'complete']),
+  "notes": zod.string().nullish(),
+  "createdById": zod.number(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+
+
+/**
+ * @summary Delete a labour entry
+ */
+export const DeleteLabourEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteLabourEntryResponse = zod.void()
+
+
+/**
+ * @summary List leave records
+ */
+export const ListLeaveQueryParams = zod.object({
+  "employeeId": zod.coerce.number().optional()
+})
+
+export const ListLeaveResponseItem = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "leaveType": zod.enum(['annual', 'sick', 'family_responsibility', 'unpaid']),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "days": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "approvedById": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+export const ListLeaveResponse = zod.array(ListLeaveResponseItem)
+
+
+/**
+ * @summary Submit a leave request
+ */
+export const CreateLeaveBody = zod.object({
+  "employeeId": zod.number().optional(),
+  "leaveType": zod.enum(['annual', 'sick', 'family_responsibility', 'unpaid']),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "days": zod.number(),
+  "notes": zod.string().optional()
+})
+
+export const CreateLeaveResponse = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "leaveType": zod.enum(['annual', 'sick', 'family_responsibility', 'unpaid']),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "days": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "approvedById": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+
+
+/**
+ * @summary Approve or reject a leave request
+ */
+export const UpdateLeaveStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateLeaveStatusBody = zod.object({
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "notes": zod.string().optional()
+})
+
+export const UpdateLeaveStatusResponse = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "leaveType": zod.enum(['annual', 'sick', 'family_responsibility', 'unpaid']),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "days": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "approvedById": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+
+
+/**
+ * @summary Delete a leave record
+ */
+export const DeleteLeaveParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteLeaveResponse = zod.void()
+
+
+/**
+ * @summary Get payroll summary grouped by employee
+ */
+export const GetPayrollSummaryQueryParams = zod.object({
+  "startDate": zod.coerce.string().optional(),
+  "endDate": zod.coerce.string().optional(),
+  "employeeId": zod.coerce.number().optional()
+})
+
+export const GetPayrollSummaryResponseItem = zod.object({
+  "employeeId": zod.number(),
+  "employeeName": zod.string(),
+  "totalHours": zod.number(),
+  "totalMeters": zod.number(),
+  "totalAmount": zod.number(),
+  "entryCount": zod.number()
+})
+export const GetPayrollSummaryResponse = zod.array(GetPayrollSummaryResponseItem)
+
+
+/**
+ * @summary Get detailed payroll entries
+ */
+export const GetPayrollEntriesQueryParams = zod.object({
+  "startDate": zod.coerce.string().optional(),
+  "endDate": zod.coerce.string().optional(),
+  "employeeId": zod.coerce.number().optional()
+})
+
+export const GetPayrollEntriesResponseItem = zod.object({
+  "id": zod.number(),
+  "jobId": zod.number(),
+  "employeeId": zod.number(),
+  "date": zod.string(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "clockIn": zod.string().nullish(),
+  "clockOut": zod.string().nullish(),
+  "breakMinutes": zod.number(),
+  "hoursWorked": zod.string().nullish(),
+  "startChainage": zod.string().nullish(),
+  "endChainage": zod.string().nullish(),
+  "metersCompleted": zod.string().nullish(),
+  "rateUsed": zod.string().nullish(),
+  "amountPayable": zod.string().nullish(),
+  "status": zod.enum(['open', 'complete']),
+  "notes": zod.string().nullish(),
+  "createdById": zod.number(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+export const GetPayrollEntriesResponse = zod.array(GetPayrollEntriesResponseItem)
 
 
 /**

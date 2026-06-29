@@ -10,3 +10,7 @@ export * from "./daily_reports";
 export * from "./invoices";
 export * from "./notifications";
 export * from "./expenses";
+export * from "./employee_banking";
+export * from "./labour_entries";
+export * from "./leave_records";
+export * from "./employee_documents";

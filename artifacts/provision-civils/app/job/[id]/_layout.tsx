@@ -20,6 +20,7 @@ export default function JobSubLayout() {
       <Stack.Screen name="edit" options={{ title: "Edit Job" }} />
       <Stack.Screen name="reports" options={{ title: "Daily Reports" }} />
       <Stack.Screen name="expenses" options={{ title: "Expenses" }} />
+      <Stack.Screen name="labour" options={{ title: "Labour" }} />
     </Stack>
   );
 }

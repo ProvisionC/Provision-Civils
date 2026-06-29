@@ -319,6 +319,16 @@ export default function JobDetailScreen() {
             </TouchableOpacity>
           )}
 
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => router.push(`/job/${jobId}/labour` as any)}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: "#22C55E18" }]}>
+              <Feather name="users" size={20} color="#22C55E" />
+            </View>
+            <Text style={[styles.actionLabel, { color: colors.foreground }]}>Labour</Text>
+          </TouchableOpacity>
+
           {!isAdmin && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}

@@ -23,6 +23,12 @@ tags:
     description: Invoice management
   - name: notifications
     description: Notifications
+  - name: labour
+    description: Labour entry management
+  - name: leave
+    description: Employee leave management
+  - name: payroll
+    description: Payroll summaries
 
 paths:
   /healthz:
@@ -631,6 +637,274 @@ paths:
           description: Deleted
         "404":
           description: Not found
+
+  /employees/{id}/banking:
+    get:
+      operationId: getEmployeeBanking
+      tags: [employees]
+      summary: Get employee banking details (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Banking details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBanking"
+        "404":
+          description: Not found
+
+    put:
+      operationId: upsertEmployeeBanking
+      tags: [employees]
+      summary: Create or update employee banking details (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeBankingInput"
+      responses:
+        "200":
+          description: Banking details saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBanking"
+
+  /labour-entries:
+    get:
+      operationId: listLabourEntries
+      tags: [labour]
+      summary: List labour entries
+      parameters:
+        - name: jobId
+          in: query
+          schema:
+            type: integer
+        - name: employeeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Labour entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LabourEntry"
+
+    post:
+      operationId: createLabourEntry
+      tags: [labour]
+      summary: Create a labour entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LabourEntryInput"
+      responses:
+        "201":
+          description: Labour entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabourEntry"
+
+  /labour-entries/{id}:
+    put:
+      operationId: updateLabourEntry
+      tags: [labour]
+      summary: Update a labour entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LabourEntryUpdate"
+      responses:
+        "200":
+          description: Labour entry updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabourEntry"
+        "404":
+          description: Not found
+
+    delete:
+      operationId: deleteLabourEntry
+      tags: [labour]
+      summary: Delete a labour entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /leave:
+    get:
+      operationId: listLeave
+      tags: [leave]
+      summary: List leave records
+      parameters:
+        - name: employeeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Leave records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaveRecord"
+
+    post:
+      operationId: createLeave
+      tags: [leave]
+      summary: Submit a leave request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveInput"
+      responses:
+        "201":
+          description: Leave request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRecord"
+
+  /leave/{id}/status:
+    put:
+      operationId: updateLeaveStatus
+      tags: [leave]
+      summary: Approve or reject a leave request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveStatusUpdate"
+      responses:
+        "200":
+          description: Leave record updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRecord"
+        "404":
+          description: Not found
+
+  /leave/{id}:
+    delete:
+      operationId: deleteLeave
+      tags: [leave]
+      summary: Delete a leave record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /payroll/summary:
+    get:
+      operationId: getPayrollSummary
+      tags: [payroll]
+      summary: Get payroll summary grouped by employee
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+        - name: employeeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payroll summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayrollSummary"
+
+  /payroll/entries:
+    get:
+      operationId: getPayrollEntries
+      tags: [payroll]
+      summary: Get detailed payroll entries
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+        - name: employeeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payroll entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LabourEntry"
 
   /invoices:
     get:
@@ -1355,7 +1629,7 @@ components:
 
     Employee:
       type: object
-      required: [id, name, email, role]
+      required: [id, name, email, role, employmentStatus, createdAt]
       properties:
         id:
           type: integer
@@ -1367,6 +1641,38 @@ components:
           type: string
           enum: [admin, project_manager, supervisor, worker]
         phone:
+          type: ["string", "null"]
+        employeeNumber:
+          type: ["string", "null"]
+        clockNumber:
+          type: ["string", "null"]
+        idNumber:
+          type: ["string", "null"]
+        dateOfBirth:
+          type: ["string", "null"]
+        homeAddress:
+          type: ["string", "null"]
+        emergencyContactName:
+          type: ["string", "null"]
+        emergencyContactNumber:
+          type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        department:
+          type: ["string", "null"]
+        supervisorId:
+          type: ["integer", "null"]
+        employmentStartDate:
+          type: ["string", "null"]
+        employmentStatus:
+          type: string
+          enum: [active, suspended, resigned, dismissed]
+        payrollType:
+          type: ["string", "null"]
+          enum: [hourly, piece_work, "null"]
+        hourlyRate:
+          type: ["string", "null"]
+        meterRate:
           type: ["string", "null"]
         createdAt:
           type: string
@@ -1386,6 +1692,38 @@ components:
           type: string
         password:
           type: string
+        employeeNumber:
+          type: string
+        clockNumber:
+          type: string
+        idNumber:
+          type: string
+        dateOfBirth:
+          type: string
+        homeAddress:
+          type: string
+        emergencyContactName:
+          type: string
+        emergencyContactNumber:
+          type: string
+        jobTitle:
+          type: string
+        department:
+          type: string
+        supervisorId:
+          type: integer
+        employmentStartDate:
+          type: string
+        employmentStatus:
+          type: string
+          enum: [active, suspended, resigned, dismissed]
+        payrollType:
+          type: string
+          enum: [hourly, piece_work]
+        hourlyRate:
+          type: number
+        meterRate:
+          type: number
 
     EmployeeUpdate:
       type: object
@@ -1399,6 +1737,281 @@ components:
           enum: [admin, project_manager, supervisor, worker]
         phone:
           type: string
+        employeeNumber:
+          type: string
+        clockNumber:
+          type: string
+        idNumber:
+          type: string
+        dateOfBirth:
+          type: string
+        homeAddress:
+          type: string
+        emergencyContactName:
+          type: string
+        emergencyContactNumber:
+          type: string
+        jobTitle:
+          type: string
+        department:
+          type: string
+        supervisorId:
+          type: integer
+        employmentStartDate:
+          type: string
+        employmentStatus:
+          type: string
+          enum: [active, suspended, resigned, dismissed]
+        payrollType:
+          type: string
+          enum: [hourly, piece_work]
+        hourlyRate:
+          type: number
+        meterRate:
+          type: number
+
+    EmployeeBanking:
+      type: object
+      required: [id, userId, bankName, accountHolder, accountNumber, branchCode, accountType]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        bankName:
+          type: string
+        accountHolder:
+          type: string
+        accountNumber:
+          type: string
+        branchCode:
+          type: string
+        accountType:
+          type: string
+          enum: [cheque, savings, transmission]
+
+    EmployeeBankingInput:
+      type: object
+      required: [bankName, accountHolder, accountNumber, branchCode, accountType]
+      properties:
+        bankName:
+          type: string
+        accountHolder:
+          type: string
+        accountNumber:
+          type: string
+        branchCode:
+          type: string
+        accountType:
+          type: string
+          enum: [cheque, savings, transmission]
+
+    LabourEntry:
+      type: object
+      required: [id, jobId, employeeId, date, workType, payrollType, breakMinutes, status, createdById, createdAt]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        employeeId:
+          type: integer
+        date:
+          type: string
+        workType:
+          type: string
+          enum: [trenching, backfilling, cable_pulling, reinstatement, manhole_installation, concrete, other]
+        payrollType:
+          type: string
+          enum: [hourly, piece_work]
+        clockIn:
+          type: ["string", "null"]
+        clockOut:
+          type: ["string", "null"]
+        breakMinutes:
+          type: integer
+        hoursWorked:
+          type: ["string", "null"]
+        startChainage:
+          type: ["string", "null"]
+        endChainage:
+          type: ["string", "null"]
+        metersCompleted:
+          type: ["string", "null"]
+        rateUsed:
+          type: ["string", "null"]
+        amountPayable:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [open, complete]
+        notes:
+          type: ["string", "null"]
+        createdById:
+          type: integer
+        createdAt:
+          type: string
+        employee:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+
+    LabourEntryInput:
+      type: object
+      required: [jobId, employeeId, date, workType, payrollType]
+      properties:
+        jobId:
+          type: integer
+        employeeId:
+          type: integer
+        date:
+          type: string
+        workType:
+          type: string
+          enum: [trenching, backfilling, cable_pulling, reinstatement, manhole_installation, concrete, other]
+        payrollType:
+          type: string
+          enum: [hourly, piece_work]
+        clockIn:
+          type: string
+        clockOut:
+          type: string
+        breakMinutes:
+          type: integer
+        hoursWorked:
+          type: number
+        startChainage:
+          type: number
+        endChainage:
+          type: number
+        metersCompleted:
+          type: number
+        rateUsed:
+          type: number
+        amountPayable:
+          type: number
+        status:
+          type: string
+          enum: [open, complete]
+        notes:
+          type: string
+
+    LabourEntryUpdate:
+      type: object
+      properties:
+        date:
+          type: string
+        workType:
+          type: string
+          enum: [trenching, backfilling, cable_pulling, reinstatement, manhole_installation, concrete, other]
+        payrollType:
+          type: string
+          enum: [hourly, piece_work]
+        clockIn:
+          type: string
+        clockOut:
+          type: string
+        breakMinutes:
+          type: integer
+        hoursWorked:
+          type: number
+        startChainage:
+          type: number
+        endChainage:
+          type: number
+        metersCompleted:
+          type: number
+        rateUsed:
+          type: number
+        amountPayable:
+          type: number
+        status:
+          type: string
+          enum: [open, complete]
+        notes:
+          type: string
+
+    LeaveRecord:
+      type: object
+      required: [id, employeeId, leaveType, startDate, endDate, days, status, createdAt]
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        leaveType:
+          type: string
+          enum: [annual, sick, family_responsibility, unpaid]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        days:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        notes:
+          type: ["string", "null"]
+        approvedById:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        employee:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+
+    LeaveInput:
+      type: object
+      required: [leaveType, startDate, endDate, days]
+      properties:
+        employeeId:
+          type: integer
+        leaveType:
+          type: string
+          enum: [annual, sick, family_responsibility, unpaid]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        days:
+          type: number
+        notes:
+          type: string
+
+    LeaveStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        notes:
+          type: string
+
+    PayrollSummary:
+      type: object
+      required: [employeeId, employeeName, totalHours, totalMeters, totalAmount, entryCount]
+      properties:
+        employeeId:
+          type: integer
+        employeeName:
+          type: string
+        totalHours:
+          type: number
+        totalMeters:
+          type: number
+        totalAmount:
+          type: number
+        entryCount:
+          type: integer
 
     Invoice:
       type: object

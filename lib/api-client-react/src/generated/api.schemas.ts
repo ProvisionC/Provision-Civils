@@ -219,6 +219,28 @@ export const EmployeeRole = {
   worker: 'worker',
 } as const;
 
+export type EmployeeEmploymentStatus = typeof EmployeeEmploymentStatus[keyof typeof EmployeeEmploymentStatus];
+
+
+export const EmployeeEmploymentStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  resigned: 'resigned',
+  dismissed: 'dismissed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type EmployeePayrollType = typeof EmployeePayrollType[keyof typeof EmployeePayrollType] | null;
+
+
+export const EmployeePayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+  null: 'null',
+} as const;
+
 export interface Employee {
   id: number;
   name: string;
@@ -226,7 +248,36 @@ export interface Employee {
   role: EmployeeRole;
   /** @nullable */
   phone?: string | null;
-  createdAt?: string;
+  /** @nullable */
+  employeeNumber?: string | null;
+  /** @nullable */
+  clockNumber?: string | null;
+  /** @nullable */
+  idNumber?: string | null;
+  /** @nullable */
+  dateOfBirth?: string | null;
+  /** @nullable */
+  homeAddress?: string | null;
+  /** @nullable */
+  emergencyContactName?: string | null;
+  /** @nullable */
+  emergencyContactNumber?: string | null;
+  /** @nullable */
+  jobTitle?: string | null;
+  /** @nullable */
+  department?: string | null;
+  /** @nullable */
+  supervisorId?: number | null;
+  /** @nullable */
+  employmentStartDate?: string | null;
+  employmentStatus: EmployeeEmploymentStatus;
+  /** @nullable */
+  payrollType?: EmployeePayrollType;
+  /** @nullable */
+  hourlyRate?: string | null;
+  /** @nullable */
+  meterRate?: string | null;
+  createdAt: string;
 }
 
 export interface JobMaterial {
@@ -492,12 +543,45 @@ export const EmployeeInputRole = {
   worker: 'worker',
 } as const;
 
+export type EmployeeInputEmploymentStatus = typeof EmployeeInputEmploymentStatus[keyof typeof EmployeeInputEmploymentStatus];
+
+
+export const EmployeeInputEmploymentStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  resigned: 'resigned',
+  dismissed: 'dismissed',
+} as const;
+
+export type EmployeeInputPayrollType = typeof EmployeeInputPayrollType[keyof typeof EmployeeInputPayrollType];
+
+
+export const EmployeeInputPayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+} as const;
+
 export interface EmployeeInput {
   name: string;
   email: string;
   role: EmployeeInputRole;
   phone?: string;
   password: string;
+  employeeNumber?: string;
+  clockNumber?: string;
+  idNumber?: string;
+  dateOfBirth?: string;
+  homeAddress?: string;
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  jobTitle?: string;
+  department?: string;
+  supervisorId?: number;
+  employmentStartDate?: string;
+  employmentStatus?: EmployeeInputEmploymentStatus;
+  payrollType?: EmployeeInputPayrollType;
+  hourlyRate?: number;
+  meterRate?: number;
 }
 
 export type EmployeeUpdateRole = typeof EmployeeUpdateRole[keyof typeof EmployeeUpdateRole];
@@ -510,11 +594,322 @@ export const EmployeeUpdateRole = {
   worker: 'worker',
 } as const;
 
+export type EmployeeUpdateEmploymentStatus = typeof EmployeeUpdateEmploymentStatus[keyof typeof EmployeeUpdateEmploymentStatus];
+
+
+export const EmployeeUpdateEmploymentStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  resigned: 'resigned',
+  dismissed: 'dismissed',
+} as const;
+
+export type EmployeeUpdatePayrollType = typeof EmployeeUpdatePayrollType[keyof typeof EmployeeUpdatePayrollType];
+
+
+export const EmployeeUpdatePayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+} as const;
+
 export interface EmployeeUpdate {
   name?: string;
   email?: string;
   role?: EmployeeUpdateRole;
   phone?: string;
+  employeeNumber?: string;
+  clockNumber?: string;
+  idNumber?: string;
+  dateOfBirth?: string;
+  homeAddress?: string;
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  jobTitle?: string;
+  department?: string;
+  supervisorId?: number;
+  employmentStartDate?: string;
+  employmentStatus?: EmployeeUpdateEmploymentStatus;
+  payrollType?: EmployeeUpdatePayrollType;
+  hourlyRate?: number;
+  meterRate?: number;
+}
+
+export type EmployeeBankingAccountType = typeof EmployeeBankingAccountType[keyof typeof EmployeeBankingAccountType];
+
+
+export const EmployeeBankingAccountType = {
+  cheque: 'cheque',
+  savings: 'savings',
+  transmission: 'transmission',
+} as const;
+
+export interface EmployeeBanking {
+  id: number;
+  userId: number;
+  bankName: string;
+  accountHolder: string;
+  accountNumber: string;
+  branchCode: string;
+  accountType: EmployeeBankingAccountType;
+}
+
+export type EmployeeBankingInputAccountType = typeof EmployeeBankingInputAccountType[keyof typeof EmployeeBankingInputAccountType];
+
+
+export const EmployeeBankingInputAccountType = {
+  cheque: 'cheque',
+  savings: 'savings',
+  transmission: 'transmission',
+} as const;
+
+export interface EmployeeBankingInput {
+  bankName: string;
+  accountHolder: string;
+  accountNumber: string;
+  branchCode: string;
+  accountType: EmployeeBankingInputAccountType;
+}
+
+export type LabourEntryWorkType = typeof LabourEntryWorkType[keyof typeof LabourEntryWorkType];
+
+
+export const LabourEntryWorkType = {
+  trenching: 'trenching',
+  backfilling: 'backfilling',
+  cable_pulling: 'cable_pulling',
+  reinstatement: 'reinstatement',
+  manhole_installation: 'manhole_installation',
+  concrete: 'concrete',
+  other: 'other',
+} as const;
+
+export type LabourEntryPayrollType = typeof LabourEntryPayrollType[keyof typeof LabourEntryPayrollType];
+
+
+export const LabourEntryPayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+} as const;
+
+export type LabourEntryStatus = typeof LabourEntryStatus[keyof typeof LabourEntryStatus];
+
+
+export const LabourEntryStatus = {
+  open: 'open',
+  complete: 'complete',
+} as const;
+
+export type LabourEntryEmployee = {
+  id?: number;
+  name?: string;
+};
+
+export interface LabourEntry {
+  id: number;
+  jobId: number;
+  employeeId: number;
+  date: string;
+  workType: LabourEntryWorkType;
+  payrollType: LabourEntryPayrollType;
+  /** @nullable */
+  clockIn?: string | null;
+  /** @nullable */
+  clockOut?: string | null;
+  breakMinutes: number;
+  /** @nullable */
+  hoursWorked?: string | null;
+  /** @nullable */
+  startChainage?: string | null;
+  /** @nullable */
+  endChainage?: string | null;
+  /** @nullable */
+  metersCompleted?: string | null;
+  /** @nullable */
+  rateUsed?: string | null;
+  /** @nullable */
+  amountPayable?: string | null;
+  status: LabourEntryStatus;
+  /** @nullable */
+  notes?: string | null;
+  createdById: number;
+  createdAt: string;
+  employee?: LabourEntryEmployee;
+}
+
+export type LabourEntryInputWorkType = typeof LabourEntryInputWorkType[keyof typeof LabourEntryInputWorkType];
+
+
+export const LabourEntryInputWorkType = {
+  trenching: 'trenching',
+  backfilling: 'backfilling',
+  cable_pulling: 'cable_pulling',
+  reinstatement: 'reinstatement',
+  manhole_installation: 'manhole_installation',
+  concrete: 'concrete',
+  other: 'other',
+} as const;
+
+export type LabourEntryInputPayrollType = typeof LabourEntryInputPayrollType[keyof typeof LabourEntryInputPayrollType];
+
+
+export const LabourEntryInputPayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+} as const;
+
+export type LabourEntryInputStatus = typeof LabourEntryInputStatus[keyof typeof LabourEntryInputStatus];
+
+
+export const LabourEntryInputStatus = {
+  open: 'open',
+  complete: 'complete',
+} as const;
+
+export interface LabourEntryInput {
+  jobId: number;
+  employeeId: number;
+  date: string;
+  workType: LabourEntryInputWorkType;
+  payrollType: LabourEntryInputPayrollType;
+  clockIn?: string;
+  clockOut?: string;
+  breakMinutes?: number;
+  hoursWorked?: number;
+  startChainage?: number;
+  endChainage?: number;
+  metersCompleted?: number;
+  rateUsed?: number;
+  amountPayable?: number;
+  status?: LabourEntryInputStatus;
+  notes?: string;
+}
+
+export type LabourEntryUpdateWorkType = typeof LabourEntryUpdateWorkType[keyof typeof LabourEntryUpdateWorkType];
+
+
+export const LabourEntryUpdateWorkType = {
+  trenching: 'trenching',
+  backfilling: 'backfilling',
+  cable_pulling: 'cable_pulling',
+  reinstatement: 'reinstatement',
+  manhole_installation: 'manhole_installation',
+  concrete: 'concrete',
+  other: 'other',
+} as const;
+
+export type LabourEntryUpdatePayrollType = typeof LabourEntryUpdatePayrollType[keyof typeof LabourEntryUpdatePayrollType];
+
+
+export const LabourEntryUpdatePayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+} as const;
+
+export type LabourEntryUpdateStatus = typeof LabourEntryUpdateStatus[keyof typeof LabourEntryUpdateStatus];
+
+
+export const LabourEntryUpdateStatus = {
+  open: 'open',
+  complete: 'complete',
+} as const;
+
+export interface LabourEntryUpdate {
+  date?: string;
+  workType?: LabourEntryUpdateWorkType;
+  payrollType?: LabourEntryUpdatePayrollType;
+  clockIn?: string;
+  clockOut?: string;
+  breakMinutes?: number;
+  hoursWorked?: number;
+  startChainage?: number;
+  endChainage?: number;
+  metersCompleted?: number;
+  rateUsed?: number;
+  amountPayable?: number;
+  status?: LabourEntryUpdateStatus;
+  notes?: string;
+}
+
+export type LeaveRecordLeaveType = typeof LeaveRecordLeaveType[keyof typeof LeaveRecordLeaveType];
+
+
+export const LeaveRecordLeaveType = {
+  annual: 'annual',
+  sick: 'sick',
+  family_responsibility: 'family_responsibility',
+  unpaid: 'unpaid',
+} as const;
+
+export type LeaveRecordStatus = typeof LeaveRecordStatus[keyof typeof LeaveRecordStatus];
+
+
+export const LeaveRecordStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type LeaveRecordEmployee = {
+  id?: number;
+  name?: string;
+};
+
+export interface LeaveRecord {
+  id: number;
+  employeeId: number;
+  leaveType: LeaveRecordLeaveType;
+  startDate: string;
+  endDate: string;
+  days: string;
+  status: LeaveRecordStatus;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  approvedById?: number | null;
+  createdAt: string;
+  employee?: LeaveRecordEmployee;
+}
+
+export type LeaveInputLeaveType = typeof LeaveInputLeaveType[keyof typeof LeaveInputLeaveType];
+
+
+export const LeaveInputLeaveType = {
+  annual: 'annual',
+  sick: 'sick',
+  family_responsibility: 'family_responsibility',
+  unpaid: 'unpaid',
+} as const;
+
+export interface LeaveInput {
+  employeeId?: number;
+  leaveType: LeaveInputLeaveType;
+  startDate: string;
+  endDate: string;
+  days: number;
+  notes?: string;
+}
+
+export type LeaveStatusUpdateStatus = typeof LeaveStatusUpdateStatus[keyof typeof LeaveStatusUpdateStatus];
+
+
+export const LeaveStatusUpdateStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface LeaveStatusUpdate {
+  status: LeaveStatusUpdateStatus;
+  notes?: string;
+}
+
+export interface PayrollSummary {
+  employeeId: number;
+  employeeName: string;
+  totalHours: number;
+  totalMeters: number;
+  totalAmount: number;
+  entryCount: number;
 }
 
 export type InvoiceStatus = typeof InvoiceStatus[keyof typeof InvoiceStatus];
@@ -604,5 +999,26 @@ supervisorId?: number;
 
 export type UpdateJobMaterialsBody = {
   materials: JobMaterialInput[];
+};
+
+export type ListLabourEntriesParams = {
+jobId?: number;
+employeeId?: number;
+};
+
+export type ListLeaveParams = {
+employeeId?: number;
+};
+
+export type GetPayrollSummaryParams = {
+startDate?: string;
+endDate?: string;
+employeeId?: number;
+};
+
+export type GetPayrollEntriesParams = {
+startDate?: string;
+endDate?: string;
+employeeId?: number;
 };
 

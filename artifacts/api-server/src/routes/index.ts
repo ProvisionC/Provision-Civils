@@ -10,6 +10,9 @@ import invoicesRouter from "./invoices.js";
 import notificationsRouter from "./notifications.js";
 import pdfRouter from "./pdf.js";
 import downloadRouter from "./download.js";
+import labourRouter from "./labour.js";
+import leaveRouter from "./leave.js";
+import payrollRouter from "./payroll.js";
 
 const router: IRouter = Router();
 
@@ -24,5 +27,8 @@ router.use(invoicesRouter);
 router.use(notificationsRouter);
 router.use(pdfRouter);
 router.use(downloadRouter);
+router.use(labourRouter);
+router.use(leaveRouter);
+router.use(payrollRouter);
 
 export default router;
