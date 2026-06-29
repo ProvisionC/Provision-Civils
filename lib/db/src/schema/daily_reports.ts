@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -7,6 +7,13 @@ export const dailyReportsTable = pgTable("daily_reports", {
   jobId: integer("job_id").notNull(),
   userId: integer("user_id").notNull(),
   date: date("date", { mode: "string" }).notNull(),
+  workCompleted: text("work_completed"),
+  problemsEncountered: text("problems_encountered"),
+  tomorrowWork: text("tomorrow_work"),
+  labourOnSite: text("labour_on_site"),
+  gpsLat: numeric("gps_lat", { precision: 10, scale: 7 }),
+  gpsLng: numeric("gps_lng", { precision: 10, scale: 7 }),
+  signatureUri: text("signature_uri"),
   notes: text("notes"),
   progressNotes: text("progress_notes"),
   photoUris: text("photo_uris").array().default([]),

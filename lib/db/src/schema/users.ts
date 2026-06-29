@@ -7,7 +7,7 @@ export const usersTable = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role", { enum: ["admin", "supervisor", "worker"] }).notNull().default("worker"),
+  role: text("role", { enum: ["admin", "project_manager", "supervisor", "worker"] }).notNull().default("worker"),
   phone: text("phone"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
