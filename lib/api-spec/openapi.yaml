@@ -774,7 +774,7 @@ components:
 
     JobMaterial:
       type: object
-      required: [id, jobId, name, quantity, unit]
+      required: [id, jobId, name, quantity, unit, checked, isCustom]
       properties:
         id:
           type: integer
@@ -788,6 +788,12 @@ components:
           type: string
         cost:
           type: ["number", "null"]
+        checked:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        isCustom:
+          type: boolean
 
     JobMaterialInput:
       type: object
@@ -801,6 +807,12 @@ components:
           type: string
         cost:
           type: number
+        checked:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        isCustom:
+          type: boolean
 
     JobEquipment:
       type: object

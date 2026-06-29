@@ -113,7 +113,10 @@ export const CreateJobBody = zod.object({
   "name": zod.string(),
   "quantity": zod.number(),
   "unit": zod.string(),
-  "cost": zod.number().optional()
+  "cost": zod.number().optional(),
+  "checked": zod.boolean().optional(),
+  "notes": zod.string().nullish(),
+  "isCustom": zod.boolean().optional()
 })).optional(),
   "equipment": zod.array(zod.object({
   "name": zod.string(),
@@ -180,7 +183,10 @@ export const GetJobResponse = zod.object({
   "name": zod.string(),
   "quantity": zod.number(),
   "unit": zod.string(),
-  "cost": zod.number().nullish()
+  "cost": zod.number().nullish(),
+  "checked": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "isCustom": zod.boolean()
 })),
   "equipment": zod.array(zod.object({
   "id": zod.number(),
@@ -217,7 +223,10 @@ export const UpdateJobBody = zod.object({
   "name": zod.string(),
   "quantity": zod.number(),
   "unit": zod.string(),
-  "cost": zod.number().optional()
+  "cost": zod.number().optional(),
+  "checked": zod.boolean().optional(),
+  "notes": zod.string().nullish(),
+  "isCustom": zod.boolean().optional()
 })).optional(),
   "equipment": zod.array(zod.object({
   "name": zod.string(),

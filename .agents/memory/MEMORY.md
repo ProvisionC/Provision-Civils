@@ -1,3 +1,5 @@
 - [Expo-print breakage](expo-print-breakage.md) — expo-print@15.0.8 crashes Metro with ENOENT on android tmp path; use Share API instead.
 - [Orval hook param conventions](orval-hook-conventions.md) — generated list hooks take params as first arg, not nested; login() takes body directly, useLogin mutation wraps in {data}.
 - [DB lib stale declarations](db-lib-stale.md) — if API server can't find DB table exports, run pnpm run typecheck:libs to rebuild before leaf typecheck.
+- [Expo Router nested routes need layout](expo-router-nested-layout.md) — screens in `app/job/[id]/` are silently unroutable without `_layout.tsx` inside that directory.
+- [customFetch export](customfetch-export.md) — customFetch must be explicitly re-exported from `lib/api-client-react/src/index.ts`; it is not included in `export *`.

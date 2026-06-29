@@ -125,6 +125,10 @@ export interface JobMaterial {
   unit: string;
   /** @nullable */
   cost?: number | null;
+  checked: boolean;
+  /** @nullable */
+  notes?: string | null;
+  isCustom: boolean;
 }
 
 export interface JobEquipment {
@@ -173,6 +177,10 @@ export interface JobMaterialInput {
   quantity: number;
   unit: string;
   cost?: number;
+  checked?: boolean;
+  /** @nullable */
+  notes?: string | null;
+  isCustom?: boolean;
 }
 
 export interface JobEquipmentInput {

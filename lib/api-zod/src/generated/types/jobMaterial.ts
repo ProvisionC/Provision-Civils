@@ -14,4 +14,8 @@ export interface JobMaterial {
   unit: string;
   /** @nullable */
   cost?: number | null;
+  checked: boolean;
+  /** @nullable */
+  notes?: string | null;
+  isCustom: boolean;
 }

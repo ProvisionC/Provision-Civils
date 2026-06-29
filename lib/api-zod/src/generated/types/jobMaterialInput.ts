@@ -11,4 +11,8 @@ export interface JobMaterialInput {
   quantity: number;
   unit: string;
   cost?: number;
+  checked?: boolean;
+  /** @nullable */
+  notes?: string | null;
+  isCustom?: boolean;
 }

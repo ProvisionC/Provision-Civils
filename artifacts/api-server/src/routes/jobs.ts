@@ -20,7 +20,7 @@ async function getJobWithRelations(jobId: number) {
     ? await db.select().from(usersTable).where(inArray(usersTable.id, workerIds))
     : [];
 
-  const materials = await db.select().from(jobMaterialsTable).where(eq(jobMaterialsTable.jobId, jobId));
+  const materials = await db.select().from(jobMaterialsTable).where(eq(jobMaterialsTable.jobId, jobId)).orderBy(jobMaterialsTable.id);
   const equipment = await db.select().from(jobEquipmentTable).where(eq(jobEquipmentTable.jobId, jobId));
 
   return { ...job, workers, materials, equipment };
@@ -97,7 +97,7 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
     supervisorId?: number;
     dueDate?: string;
     workerIds?: number[];
-    materials?: { name: string; quantity: number; unit: string; cost?: number }[];
+    materials?: { name: string; quantity: number; unit: string; cost?: number; checked?: boolean; notes?: string | null; isCustom?: boolean }[];
     equipment?: { name: string; quantity: number; cost?: number }[];
   };
 
@@ -134,6 +134,9 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
       quantity: m.quantity.toString(),
       unit: m.unit,
       cost: m.cost?.toString(),
+      checked: m.checked ?? false,
+      notes: m.notes ?? null,
+      isCustom: m.isCustom ?? false,
     })));
   }
 
@@ -166,6 +169,7 @@ router.get("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     materials: materials.map(m => ({
       id: m.id, jobId: m.jobId, name: m.name,
       quantity: Number(m.quantity), unit: m.unit, cost: m.cost != null ? Number(m.cost) : null,
+      checked: m.checked, notes: m.notes ?? null, isCustom: m.isCustom,
     })),
     equipment: equipment.map(e => ({
       id: e.id, jobId: e.jobId, name: e.name,
@@ -190,7 +194,7 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     supervisorId?: number;
     dueDate?: string;
     workerIds?: number[];
-    materials?: { name: string; quantity: number; unit: string; cost?: number }[];
+    materials?: { name: string; quantity: number; unit: string; cost?: number; checked?: boolean; notes?: string | null; isCustom?: boolean }[];
     equipment?: { name: string; quantity: number; cost?: number }[];
   };
 
@@ -229,6 +233,7 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
       await db.insert(jobMaterialsTable).values(materials.map(m => ({
         jobId: id, name: m.name, quantity: m.quantity.toString(),
         unit: m.unit, cost: m.cost?.toString(),
+        checked: m.checked ?? false, notes: m.notes ?? null, isCustom: m.isCustom ?? false,
       })));
     }
   }
@@ -286,6 +291,38 @@ router.post("/jobs/:id/photos", requireAuth, async (req, res): Promise<void> => 
     caption: photo.caption ?? null, uploadedById: photo.uploadedById ?? null,
     createdAt: photo.createdAt.toISOString(),
   });
+});
+
+router.put("/jobs/:id/materials", requireAuth, async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  const materials = req.body as { name: string; quantity: number; unit: string; cost?: number | null; checked?: boolean; notes?: string | null; isCustom?: boolean }[];
+
+  if (!Array.isArray(materials)) {
+    res.status(400).json({ error: "Expected an array of materials" });
+    return;
+  }
+
+  await db.delete(jobMaterialsTable).where(eq(jobMaterialsTable.jobId, id));
+
+  if (materials.length > 0) {
+    await db.insert(jobMaterialsTable).values(materials.map(m => ({
+      jobId: id,
+      name: m.name,
+      quantity: (m.quantity ?? 0).toString(),
+      unit: m.unit ?? "units",
+      cost: m.cost != null ? m.cost.toString() : null,
+      checked: m.checked ?? false,
+      notes: m.notes ?? null,
+      isCustom: m.isCustom ?? false,
+    })));
+  }
+
+  const updated = await db.select().from(jobMaterialsTable).where(eq(jobMaterialsTable.jobId, id)).orderBy(jobMaterialsTable.id);
+  res.json(updated.map(m => ({
+    id: m.id, jobId: m.jobId, name: m.name,
+    quantity: Number(m.quantity), unit: m.unit, cost: m.cost != null ? Number(m.cost) : null,
+    checked: m.checked, notes: m.notes ?? null, isCustom: m.isCustom,
+  })));
 });
 
 router.delete("/jobs/:id/photos/:photoId", requireAuth, async (req, res): Promise<void> => {
