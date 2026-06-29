@@ -14,9 +14,11 @@ import labourRouter from "./labour.js";
 import leaveRouter from "./leave.js";
 import payrollRouter from "./payroll.js";
 import costingRouter from "./costing.js";
+import versionRouter from "./version.js";
 
 const router: IRouter = Router();
 
+router.use(versionRouter);
 router.use(healthRouter);
 router.use(authRouter);
 router.use(dashboardRouter);

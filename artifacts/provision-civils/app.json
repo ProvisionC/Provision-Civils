@@ -3,6 +3,15 @@
     "name": "Provision Civils",
     "slug": "provision-civils",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "url": "https://u.expo.dev/a6093da0-719f-4eee-86e4-a87d0059c219",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "provision-civils",

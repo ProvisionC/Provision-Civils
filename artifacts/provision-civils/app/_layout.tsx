@@ -15,6 +15,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/context/AuthContext";
+import { UpdateBanner } from "@/components/UpdateBanner";
+import { UpdateModal } from "@/components/UpdateModal";
+import { useAppUpdate } from "@/hooks/useAppUpdate";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,17 +30,38 @@ const queryClient = new QueryClient({
   },
 });
 
+function UpdateController() {
+  const { isForceUpdate, isOtaReady, serverVersion, localVersion, applyOtaUpdate } = useAppUpdate();
+  return (
+    <>
+      <UpdateBanner
+        visible={isOtaReady}
+        onApply={applyOtaUpdate}
+        onDismiss={() => {}}
+      />
+      <UpdateModal
+        visible={isForceUpdate}
+        serverVersion={serverVersion}
+        localVersion={localVersion}
+      />
+    </>
+  );
+}
+
 function RootLayoutNav() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="job" options={{ headerShown: false }} />
-      <Stack.Screen name="client" options={{ headerShown: false }} />
-      <Stack.Screen name="invoice" options={{ headerShown: false }} />
-      <Stack.Screen name="employee" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <UpdateController />
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="job" options={{ headerShown: false }} />
+        <Stack.Screen name="client" options={{ headerShown: false }} />
+        <Stack.Screen name="invoice" options={{ headerShown: false }} />
+        <Stack.Screen name="employee" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }
 
