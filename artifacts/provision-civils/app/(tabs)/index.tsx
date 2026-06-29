@@ -98,12 +98,14 @@ export default function DashboardScreen() {
             value={stats?.activeJobs ?? 0}
             color={colors.primary}
             icon={<Feather name="briefcase" size={20} color={colors.primary} />}
+            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { status: "active" } } as any)}
           />
           <StatCard
             label="Completed"
             value={stats?.completedJobs ?? 0}
             color={colors.success}
             icon={<Feather name="check-circle" size={20} color={colors.success} />}
+            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { status: "completed" } } as any)}
           />
         </View>
         <View style={styles.statsRow}>
@@ -112,12 +114,14 @@ export default function DashboardScreen() {
             value={stats?.overdueJobs ?? 0}
             color={colors.destructive}
             icon={<Feather name="clock" size={20} color={colors.destructive} />}
+            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { dateFilter: "overdue" } } as any)}
           />
           <StatCard
             label="Due Today"
             value={stats?.jobsDueToday ?? 0}
             color={colors.warning}
             icon={<Feather name="calendar" size={20} color={colors.warning} />}
+            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { dateFilter: "today" } } as any)}
           />
         </View>
         <View style={styles.statsRow}>
@@ -126,12 +130,14 @@ export default function DashboardScreen() {
             value={stats?.totalEmployees ?? 0}
             color={colors.secondary}
             icon={<Feather name="users" size={20} color={colors.secondary} />}
+            onPress={() => router.push("/(tabs)/employees" as any)}
           />
           <StatCard
             label="Invoices"
             value={stats?.totalInvoices ?? 0}
             color="#7B1FA2"
             icon={<Feather name="file-text" size={20} color="#7B1FA2" />}
+            onPress={() => router.push("/(tabs)/invoices" as any)}
           />
         </View>
       </View>

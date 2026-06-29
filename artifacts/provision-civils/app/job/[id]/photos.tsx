@@ -8,7 +8,8 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy";
+import { downloadAsync } from "expo-file-system";
+import { cacheDirectory, writeAsStringAsync, EncodingType } from "expo-file-system/legacy";
 import { isAvailableAsync as isSharingAvailable, shareAsync } from "expo-sharing";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -200,11 +201,11 @@ export default function JobPhotosScreen() {
         a.click();
         document.body.removeChild(a);
       } else {
-        const fileUri = (FileSystem.cacheDirectory ?? "") + filename;
+        const fileUri = (cacheDirectory ?? "") + filename;
         const idx = photo.uri.indexOf(",");
         const b64 = idx >= 0 ? photo.uri.slice(idx + 1) : photo.uri;
-        await FileSystem.writeAsStringAsync(fileUri, b64, {
-          encoding: FileSystem.EncodingType.Base64,
+        await writeAsStringAsync(fileUri, b64, {
+          encoding: EncodingType.Base64,
         });
         const canShare = await isSharingAvailable();
         if (canShare) {
@@ -241,8 +242,8 @@ export default function JobPhotosScreen() {
         document.body.removeChild(a);
         URL.revokeObjectURL(objUrl);
       } else {
-        const fileUri = (FileSystem.cacheDirectory ?? "") + filename;
-        const { status } = await FileSystem.downloadAsync(url, fileUri, { headers });
+        const fileUri = (cacheDirectory ?? "") + filename;
+        const { status } = await downloadAsync(url, fileUri, { headers });
         if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
         const canShare = await isSharingAvailable();
         if (canShare) {
@@ -278,8 +279,8 @@ export default function JobPhotosScreen() {
         document.body.removeChild(a);
         URL.revokeObjectURL(objUrl);
       } else {
-        const fileUri = (FileSystem.cacheDirectory ?? "") + filename;
-        const { status } = await FileSystem.downloadAsync(url, fileUri, { headers });
+        const fileUri = (cacheDirectory ?? "") + filename;
+        const { status } = await downloadAsync(url, fileUri, { headers });
         if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
         const canShare = await isSharingAvailable();
         if (canShare) {

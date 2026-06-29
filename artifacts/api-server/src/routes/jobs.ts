@@ -405,16 +405,20 @@ router.get("/jobs/:id/photos/zip", requireAuth, async (req, res): Promise<void> 
       try { return Buffer.from(uri.slice(idx + 1), "base64"); } catch { return null; }
     }
 
+    const projectName = jobRow.projectName ?? jobRow.clientName ?? "Project";
+    const safeProject = projectName.replace(/[/\\:*?"<>|]/g, "-").trim() || "Project";
+    const folderRoot = `${jobRow.jobNumber ?? "JOB"} - ${safeProject}`;
+
     const allPhotos: { buf: Buffer; name: string }[] = [];
     jobPhotos.forEach((p, i) => {
       const buf = b64Buf(p.uri);
-      if (buf) allPhotos.push({ buf, name: `job-photo-${String(i + 1).padStart(3, "0")}.jpg` });
+      if (buf) allPhotos.push({ buf, name: `${folderRoot}/General Photos/photo-${String(i + 1).padStart(3, "0")}.jpg` });
     });
     reports.forEach(r => {
       const uris: string[] = (r as any).photoUris ?? [];
       uris.forEach((uri, i) => {
         const buf = b64Buf(uri);
-        if (buf) allPhotos.push({ buf, name: `report-${r.date}-photo-${String(i + 1).padStart(2, "0")}.jpg` });
+        if (buf) allPhotos.push({ buf, name: `${folderRoot}/Daily Reports/report-${r.date}-${String(i + 1).padStart(2, "0")}.jpg` });
       });
     });
 

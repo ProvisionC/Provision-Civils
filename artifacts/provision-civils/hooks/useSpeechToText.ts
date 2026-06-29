@@ -13,43 +13,50 @@ export interface SpeechToTextResult {
   stopListening: () => void;
 }
 
+const LANG_FALLBACK: Record<string, string | null> = {
+  "af-ZA": "en-ZA",
+  "en-ZA": "en-US",
+  "en-US": null,
+};
+
 export function useSpeechToText(): SpeechToTextResult {
   const [isListening, setIsListening] = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
   const [partialTranscript, setPartialTranscript] = useState("");
+
+  // Track the best transcript received so far — used when 'end' fires
+  const bestRef = useRef("");
   const onResultRef = useRef<((text: string) => void) | null>(null);
-  const finalRef = useRef("");
   const langRef = useRef("af-ZA");
 
-  // Check availability on mount
   useEffect(() => {
     ExpoSpeechRecognitionModule.isAvailableAsync()
-      .then((available: boolean) => { if (!available) setIsAvailable(false); })
+      .then((ok: boolean) => { if (!ok) setIsAvailable(false); })
       .catch(() => setIsAvailable(false));
   }, []);
 
   useSpeechRecognitionEvent("start", () => {
     setIsListening(true);
     setPartialTranscript("");
-    finalRef.current = "";
+    bestRef.current = "";
+  });
+
+  useSpeechRecognitionEvent("result", (event) => {
+    const text = event.results[0]?.transcript ?? "";
+    if (text) {
+      bestRef.current = text; // always keep the latest transcript
+      setPartialTranscript(text);
+    }
   });
 
   useSpeechRecognitionEvent("end", () => {
     setIsListening(false);
     setPartialTranscript("");
-    if (finalRef.current && onResultRef.current) {
-      onResultRef.current(finalRef.current);
-      finalRef.current = "";
+    const text = bestRef.current.trim();
+    bestRef.current = "";
+    if (text && onResultRef.current) {
+      onResultRef.current(text);
       onResultRef.current = null;
-    }
-  });
-
-  useSpeechRecognitionEvent("result", (event) => {
-    const transcript = event.results[0]?.transcript ?? "";
-    if (event.isFinal) {
-      finalRef.current = transcript;
-    } else {
-      setPartialTranscript(transcript);
     }
   });
 
@@ -57,36 +64,51 @@ export function useSpeechToText(): SpeechToTextResult {
     const err = event.error ?? "";
     setIsListening(false);
     setPartialTranscript("");
-    finalRef.current = "";
+
+    // Deliver any partial transcript we captured before the error
+    const partial = bestRef.current.trim();
+    bestRef.current = "";
+
+    if (err === "language-not-supported") {
+      const next = LANG_FALLBACK[langRef.current] ?? null;
+      if (next && onResultRef.current) {
+        langRef.current = next;
+        // Retry with next language — keep onResultRef
+        setTimeout(() => {
+          ExpoSpeechRecognitionModule.start({
+            lang: next, interimResults: true, continuous: false, requiresOnDeviceRecognition: false,
+          });
+        }, 300);
+        return;
+      }
+    }
+
+    if (partial && onResultRef.current) {
+      onResultRef.current(partial);
+      onResultRef.current = null;
+      return;
+    }
+    onResultRef.current = null;
 
     if (err === "not-allowed" || err === "service-not-allowed") {
       setIsAvailable(false);
       Alert.alert(
         "Microphone Permission Required",
-        "Please allow microphone access to use voice recording. Go to your device Settings → App → Microphone.",
+        "Please allow microphone access to use voice notes.\n\nGo to Settings → Apps → Provision Civils → Permissions → Microphone → Allow.",
         [{ text: "OK" }]
       );
     } else if (err === "no-speech") {
-      Alert.alert("No Speech Detected", "Nothing was heard. Please tap the mic button and speak clearly.", [{ text: "OK" }]);
-    } else if (err === "language-not-supported") {
-      // Silently fall back — handled by retrying with en-US
-      const nextLang = langRef.current === "af-ZA" ? "en-ZA" : langRef.current === "en-ZA" ? "en-US" : null;
-      if (nextLang && onResultRef.current) {
-        const cb = onResultRef.current;
-        langRef.current = nextLang;
-        setTimeout(() => {
-          ExpoSpeechRecognitionModule.start({ lang: nextLang, interimResults: true, continuous: false });
-        }, 200);
-        return;
-      }
+      Alert.alert("No Speech Detected", "Nothing was heard. Tap the mic button and speak clearly.", [{ text: "OK" }]);
+    } else if (!["aborted", "audio-capture"].includes(err)) {
+      // Don't spam user for known non-critical errors
     }
-    onResultRef.current = null;
   });
 
   const startListening = useCallback(
     async (onResult: (text: string) => void, lang = "af-ZA") => {
       onResultRef.current = onResult;
       langRef.current = lang;
+      bestRef.current = "";
 
       try {
         const available = await ExpoSpeechRecognitionModule.isAvailableAsync();
@@ -97,17 +119,18 @@ export function useSpeechToText(): SpeechToTextResult {
             "Speech recognition is not supported on this device. Please type your notes manually.",
             [{ text: "OK" }]
           );
+          onResultRef.current = null;
           return;
         }
 
         const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
         if (!granted) {
-          setIsAvailable(false);
           Alert.alert(
             "Microphone Permission Required",
-            "Microphone access was denied. Go to Settings → Privacy → Microphone and allow this app.",
+            "Please allow microphone access to use voice notes.\n\nGo to Settings → Apps → Provision Civils → Permissions → Microphone → Allow.",
             [{ text: "OK" }]
           );
+          onResultRef.current = null;
           return;
         }
 
@@ -118,8 +141,8 @@ export function useSpeechToText(): SpeechToTextResult {
           requiresOnDeviceRecognition: false,
         });
       } catch (e) {
-        setIsAvailable(false);
         setIsListening(false);
+        onResultRef.current = null;
         Alert.alert("Voice Error", "Could not start speech recognition. Please try again.", [{ text: "OK" }]);
       }
     },
