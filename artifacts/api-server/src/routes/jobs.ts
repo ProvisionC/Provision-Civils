@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { db, jobsTable, usersTable, jobWorkersTable, jobMaterialsTable, jobEquipmentTable, jobPhotosTable, gpsLogsTable, dailyReportsTable } from "@workspace/db";
 import { eq, and, ilike, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { ZipArchive } = require("archiver") as { ZipArchive: new (opts?: object) => import("archiver").Archiver };
 
 const router: IRouter = Router();
 
@@ -432,11 +434,7 @@ router.get("/jobs/:id/photos/zip", requireAuth, async (req, res): Promise<void> 
     res.setHeader("Content-Disposition", `attachment; filename="${jobNumber}-Photos.zip"`);
     res.setHeader("Cache-Control", "no-cache");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const archiverMod = await import("archiver") as any;
-    const archiverFn: (format: string, opts?: object) => import("archiver").Archiver =
-      archiverMod.default ?? archiverMod;
-    const archive = archiverFn("zip", { zlib: { level: 6 } });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
     archive.on("error", (err: Error) => { req.log?.error({ err }, "ZIP error"); });
     archive.pipe(res);
     for (const { buf, name } of allPhotos) {
