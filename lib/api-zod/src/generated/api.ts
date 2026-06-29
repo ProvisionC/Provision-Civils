@@ -718,6 +718,25 @@ export const DeleteJobExpenseResponse = zod.void()
 
 
 /**
+ * @summary Get project costing breakdown (admin only)
+ */
+export const GetJobCostingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetJobCostingResponse = zod.object({
+  "jobId": zod.number(),
+  "labourCost": zod.number(),
+  "expensesByCategory": zod.record(zod.string(), zod.number()).optional(),
+  "totalExpenses": zod.number(),
+  "materialsCost": zod.number().optional(),
+  "totalCost": zod.number(),
+  "revenue": zod.number(),
+  "profitLoss": zod.number()
+})
+
+
+/**
  * @summary List all employees
  */
 export const ListEmployeesResponseItem = zod.object({
@@ -1049,6 +1068,58 @@ export const DeleteLabourEntryParams = zod.object({
 })
 
 export const DeleteLabourEntryResponse = zod.void()
+
+
+/**
+ * @summary Batch create daily labour entries (multiple employees for one day)
+ */
+export const BatchCreateLabourEntriesBody = zod.object({
+  "jobId": zod.number(),
+  "date": zod.string(),
+  "supervisorId": zod.number().optional(),
+  "entries": zod.array(zod.object({
+  "employeeId": zod.number(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "clockIn": zod.string().optional(),
+  "clockOut": zod.string().optional(),
+  "breakMinutes": zod.number().optional(),
+  "hourlyRate": zod.number().optional(),
+  "startChainage": zod.number().optional(),
+  "endChainage": zod.number().optional(),
+  "metersCompleted": zod.number().optional(),
+  "ratePerMeter": zod.number().optional(),
+  "status": zod.enum(['open', 'complete']).optional(),
+  "notes": zod.string().optional()
+}))
+})
+
+export const BatchCreateLabourEntriesResponseItem = zod.object({
+  "id": zod.number(),
+  "jobId": zod.number(),
+  "employeeId": zod.number(),
+  "date": zod.string(),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "clockIn": zod.string().nullish(),
+  "clockOut": zod.string().nullish(),
+  "breakMinutes": zod.number(),
+  "hoursWorked": zod.string().nullish(),
+  "startChainage": zod.string().nullish(),
+  "endChainage": zod.string().nullish(),
+  "metersCompleted": zod.string().nullish(),
+  "rateUsed": zod.string().nullish(),
+  "amountPayable": zod.string().nullish(),
+  "status": zod.enum(['open', 'complete']),
+  "notes": zod.string().nullish(),
+  "createdById": zod.number(),
+  "createdAt": zod.string(),
+  "employee": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional()
+}).optional()
+})
+export const BatchCreateLabourEntriesResponse = zod.array(BatchCreateLabourEntriesResponseItem)
 
 
 /**

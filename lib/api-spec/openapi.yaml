@@ -562,6 +562,29 @@ paths:
         "404":
           description: Not found
 
+  /jobs/{id}/costing:
+    get:
+      operationId: getJobCosting
+      tags: [jobs]
+      summary: Get project costing breakdown (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project costing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobCosting"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   /employees:
     get:
       operationId: listEmployees
@@ -767,6 +790,27 @@ paths:
           description: Deleted
         "404":
           description: Not found
+
+  /labour-entries/batch:
+    post:
+      operationId: batchCreateLabourEntries
+      tags: [labour]
+      summary: Batch create daily labour entries (multiple employees for one day)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyLabourInput"
+      responses:
+        "201":
+          description: Labour entries created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LabourEntry"
 
   /leave:
     get:
@@ -2075,6 +2119,78 @@ components:
         equipmentCost:
           type: number
         vat:
+          type: number
+
+    DailyLabourEntryInput:
+      type: object
+      required: [employeeId, workType, payrollType]
+      properties:
+        employeeId:
+          type: integer
+        workType:
+          type: string
+          enum: [trenching, backfilling, cable_pulling, reinstatement, manhole_installation, concrete, other]
+        payrollType:
+          type: string
+          enum: [hourly, piece_work]
+        clockIn:
+          type: string
+        clockOut:
+          type: string
+        breakMinutes:
+          type: integer
+        hourlyRate:
+          type: number
+        startChainage:
+          type: number
+        endChainage:
+          type: number
+        metersCompleted:
+          type: number
+        ratePerMeter:
+          type: number
+        status:
+          type: string
+          enum: [open, complete]
+        notes:
+          type: string
+
+    DailyLabourInput:
+      type: object
+      required: [jobId, date, entries]
+      properties:
+        jobId:
+          type: integer
+        date:
+          type: string
+        supervisorId:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyLabourEntryInput"
+
+    JobCosting:
+      type: object
+      required: [jobId, labourCost, totalExpenses, totalCost, revenue, profitLoss]
+      properties:
+        jobId:
+          type: integer
+        labourCost:
+          type: number
+        expensesByCategory:
+          type: object
+          additionalProperties:
+            type: number
+        totalExpenses:
+          type: number
+        materialsCost:
+          type: number
+        totalCost:
+          type: number
+        revenue:
+          type: number
+        profitLoss:
           type: number
 
     Notification:

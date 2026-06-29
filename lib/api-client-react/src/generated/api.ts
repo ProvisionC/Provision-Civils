@@ -23,6 +23,7 @@ import type {
   AuthResponse,
   Client,
   ClientInput,
+  DailyLabourInput,
   DailyReport,
   DailyReportInput,
   DashboardStats,
@@ -42,6 +43,7 @@ import type {
   InvoiceInput,
   InvoiceUpdate,
   Job,
+  JobCosting,
   JobDetail,
   JobInput,
   JobMaterial,
@@ -1944,6 +1946,83 @@ export const useDeleteJobExpense = <TError = ErrorType<void>,
       return useMutation(getDeleteJobExpenseMutationOptions(options));
     }
 
+export const getGetJobCostingUrl = (id: number,) => {
+
+
+
+
+  return `/api/jobs/${id}/costing`
+}
+
+/**
+ * @summary Get project costing breakdown (admin only)
+ */
+export const getJobCosting = async (id: number, options?: RequestInit): Promise<JobCosting> => {
+
+  return customFetch<JobCosting>(getGetJobCostingUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJobCostingQueryKey = (id: number,) => {
+    return [
+    `/api/jobs/${id}/costing`
+    ] as const;
+    }
+
+
+export const getGetJobCostingQueryOptions = <TData = Awaited<ReturnType<typeof getJobCosting>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJobCosting>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJobCostingQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJobCosting>>> = ({ signal }) => getJobCosting(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJobCosting>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJobCostingQueryResult = NonNullable<Awaited<ReturnType<typeof getJobCosting>>>
+export type GetJobCostingQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get project costing breakdown (admin only)
+ */
+
+export function useGetJobCosting<TData = Awaited<ReturnType<typeof getJobCosting>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJobCosting>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJobCostingQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListEmployeesUrl = () => {
 
 
@@ -2673,6 +2752,76 @@ export const useDeleteLabourEntry = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteLabourEntryMutationOptions(options));
+    }
+
+export const getBatchCreateLabourEntriesUrl = () => {
+
+
+
+
+  return `/api/labour-entries/batch`
+}
+
+/**
+ * @summary Batch create daily labour entries (multiple employees for one day)
+ */
+export const batchCreateLabourEntries = async (dailyLabourInput: DailyLabourInput, options?: RequestInit): Promise<LabourEntry[]> => {
+
+  return customFetch<LabourEntry[]>(getBatchCreateLabourEntriesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyLabourInput)
+  }
+);}
+
+
+
+
+export const getBatchCreateLabourEntriesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchCreateLabourEntries>>, TError,{data: BodyType<DailyLabourInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof batchCreateLabourEntries>>, TError,{data: BodyType<DailyLabourInput>}, TContext> => {
+
+const mutationKey = ['batchCreateLabourEntries'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof batchCreateLabourEntries>>, {data: BodyType<DailyLabourInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  batchCreateLabourEntries(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BatchCreateLabourEntriesMutationResult = NonNullable<Awaited<ReturnType<typeof batchCreateLabourEntries>>>
+    export type BatchCreateLabourEntriesMutationBody = BodyType<DailyLabourInput>
+    export type BatchCreateLabourEntriesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Batch create daily labour entries (multiple employees for one day)
+ */
+export const useBatchCreateLabourEntries = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchCreateLabourEntries>>, TError,{data: BodyType<DailyLabourInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof batchCreateLabourEntries>>,
+        TError,
+        {data: BodyType<DailyLabourInput>},
+        TContext
+      > => {
+      return useMutation(getBatchCreateLabourEntriesMutationOptions(options));
     }
 
 export const getListLeaveUrl = (params?: ListLeaveParams,) => {

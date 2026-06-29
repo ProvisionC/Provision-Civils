@@ -13,6 +13,7 @@ import downloadRouter from "./download.js";
 import labourRouter from "./labour.js";
 import leaveRouter from "./leave.js";
 import payrollRouter from "./payroll.js";
+import costingRouter from "./costing.js";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(downloadRouter);
 router.use(labourRouter);
 router.use(leaveRouter);
 router.use(payrollRouter);
+router.use(costingRouter);
 
 export default router;

@@ -329,6 +329,18 @@ export default function JobDetailScreen() {
             <Text style={[styles.actionLabel, { color: colors.foreground }]}>Labour</Text>
           </TouchableOpacity>
 
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => router.push(`/job/${jobId}/costing` as any)}
+            >
+              <View style={[styles.actionIconWrap, { backgroundColor: "#F59E0B18" }]}>
+                <Feather name="bar-chart-2" size={20} color="#F59E0B" />
+              </View>
+              <Text style={[styles.actionLabel, { color: colors.foreground }]}>Costing</Text>
+            </TouchableOpacity>
+          )}
+
           {!isAdmin && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}

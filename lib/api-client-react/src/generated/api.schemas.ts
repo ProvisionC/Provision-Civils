@@ -966,6 +966,71 @@ export interface InvoiceUpdate {
   vat?: number;
 }
 
+export type DailyLabourEntryInputWorkType = typeof DailyLabourEntryInputWorkType[keyof typeof DailyLabourEntryInputWorkType];
+
+
+export const DailyLabourEntryInputWorkType = {
+  trenching: 'trenching',
+  backfilling: 'backfilling',
+  cable_pulling: 'cable_pulling',
+  reinstatement: 'reinstatement',
+  manhole_installation: 'manhole_installation',
+  concrete: 'concrete',
+  other: 'other',
+} as const;
+
+export type DailyLabourEntryInputPayrollType = typeof DailyLabourEntryInputPayrollType[keyof typeof DailyLabourEntryInputPayrollType];
+
+
+export const DailyLabourEntryInputPayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+} as const;
+
+export type DailyLabourEntryInputStatus = typeof DailyLabourEntryInputStatus[keyof typeof DailyLabourEntryInputStatus];
+
+
+export const DailyLabourEntryInputStatus = {
+  open: 'open',
+  complete: 'complete',
+} as const;
+
+export interface DailyLabourEntryInput {
+  employeeId: number;
+  workType: DailyLabourEntryInputWorkType;
+  payrollType: DailyLabourEntryInputPayrollType;
+  clockIn?: string;
+  clockOut?: string;
+  breakMinutes?: number;
+  hourlyRate?: number;
+  startChainage?: number;
+  endChainage?: number;
+  metersCompleted?: number;
+  ratePerMeter?: number;
+  status?: DailyLabourEntryInputStatus;
+  notes?: string;
+}
+
+export interface DailyLabourInput {
+  jobId: number;
+  date: string;
+  supervisorId?: number;
+  entries: DailyLabourEntryInput[];
+}
+
+export type JobCostingExpensesByCategory = {[key: string]: number};
+
+export interface JobCosting {
+  jobId: number;
+  labourCost: number;
+  expensesByCategory?: JobCostingExpensesByCategory;
+  totalExpenses: number;
+  materialsCost?: number;
+  totalCost: number;
+  revenue: number;
+  profitLoss: number;
+}
+
 export type NotificationType = typeof NotificationType[keyof typeof NotificationType];
 
 

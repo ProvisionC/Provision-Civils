@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert,
@@ -8,7 +8,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import {
   useListLabourEntries, useUpdateLabourEntry, useDeleteLabourEntry,
-  useListEmployees,
 } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
@@ -32,8 +31,6 @@ export default function JobLabourScreen() {
     { query: { queryKey: ["labour-entries", "job", jobId] } }
   );
 
-  const { data: employees } = useListEmployees();
-
   const updateEntry = useUpdateLabourEntry({
     mutation: {
       onSuccess: () => {
@@ -51,6 +48,7 @@ export default function JobLabourScreen() {
   });
 
   const handleToggleStatus = (entry: any) => {
+    if (!canEdit) return;
     updateEntry.mutate({
       id: entry.id,
       data: { status: entry.status === "complete" ? "open" : "complete" },
@@ -64,13 +62,24 @@ export default function JobLabourScreen() {
     ]);
   };
 
-  const getEmployeeName = (empId: number) => {
-    return employees?.find(e => e.id === empId)?.name ?? "Unknown";
-  };
+  // Group entries by date
+  const grouped = (entries ?? []).reduce<Record<string, typeof entries>>((acc, e) => {
+    const d = e.date ?? "unknown";
+    if (!acc[d]) acc[d] = [];
+    acc[d]!.push(e);
+    return acc;
+  }, {});
+  const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  const totalAmount = entries?.reduce((s, e) => s + (e.amountPayable ? Number(e.amountPayable) : 0), 0) ?? 0;
-  const totalHours = entries?.reduce((s, e) => s + (e.payrollType === "hourly" && e.hoursWorked ? Number(e.hoursWorked) : 0), 0) ?? 0;
-  const totalMeters = entries?.reduce((s, e) => s + (e.payrollType === "piece_work" && e.metersCompleted ? Number(e.metersCompleted) : 0), 0) ?? 0;
+  const totalLabour = entries?.reduce((s, e) => {
+    if (e.payrollType === "hourly") return s + (e.amountPayable ? Number(e.amountPayable) : 0);
+    if (e.payrollType === "piece_work" && e.status === "complete") return s + (e.amountPayable ? Number(e.amountPayable) : 0);
+    return s;
+  }, 0) ?? 0;
+
+  const totalHours = entries?.filter(e => e.payrollType === "hourly").reduce((s, e) => s + (e.hoursWorked ? Number(e.hoursWorked) : 0), 0) ?? 0;
+  const totalMeters = entries?.filter(e => e.payrollType === "piece_work" && e.status === "complete").reduce((s, e) => s + (e.metersCompleted ? Number(e.metersCompleted) : 0), 0) ?? 0;
+  const openCount = entries?.filter(e => e.status === "open" && e.payrollType === "piece_work").length ?? 0;
 
   const s = makeStyles(colors);
 
@@ -78,34 +87,42 @@ export default function JobLabourScreen() {
     <View style={s.container}>
       {canEdit && (
         <TouchableOpacity
-          style={s.addBtn}
-          onPress={() => router.push({ pathname: "/labour/create", params: { jobId: String(jobId) } } as any)}
+          style={[s.newDayBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.push(`/job/${jobId}/daily-labour` as any)}
         >
           <Feather name="plus" size={16} color="#FFF" />
-          <Text style={s.addBtnText}>Add Entry</Text>
+          <Text style={s.newDayBtnText}>New Daily Entry</Text>
         </TouchableOpacity>
       )}
 
-      {(totalHours > 0 || totalMeters > 0 || totalAmount > 0) && (
-        <View style={[s.summaryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {/* Summary bar */}
+      {entries && entries.length > 0 && (
+        <View style={[s.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {totalHours > 0 && (
             <View style={s.summaryItem}>
-              <Feather name="clock" size={14} color={colors.primary} />
-              <Text style={[s.summaryValue, { color: colors.foreground }]}>{totalHours.toFixed(1)}h</Text>
-              <Text style={[s.summaryLabel, { color: colors.mutedForeground }]}>Hours</Text>
+              <Feather name="clock" size={13} color="#2563EB" />
+              <Text style={[s.summaryVal, { color: colors.foreground }]}>{totalHours.toFixed(1)}h</Text>
+              <Text style={[s.summarySub, { color: colors.mutedForeground }]}>Hours</Text>
             </View>
           )}
           {totalMeters > 0 && (
             <View style={s.summaryItem}>
-              <Feather name="activity" size={14} color="#8B5CF6" />
-              <Text style={[s.summaryValue, { color: colors.foreground }]}>{totalMeters.toFixed(0)}m</Text>
-              <Text style={[s.summaryLabel, { color: colors.mutedForeground }]}>Meters</Text>
+              <Feather name="activity" size={13} color="#8B5CF6" />
+              <Text style={[s.summaryVal, { color: colors.foreground }]}>{totalMeters.toFixed(0)}m</Text>
+              <Text style={[s.summarySub, { color: colors.mutedForeground }]}>Completed</Text>
             </View>
           )}
-          <View style={s.summaryItem}>
-            <Feather name="dollar-sign" size={14} color="#22C55E" />
-            <Text style={[s.summaryValue, { color: "#22C55E" }]}>R {totalAmount.toFixed(2)}</Text>
-            <Text style={[s.summaryLabel, { color: colors.mutedForeground }]}>Payable</Text>
+          {openCount > 0 && (
+            <View style={s.summaryItem}>
+              <Feather name="alert-circle" size={13} color="#F59E0B" />
+              <Text style={[s.summaryVal, { color: "#F59E0B" }]}>{openCount}</Text>
+              <Text style={[s.summarySub, { color: colors.mutedForeground }]}>Open</Text>
+            </View>
+          )}
+          <View style={[s.summaryItem, { borderLeftWidth: 1, borderLeftColor: colors.border, paddingLeft: 14 }]}>
+            <Feather name="dollar-sign" size={13} color="#22C55E" />
+            <Text style={[s.summaryVal, { color: "#22C55E" }]}>R {totalLabour.toFixed(2)}</Text>
+            <Text style={[s.summarySub, { color: colors.mutedForeground }]}>Payable</Text>
           </View>
         </View>
       )}
@@ -114,72 +131,105 @@ export default function JobLabourScreen() {
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       ) : !entries?.length ? (
         <View style={s.empty}>
-          <Feather name="users" size={40} color={colors.mutedForeground} />
-          <Text style={[s.emptyText, { color: colors.mutedForeground }]}>No labour entries yet</Text>
+          <Feather name="users" size={44} color={colors.mutedForeground} />
+          <Text style={[s.emptyTitle, { color: colors.foreground }]}>No labour entries yet</Text>
           {canEdit && (
-            <Text style={[s.emptyHint, { color: colors.mutedForeground }]}>Tap "Add Entry" to record work</Text>
+            <Text style={[s.emptyHint, { color: colors.mutedForeground }]}>
+              Tap "New Daily Entry" to capture multiple employees at once
+            </Text>
           )}
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
-          {entries.map(entry => (
-            <View key={entry.id} style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={s.cardRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.empName, { color: colors.foreground }]}>
-                    {entry.employee?.name ?? getEmployeeName(entry.employeeId)}
-                  </Text>
-                  <Text style={[s.sub, { color: colors.mutedForeground }]}>
-                    {entry.date} · {WORK_TYPE_LABELS[entry.workType] ?? entry.workType}
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end", gap: 4 }}>
-                  {entry.amountPayable && (
-                    <Text style={{ color: "#22C55E", fontFamily: "Inter_700Bold", fontSize: 15 }}>
-                      R {Number(entry.amountPayable).toFixed(2)}
-                    </Text>
-                  )}
-                  <TouchableOpacity
-                    style={[s.statusBtn, { backgroundColor: entry.status === "complete" ? "#22C55E22" : colors.muted }]}
-                    onPress={() => canEdit && handleToggleStatus(entry)}
-                  >
-                    <Text style={{ color: entry.status === "complete" ? "#22C55E" : colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>
-                      {entry.status}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+          {dates.map(date => (
+            <View key={date}>
+              {/* Date group header */}
+              <View style={s.dateHeader}>
+                <Feather name="calendar" size={13} color={colors.primary} />
+                <Text style={[s.dateLabel, { color: colors.primary }]}>
+                  {new Date(date + "T12:00:00").toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+                </Text>
+                <Text style={[s.dateCount, { color: colors.mutedForeground }]}>
+                  {grouped[date]!.length} entr{grouped[date]!.length !== 1 ? "ies" : "y"}
+                </Text>
               </View>
 
-              <View style={[s.divider, { backgroundColor: colors.border }]} />
+              {grouped[date]!.map(entry => {
+                const isPiece = entry.payrollType === "piece_work";
+                const isOpen = entry.status === "open";
+                const payAmount = isPiece && isOpen ? 0 : (entry.amountPayable ? Number(entry.amountPayable) : 0);
 
-              <View style={s.statsRow}>
-                {entry.payrollType === "hourly" && entry.hoursWorked && (
-                  <View style={s.stat}>
-                    <Feather name="clock" size={12} color={colors.mutedForeground} />
-                    <Text style={[s.statText, { color: colors.mutedForeground }]}>{entry.hoursWorked}h</Text>
+                return (
+                  <View key={entry.id} style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={s.cardRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.empName, { color: colors.foreground }]}>
+                          {entry.employee?.name ?? `Employee #${entry.employeeId}`}
+                        </Text>
+                        <Text style={[s.workType, { color: colors.mutedForeground }]}>
+                          {WORK_TYPE_LABELS[entry.workType] ?? entry.workType}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: "flex-end", gap: 4 }}>
+                        <Text style={{ color: payAmount > 0 ? "#22C55E" : colors.mutedForeground, fontFamily: "Inter_700Bold", fontSize: 14 }}>
+                          {payAmount > 0 ? `R ${payAmount.toFixed(2)}` : "R 0.00"}
+                        </Text>
+                        <TouchableOpacity
+                          style={[s.statusPill, {
+                            backgroundColor: isOpen ? "#F59E0B22" : "#22C55E22",
+                          }]}
+                          onPress={() => canEdit && handleToggleStatus(entry)}
+                        >
+                          <View style={[s.statusDot, { backgroundColor: isOpen ? "#F59E0B" : "#22C55E" }]} />
+                          <Text style={{ color: isOpen ? "#F59E0B" : "#22C55E", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>
+                            {isOpen ? "Open" : "Complete"}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={[s.divider, { backgroundColor: colors.border }]} />
+
+                    {/* Stats row */}
+                    <View style={s.statsRow}>
+                      {/* Payroll type badge */}
+                      <View style={[s.typeBadge, { backgroundColor: isPiece ? "#8B5CF620" : "#2563EB20" }]}>
+                        <Feather name={isPiece ? "activity" : "clock"} size={11} color={isPiece ? "#8B5CF6" : "#2563EB"} />
+                        <Text style={{ color: isPiece ? "#8B5CF6" : "#2563EB", fontFamily: "Inter_500Medium", fontSize: 11 }}>
+                          {isPiece ? "Piece Work" : "Hourly"}
+                        </Text>
+                      </View>
+
+                      {!isPiece && entry.hoursWorked && (
+                        <Text style={[s.statText, { color: colors.mutedForeground }]}>{Number(entry.hoursWorked).toFixed(1)}h</Text>
+                      )}
+                      {!isPiece && entry.rateUsed && (
+                        <Text style={[s.statText, { color: colors.mutedForeground }]}>@ R{entry.rateUsed}/hr</Text>
+                      )}
+                      {!isPiece && entry.clockIn && entry.clockOut && (
+                        <Text style={[s.statText, { color: colors.mutedForeground }]}>{entry.clockIn}–{entry.clockOut}</Text>
+                      )}
+
+                      {isPiece && entry.metersCompleted && (
+                        <Text style={[s.statText, { color: colors.mutedForeground }]}>{entry.metersCompleted}m</Text>
+                      )}
+                      {isPiece && entry.rateUsed && (
+                        <Text style={[s.statText, { color: colors.mutedForeground }]}>@ R{entry.rateUsed}/m</Text>
+                      )}
+
+                      {canEdit && (
+                        <TouchableOpacity onPress={() => handleDelete(entry.id)} style={{ marginLeft: "auto" }}>
+                          <Feather name="trash-2" size={14} color={colors.mutedForeground} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {entry.notes && (
+                      <Text style={[s.notes, { color: colors.mutedForeground }]} numberOfLines={2}>{entry.notes}</Text>
+                    )}
                   </View>
-                )}
-                {entry.payrollType === "piece_work" && entry.metersCompleted && (
-                  <View style={s.stat}>
-                    <Feather name="activity" size={12} color={colors.mutedForeground} />
-                    <Text style={[s.statText, { color: colors.mutedForeground }]}>{entry.metersCompleted}m</Text>
-                  </View>
-                )}
-                {entry.rateUsed && (
-                  <Text style={[s.statText, { color: colors.mutedForeground }]}>@ R{entry.rateUsed}/{entry.payrollType === "hourly" ? "hr" : "m"}</Text>
-                )}
-                {entry.clockIn && entry.clockOut && (
-                  <Text style={[s.statText, { color: colors.mutedForeground }]}>{entry.clockIn}–{entry.clockOut}</Text>
-                )}
-                {canEdit && (
-                  <TouchableOpacity onPress={() => handleDelete(entry.id)} style={{ marginLeft: "auto" }}>
-                    <Feather name="trash-2" size={14} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                )}
-              </View>
-              {entry.notes && (
-                <Text style={[s.notes, { color: colors.mutedForeground }]} numberOfLines={2}>{entry.notes}</Text>
-              )}
+                );
+              })}
             </View>
           ))}
         </ScrollView>
@@ -191,24 +241,28 @@ export default function JobLabourScreen() {
 function makeStyles(colors: any) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    addBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, margin: 16, alignSelf: "flex-start" },
-    addBtnText: { color: "#FFF", fontFamily: "Inter_600SemiBold", fontSize: 14 },
-    summaryRow: { flexDirection: "row", justifyContent: "space-around", borderRadius: 12, borderWidth: 1, padding: 14, marginHorizontal: 16, marginBottom: 8 },
+    newDayBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, margin: 16, alignSelf: "flex-start" },
+    newDayBtnText: { color: "#FFF", fontFamily: "Inter_700Bold", fontSize: 15 },
+    summaryCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderRadius: 12, borderWidth: 1, padding: 14, marginHorizontal: 16, marginBottom: 8, gap: 12 },
     summaryItem: { alignItems: "center", gap: 3 },
-    summaryValue: { fontFamily: "Inter_700Bold", fontSize: 16 },
-    summaryLabel: { fontFamily: "Inter_400Regular", fontSize: 11 },
-    card: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 10 },
+    summaryVal: { fontFamily: "Inter_700Bold", fontSize: 15 },
+    summarySub: { fontFamily: "Inter_400Regular", fontSize: 11 },
+    dateHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, marginTop: 4 },
+    dateLabel: { fontFamily: "Inter_700Bold", fontSize: 13 },
+    dateCount: { fontFamily: "Inter_400Regular", fontSize: 12, marginLeft: "auto" },
+    card: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 8 },
     cardRow: { flexDirection: "row", alignItems: "flex-start" },
     empName: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
-    sub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 2 },
-    statusBtn: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+    workType: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 2 },
+    statusPill: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+    statusDot: { width: 6, height: 6, borderRadius: 3 },
     divider: { height: 1, marginVertical: 10 },
-    statsRow: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
-    stat: { flexDirection: "row", alignItems: "center", gap: 4 },
+    statsRow: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+    typeBadge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
     statText: { fontFamily: "Inter_400Regular", fontSize: 12 },
-    notes: { fontFamily: "Inter_400Regular", fontSize: 12, fontStyle: "italic", marginTop: 6 },
-    empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 60 },
-    emptyText: { fontFamily: "Inter_400Regular", fontSize: 15 },
-    emptyHint: { fontFamily: "Inter_400Regular", fontSize: 13 },
+    notes: { fontFamily: "Inter_400Regular", fontSize: 12, fontStyle: "italic", marginTop: 8 },
+    empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 60, paddingHorizontal: 32 },
+    emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
+    emptyHint: { fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center" },
   });
 }
