@@ -12,50 +12,18 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import * as Haptics from "expo-haptics";
 
-const WORK_TYPES = [
-  { key: "trenching", label: "Trenching" },
-  { key: "backfilling", label: "Backfilling" },
-  { key: "cable_pulling", label: "Cable Pulling" },
-  { key: "reinstatement", label: "Reinstatement" },
-  { key: "manhole_installation", label: "Manhole Install." },
-  { key: "concrete", label: "Concrete" },
-  { key: "other", label: "Other" },
-];
-
 const METER_RATES = [25, 30] as const;
 type MeterRate = typeof METER_RATES[number];
 
-type EntryDraft = {
+type MeterEntry = {
   uid: string;
   employeeId: string;
   employeeName: string;
-  payrollType: "hourly" | "piece_work" | null;
-  workType: string;
-  // hourly
-  clockIn: string;
-  clockOut: string;
-  // piece work
   metersCompleted: string;
   ratePerMeter: MeterRate;
-  status: "open" | "complete";
-  notes: string;
 };
 
-function newEntry(): EntryDraft {
-  return {
-    uid: Math.random().toString(36).slice(2),
-    employeeId: "",
-    employeeName: "",
-    payrollType: null,
-    workType: "trenching",
-    clockIn: "",
-    clockOut: "",
-    metersCompleted: "",
-    ratePerMeter: 25,
-    status: "open",
-    notes: "",
-  };
-}
+function uid() { return Math.random().toString(36).slice(2); }
 
 function parseTime(t: string): number {
   const [h, m] = t.split(":").map(Number);
@@ -64,19 +32,12 @@ function parseTime(t: string): number {
 
 function calcHours(clockIn: string, clockOut: string): number | null {
   if (!clockIn || !clockOut) return null;
-  const diff = parseTime(clockOut) - parseTime(clockIn) - 30; // 30 min fixed break
+  const diff = parseTime(clockOut) - parseTime(clockIn) - 30;
   return diff > 0 ? diff / 60 : null;
 }
 
-function calcAmount(e: EntryDraft): number {
-  if (e.payrollType === "hourly") {
-    const h = calcHours(e.clockIn, e.clockOut);
-    return (h ?? 0) * 25; // R25/hr fixed
-  }
-  if (e.payrollType === "piece_work" && e.status === "complete") {
-    return Number(e.metersCompleted || 0) * e.ratePerMeter;
-  }
-  return 0;
+function newMeterEntry(): MeterEntry {
+  return { uid: uid(), employeeId: "", employeeName: "", metersCompleted: "", ratePerMeter: 25 };
 }
 
 export default function DailyLabourScreen() {
@@ -88,9 +49,18 @@ export default function DailyLabourScreen() {
 
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
-  const [entries, setEntries] = useState<EntryDraft[]>([newEntry()]);
-  const [empPickerIdx, setEmpPickerIdx] = useState<number | null>(null);
-  const [workTypePickerIdx, setWorkTypePickerIdx] = useState<number | null>(null);
+
+  // Hourly section: shared times + which employees worked
+  const [clockIn, setClockIn] = useState("");
+  const [clockOut, setClockOut] = useState("");
+  const [hourlyEmpIds, setHourlyEmpIds] = useState<Set<number>>(new Set());
+
+  // Per meter section: individual rows
+  const [meterEntries, setMeterEntries] = useState<MeterEntry[]>([]);
+
+  // Pickers
+  const [empPickerTarget, setEmpPickerTarget] = useState<"meter" | null>(null);
+  const [meterPickerUid, setMeterPickerUid] = useState<string | null>(null);
 
   const { data: employees } = useListEmployees();
 
@@ -105,30 +75,61 @@ export default function DailyLabourScreen() {
     },
   });
 
-  const updateEntry = useCallback((idx: number, patch: Partial<EntryDraft>) => {
-    setEntries(prev => prev.map((e, i) => i === idx ? { ...e, ...patch } : e));
-  }, []);
-
-  const removeEntry = (idx: number) => {
-    if (entries.length === 1) return;
-    setEntries(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const addEntry = () => {
-    setEntries(prev => [...prev, newEntry()]);
+  const toggleHourlyEmp = (empId: number) => {
+    setHourlyEmpIds(prev => {
+      const next = new Set(prev);
+      if (next.has(empId)) next.delete(empId);
+      else next.add(empId);
+      return next;
+    });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const addMeterEntry = () => {
+    setMeterEntries(prev => [...prev, newMeterEntry()]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const updateMeterEntry = useCallback((uid: string, patch: Partial<MeterEntry>) => {
+    setMeterEntries(prev => prev.map(e => e.uid === uid ? { ...e, ...patch } : e));
+  }, []);
+
+  const removeMeterEntry = (uid: string) => {
+    setMeterEntries(prev => prev.filter(e => e.uid !== uid));
+  };
+
+  const hours = calcHours(clockIn, clockOut);
+  const hourlyAmount = hours !== null ? hours * 25 : 0;
+
+  const meterTotal = meterEntries.reduce((sum, e) => {
+    const m = Number(e.metersCompleted || 0);
+    return sum + m * e.ratePerMeter;
+  }, 0);
+
+  const grandTotal = hourlyEmpIds.size * hourlyAmount + meterTotal;
+
   const handleSave = () => {
-    const invalid = entries.findIndex(e => !e.employeeId);
-    if (invalid >= 0) {
-      Alert.alert("Missing Employee", `Entry ${invalid + 1}: please select an employee.`);
+    if (hourlyEmpIds.size === 0 && meterEntries.length === 0) {
+      Alert.alert("Nothing to save", "Add at least one hourly employee or one per-meter entry.");
       return;
     }
-    const readyCount = entries.length;
+    if (hourlyEmpIds.size > 0 && (!clockIn || !clockOut)) {
+      Alert.alert("Missing times", "Enter Clock In and Clock Out for hourly workers.");
+      return;
+    }
+    const badMeter = meterEntries.find(e => !e.employeeId);
+    if (badMeter) {
+      Alert.alert("Missing employee", "Select an employee for all per-meter entries.");
+      return;
+    }
+
+    const hourlyCount = hourlyEmpIds.size;
+    const meterCount = meterEntries.length;
+    const total = hourlyCount + meterCount;
+
     Alert.alert(
       "Save Daily Labour",
-      `Save ${readyCount} entr${readyCount === 1 ? "y" : "ies"} for ${date}?`,
+      `Save ${total} entr${total === 1 ? "y" : "ies"} for ${date}?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -138,16 +139,22 @@ export default function DailyLabourScreen() {
               jobId,
               date,
               supervisorId: user?.id,
-              entries: entries.map(e => ({
-                employeeId: Number(e.employeeId),
-                workType: e.workType as any,
-                clockIn: e.clockIn || undefined,
-                clockOut: e.clockOut || undefined,
-                metersCompleted: e.metersCompleted ? Number(e.metersCompleted) : undefined,
-                ratePerMeter: e.payrollType === "piece_work" ? e.ratePerMeter : undefined,
-                status: e.status,
-                notes: e.notes || undefined,
-              })),
+              entries: [
+                ...[...hourlyEmpIds].map(empId => ({
+                  employeeId: empId,
+                  payrollType: "hourly" as const,
+                  clockIn: clockIn || undefined,
+                  clockOut: clockOut || undefined,
+                  status: "complete" as const,
+                })),
+                ...meterEntries.filter(e => e.employeeId).map(e => ({
+                  employeeId: Number(e.employeeId),
+                  payrollType: "piece_work" as const,
+                  metersCompleted: e.metersCompleted ? Number(e.metersCompleted) : undefined,
+                  ratePerMeter: e.ratePerMeter,
+                  status: "complete" as const,
+                })),
+              ],
             },
           }),
         },
@@ -155,15 +162,17 @@ export default function DailyLabourScreen() {
     );
   };
 
-  const grandTotal = entries.reduce((s, e) => s + calcAmount(e), 0);
   const s = makeStyles(colors);
+
+  // Employees NOT already selected as hourly (to avoid duplicates in meter picker)
+  const availableForMeter = (employees ?? []).filter(emp => !hourlyEmpIds.has(emp.id));
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* Date + supervisor header */}
+      {/* Header */}
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={s.headerRow}>
           <View style={s.headerField}>
@@ -187,26 +196,139 @@ export default function DailyLabourScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 160 }}>
-        {entries.map((entry, idx) => (
-          <EmployeeCard
-            key={entry.uid}
-            idx={idx}
-            entry={entry}
-            colors={colors}
-            employees={employees ?? []}
-            onUpdate={patch => updateEntry(idx, patch)}
-            onRemove={() => removeEntry(idx)}
-            canRemove={entries.length > 1}
-            onOpenEmpPicker={() => setEmpPickerIdx(idx)}
-            onOpenWorkTypePicker={() => setWorkTypePickerIdx(idx)}
-            s={s}
-          />
-        ))}
+        {/* ── HOURLY SECTION ── */}
+        <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={s.sectionHeader}>
+            <View style={[s.sectionIcon, { backgroundColor: "#2563EB20" }]}>
+              <Feather name="clock" size={16} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.sectionTitle, { color: colors.foreground }]}>Hourly Workers</Text>
+              <Text style={[s.sectionSub, { color: colors.mutedForeground }]}>R25/hr · 30-min lunch auto-deducted</Text>
+            </View>
+          </View>
 
-        <TouchableOpacity style={[s.addBtn, { borderColor: colors.primary }]} onPress={addEntry}>
-          <Feather name="plus" size={18} color={colors.primary} />
-          <Text style={[s.addBtnText, { color: colors.primary }]}>Add Employee</Text>
-        </TouchableOpacity>
+          {/* Shared clock in/out */}
+          <View style={[s.timeBlock, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <View style={s.timeRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>Clock In</Text>
+                <TextInput
+                  style={[s.timeInput, { color: colors.foreground, borderColor: clockIn ? "#2563EB" : colors.border, backgroundColor: colors.background }]}
+                  value={clockIn}
+                  onChangeText={setClockIn}
+                  placeholder="07:00"
+                  placeholderTextColor={colors.mutedForeground}
+                />
+              </View>
+              <View style={[s.timeSep, { backgroundColor: colors.border }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>Clock Out</Text>
+                <TextInput
+                  style={[s.timeInput, { color: colors.foreground, borderColor: clockOut ? "#2563EB" : colors.border, backgroundColor: colors.background }]}
+                  value={clockOut}
+                  onChangeText={setClockOut}
+                  placeholder="17:00"
+                  placeholderTextColor={colors.mutedForeground}
+                />
+              </View>
+            </View>
+            {hours !== null ? (
+              <View style={s.calcRow}>
+                <Feather name="check-circle" size={13} color="#2563EB" />
+                <Text style={{ color: "#2563EB", fontFamily: "Inter_700Bold", fontSize: 13 }}>
+                  {hours.toFixed(2)}h × R25 = R{hourlyAmount.toFixed(2)} per employee
+                </Text>
+              </View>
+            ) : (
+              <View style={s.calcRow}>
+                <Feather name="info" size={13} color={colors.mutedForeground} />
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 12 }}>
+                  Enter both times to preview hours and pay
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Employee checkboxes */}
+          <Text style={[s.pickLabel, { color: colors.mutedForeground }]}>
+            {hourlyEmpIds.size === 0 ? "Tick employees who worked hourly today:" : `${hourlyEmpIds.size} employee${hourlyEmpIds.size !== 1 ? "s" : ""} selected:`}
+          </Text>
+          {(employees ?? []).map(emp => {
+            const sel = hourlyEmpIds.has(emp.id);
+            return (
+              <TouchableOpacity
+                key={emp.id}
+                style={[s.empRow, { borderColor: sel ? "#2563EB" : colors.border, backgroundColor: sel ? "#2563EB10" : colors.muted }]}
+                onPress={() => toggleHourlyEmp(emp.id)}
+                activeOpacity={0.7}
+              >
+                <View style={[s.checkbox, { borderColor: sel ? "#2563EB" : colors.border, backgroundColor: sel ? "#2563EB" : "transparent" }]}>
+                  {sel && <Feather name="check" size={12} color="#FFF" />}
+                </View>
+                <View style={[s.empAvatar, { backgroundColor: sel ? "#2563EB20" : colors.border + "40" }]}>
+                  <Text style={{ color: sel ? "#2563EB" : colors.mutedForeground, fontFamily: "Inter_700Bold", fontSize: 13 }}>
+                    {emp.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={[s.empName, { color: colors.foreground, flex: 1 }]}>{emp.name}</Text>
+                {sel && hours !== null && (
+                  <Text style={{ color: "#2563EB", fontFamily: "Inter_700Bold", fontSize: 13 }}>
+                    R{hourlyAmount.toFixed(2)}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+          {(employees ?? []).length === 0 && (
+            <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", paddingVertical: 12 }}>
+              No employees found
+            </Text>
+          )}
+        </View>
+
+        {/* ── PER METER SECTION ── */}
+        <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 16 }]}>
+          <View style={s.sectionHeader}>
+            <View style={[s.sectionIcon, { backgroundColor: "#8B5CF620" }]}>
+              <Feather name="activity" size={16} color="#8B5CF6" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.sectionTitle, { color: colors.foreground }]}>Per Meter Workers</Text>
+              <Text style={[s.sectionSub, { color: colors.mutedForeground }]}>Each employee entered individually</Text>
+            </View>
+          </View>
+
+          {meterEntries.map((entry, idx) => (
+            <MeterCard
+              key={entry.uid}
+              idx={idx}
+              entry={entry}
+              colors={colors}
+              s={s}
+              onUpdate={patch => updateMeterEntry(entry.uid, patch)}
+              onRemove={() => removeMeterEntry(entry.uid)}
+              onOpenEmpPicker={() => { setEmpPickerTarget("meter"); setMeterPickerUid(entry.uid); }}
+            />
+          ))}
+
+          {meterEntries.length === 0 && (
+            <View style={[s.emptyHint, { backgroundColor: colors.muted }]}>
+              <Feather name="info" size={13} color={colors.mutedForeground} />
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 13, flex: 1 }}>
+                No per-meter entries yet. Tap below to add.
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[s.addBtn, { borderColor: "#8B5CF6" }]}
+            onPress={addMeterEntry}
+          >
+            <Feather name="plus" size={16} color="#8B5CF6" />
+            <Text style={{ color: "#8B5CF6", fontFamily: "Inter_600SemiBold", fontSize: 14 }}>Add Per Meter Employee</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Footer */}
@@ -214,7 +336,7 @@ export default function DailyLabourScreen() {
         <View style={s.footerInner}>
           <View>
             <Text style={[s.footerCount, { color: colors.mutedForeground }]}>
-              {entries.length} employee{entries.length !== 1 ? "s" : ""}
+              {hourlyEmpIds.size + meterEntries.length} entr{(hourlyEmpIds.size + meterEntries.length) !== 1 ? "ies" : "y"}
             </Text>
             <Text style={[s.footerTotal, { color: "#22C55E" }]}>R {grandTotal.toFixed(2)}</Text>
           </View>
@@ -231,52 +353,44 @@ export default function DailyLabourScreen() {
         </View>
       </View>
 
-      {/* Employee picker */}
-      <Modal visible={empPickerIdx !== null} transparent animationType="slide" onRequestClose={() => setEmpPickerIdx(null)}>
-        <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setEmpPickerIdx(null)}>
+      {/* Employee picker for per-meter rows */}
+      <Modal
+        visible={empPickerTarget === "meter" && meterPickerUid !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setEmpPickerTarget(null); setMeterPickerUid(null); }}
+      >
+        <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => { setEmpPickerTarget(null); setMeterPickerUid(null); }}>
           <View style={[s.sheet, { backgroundColor: colors.card }]}>
             <View style={[s.handle, { backgroundColor: colors.border }]} />
-            <Text style={[s.sheetTitle, { color: colors.foreground }]}>Select Employee</Text>
+            <Text style={[s.sheetTitle, { color: colors.foreground }]}>Select Employee (Per Meter)</Text>
             <FlatList
-              data={employees}
+              data={availableForMeter}
               keyExtractor={e => String(e.id)}
               style={{ maxHeight: 400 }}
+              ListEmptyComponent={
+                <Text style={{ color: colors.mutedForeground, textAlign: "center", padding: 24, fontFamily: "Inter_400Regular" }}>
+                  All employees already assigned as hourly
+                </Text>
+              }
               renderItem={({ item }) => {
-                const sel = empPickerIdx !== null && entries[empPickerIdx]?.employeeId === String(item.id);
-                const isHourly = (item as any).payrollType === "hourly";
+                const current = meterEntries.find(e => e.uid === meterPickerUid);
+                const sel = current?.employeeId === String(item.id);
                 return (
                   <TouchableOpacity
-                    style={[s.empRow, { borderBottomColor: colors.border, backgroundColor: sel ? colors.primary + "15" : "transparent" }]}
+                    style={[s.sheetRow, { borderBottomColor: colors.border, backgroundColor: sel ? colors.primary + "15" : "transparent" }]}
                     onPress={() => {
-                      if (empPickerIdx !== null) {
-                        updateEntry(empPickerIdx, {
-                          employeeId: String(item.id),
-                          employeeName: item.name,
-                          payrollType: (item as any).payrollType ?? "hourly",
-                        });
-                      }
-                      setEmpPickerIdx(null);
+                      if (meterPickerUid) updateMeterEntry(meterPickerUid, { employeeId: String(item.id), employeeName: item.name });
+                      setEmpPickerTarget(null);
+                      setMeterPickerUid(null);
                     }}
                   >
-                    <View style={[s.empAvatar, { backgroundColor: sel ? colors.primary : (isHourly ? "#2563EB20" : "#8B5CF620") }]}>
-                      <Text style={{ color: sel ? "#FFF" : (isHourly ? "#2563EB" : "#8B5CF6"), fontFamily: "Inter_700Bold", fontSize: 14 }}>
+                    <View style={[s.empAvatar, { backgroundColor: sel ? colors.primary + "30" : colors.border + "40" }]}>
+                      <Text style={{ color: sel ? colors.primary : colors.mutedForeground, fontFamily: "Inter_700Bold", fontSize: 13 }}>
                         {item.name.charAt(0).toUpperCase()}
                       </Text>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.empName, { color: colors.foreground }]}>{item.name}</Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-                        <View style={[s.typeBadge, { backgroundColor: isHourly ? "#2563EB20" : "#8B5CF620" }]}>
-                          <Feather name={isHourly ? "clock" : "activity"} size={10} color={isHourly ? "#2563EB" : "#8B5CF6"} />
-                          <Text style={{ color: isHourly ? "#2563EB" : "#8B5CF6", fontFamily: "Inter_600SemiBold", fontSize: 10 }}>
-                            {isHourly ? "Hourly · R25/hr" : "Piece Work"}
-                          </Text>
-                        </View>
-                        {(item as any).employeeNumber && (
-                          <Text style={[s.empSub, { color: colors.mutedForeground }]}>#{(item as any).employeeNumber}</Text>
-                        )}
-                      </View>
-                    </View>
+                    <Text style={[s.empName, { color: colors.foreground, flex: 1 }]}>{item.name}</Text>
                     {sel && <Feather name="check" size={16} color={colors.primary} />}
                   </TouchableOpacity>
                 );
@@ -285,228 +399,91 @@ export default function DailyLabourScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {/* Work type picker */}
-      <Modal visible={workTypePickerIdx !== null} transparent animationType="slide" onRequestClose={() => setWorkTypePickerIdx(null)}>
-        <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setWorkTypePickerIdx(null)}>
-          <View style={[s.sheet, { backgroundColor: colors.card }]}>
-            <View style={[s.handle, { backgroundColor: colors.border }]} />
-            <Text style={[s.sheetTitle, { color: colors.foreground }]}>Work Performed</Text>
-            {WORK_TYPES.map(wt => {
-              const sel = workTypePickerIdx !== null && entries[workTypePickerIdx]?.workType === wt.key;
-              return (
-                <TouchableOpacity
-                  key={wt.key}
-                  style={[s.wtRow, { borderBottomColor: colors.border, backgroundColor: sel ? colors.primary + "15" : "transparent" }]}
-                  onPress={() => {
-                    if (workTypePickerIdx !== null) updateEntry(workTypePickerIdx, { workType: wt.key });
-                    setWorkTypePickerIdx(null);
-                  }}
-                >
-                  <Text style={[s.wtLabel, { color: colors.foreground }]}>{wt.label}</Text>
-                  {sel && <Feather name="check" size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
 
-function EmployeeCard({
-  idx, entry, colors, employees, onUpdate, onRemove, canRemove,
-  onOpenEmpPicker, onOpenWorkTypePicker, s,
+function MeterCard({
+  idx, entry, colors, s, onUpdate, onRemove, onOpenEmpPicker,
 }: {
   idx: number;
-  entry: EntryDraft;
+  entry: MeterEntry;
   colors: any;
-  employees: any[];
-  onUpdate: (patch: Partial<EntryDraft>) => void;
-  onRemove: () => void;
-  canRemove: boolean;
-  onOpenEmpPicker: () => void;
-  onOpenWorkTypePicker: () => void;
   s: ReturnType<typeof makeStyles>;
+  onUpdate: (patch: Partial<MeterEntry>) => void;
+  onRemove: () => void;
+  onOpenEmpPicker: () => void;
 }) {
-  const isPiece = entry.payrollType === "piece_work";
-  const isHourly = entry.payrollType === "hourly";
-  const hours = isHourly ? calcHours(entry.clockIn, entry.clockOut) : null;
-  const amount = calcAmount(entry);
-  const wtLabel = WORK_TYPES.find(w => w.key === entry.workType)?.label ?? entry.workType;
+  const meters = Number(entry.metersCompleted || 0);
+  const amount = meters * entry.ratePerMeter;
 
   return (
-    <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      {/* Card header */}
-      <View style={s.cardHeader}>
-        <View style={[s.cardNum, { backgroundColor: colors.primary }]}>
-          <Text style={s.cardNumText}>{idx + 1}</Text>
+    <View style={[s.meterCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+        <View style={[s.meterNum, { backgroundColor: "#8B5CF6" }]}>
+          <Text style={{ color: "#FFF", fontFamily: "Inter_700Bold", fontSize: 11 }}>{idx + 1}</Text>
         </View>
-        {entry.payrollType && (
-          <View style={[s.typePill, { backgroundColor: isHourly ? "#2563EB20" : "#8B5CF620" }]}>
-            <Feather name={isHourly ? "clock" : "activity"} size={11} color={isHourly ? "#2563EB" : "#8B5CF6"} />
-            <Text style={{ color: isHourly ? "#2563EB" : "#8B5CF6", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>
-              {isHourly ? "Hourly" : "Piece Work"}
-            </Text>
-          </View>
-        )}
-        {amount > 0 && (
-          <Text style={{ color: "#22C55E", fontFamily: "Inter_700Bold", fontSize: 14, marginLeft: "auto", marginRight: canRemove ? 8 : 0 }}>
-            R {amount.toFixed(2)}
+        {meters > 0 && (
+          <Text style={{ color: "#22C55E", fontFamily: "Inter_700Bold", fontSize: 13, marginLeft: "auto", marginRight: 8 }}>
+            R{amount.toFixed(2)}
           </Text>
         )}
-        {canRemove && (
-          <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="x-circle" size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={onRemove} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Feather name="x-circle" size={18} color={colors.mutedForeground} />
+        </TouchableOpacity>
       </View>
 
-      <View style={[s.divider, { backgroundColor: colors.border }]} />
-
-      {/* Employee selector */}
+      {/* Employee picker */}
       <TouchableOpacity
-        style={[s.picker, { backgroundColor: colors.muted, borderColor: entry.employeeId ? colors.primary : colors.border }]}
+        style={[s.picker, { backgroundColor: colors.background, borderColor: entry.employeeId ? "#8B5CF6" : colors.border }]}
         onPress={onOpenEmpPicker}
       >
-        <Feather name="user" size={15} color={entry.employeeId ? colors.primary : colors.mutedForeground} />
+        <Feather name="user" size={14} color={entry.employeeId ? "#8B5CF6" : colors.mutedForeground} />
         <Text style={[s.pickerText, { color: entry.employeeId ? colors.foreground : colors.mutedForeground }]}>
           {entry.employeeName || "Select employee…"}
         </Text>
-        <Feather name="chevron-down" size={15} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
+        <Feather name="chevron-down" size={14} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
       </TouchableOpacity>
 
-      {/* Work type selector */}
-      <TouchableOpacity
-        style={[s.picker, { backgroundColor: colors.muted, borderColor: colors.border, marginTop: 8 }]}
-        onPress={onOpenWorkTypePicker}
-      >
-        <Feather name="tool" size={15} color={colors.mutedForeground} />
-        <Text style={[s.pickerText, { color: colors.foreground }]}>{wtLabel}</Text>
-        <Feather name="chevron-down" size={15} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
-      </TouchableOpacity>
-
-      {/* Fields based on payroll type — only shown once employee is selected */}
-      {!entry.payrollType && entry.employeeId === "" && (
-        <View style={[s.hintBox, { backgroundColor: colors.muted }]}>
-          <Feather name="info" size={13} color={colors.mutedForeground} />
-          <Text style={[s.hintText, { color: colors.mutedForeground }]}>Select an employee to see pay fields</Text>
-        </View>
-      )}
-
-      {isHourly && (
-        <View style={{ marginTop: 12 }}>
-          {/* Auto-rate notice */}
-          <View style={[s.autoBox, { backgroundColor: "#2563EB10", borderColor: "#2563EB30" }]}>
-            <Feather name="info" size={12} color="#2563EB" />
-            <Text style={{ color: "#2563EB", fontFamily: "Inter_500Medium", fontSize: 12, flex: 1 }}>
-              R25/hr · 30-min lunch deducted automatically
-            </Text>
-          </View>
-
-          <View style={[s.timeRow, { marginTop: 10 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>Clock In</Text>
-              <TextInput
-                style={[s.timeInput, { color: colors.foreground, borderColor: entry.clockIn ? colors.primary : colors.border, backgroundColor: colors.muted }]}
-                value={entry.clockIn}
-                onChangeText={v => onUpdate({ clockIn: v })}
-                placeholder="07:00"
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
-            <View style={[s.timeSep, { backgroundColor: colors.border }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>Clock Out</Text>
-              <TextInput
-                style={[s.timeInput, { color: colors.foreground, borderColor: entry.clockOut ? colors.primary : colors.border, backgroundColor: colors.muted }]}
-                value={entry.clockOut}
-                onChangeText={v => onUpdate({ clockOut: v })}
-                placeholder="17:00"
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
-          </View>
-
-          {hours !== null && (
-            <View style={[s.calcPreview, { backgroundColor: "#2563EB10" }]}>
-              <Feather name="clock" size={13} color="#2563EB" />
-              <Text style={{ color: "#2563EB", fontFamily: "Inter_700Bold", fontSize: 13 }}>
-                {hours.toFixed(2)}h × R25 = R {(hours * 25).toFixed(2)}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {isPiece && (
-        <View style={{ marginTop: 12 }}>
-          {/* Rate selector */}
-          <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>Rate Per Meter</Text>
-          <View style={[s.rateRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            {METER_RATES.map(r => (
-              <TouchableOpacity
-                key={r}
-                style={[s.rateBtn, entry.ratePerMeter === r && { backgroundColor: colors.primary }]}
-                onPress={() => onUpdate({ ratePerMeter: r })}
-              >
-                <Text style={[s.rateBtnText, { color: entry.ratePerMeter === r ? "#FFF" : colors.foreground }]}>
-                  R{r}/m
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Meters */}
-          <Text style={[s.fieldLabel, { color: colors.mutedForeground, marginTop: 10 }]}>Meters Completed</Text>
+      <View style={[s.meterFields, { marginTop: 10 }]}>
+        {/* Meters input */}
+        <View style={{ flex: 1 }}>
+          <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>Meters</Text>
           <TextInput
-            style={[s.input, { color: colors.foreground, borderColor: entry.metersCompleted ? colors.primary : colors.border, backgroundColor: colors.muted }]}
+            style={[s.meterInput, { color: colors.foreground, borderColor: entry.metersCompleted ? "#8B5CF6" : colors.border, backgroundColor: colors.background }]}
             value={entry.metersCompleted}
             onChangeText={v => onUpdate({ metersCompleted: v })}
             keyboardType="numeric"
             placeholder="0"
             placeholderTextColor={colors.mutedForeground}
           />
+        </View>
 
-          {/* Status */}
-          <Text style={[s.fieldLabel, { color: colors.mutedForeground, marginTop: 10 }]}>Status</Text>
-          <View style={[s.rateRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <TouchableOpacity
-              style={[s.rateBtn, entry.status === "open" && { backgroundColor: "#F59E0B" }]}
-              onPress={() => onUpdate({ status: "open" })}
-            >
-              <Text style={[s.rateBtnText, { color: entry.status === "open" ? "#FFF" : colors.foreground }]}>
-                Incomplete
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.rateBtn, entry.status === "complete" && { backgroundColor: "#22C55E" }]}
-              onPress={() => onUpdate({ status: "complete" })}
-            >
-              <Text style={[s.rateBtnText, { color: entry.status === "complete" ? "#FFF" : colors.foreground }]}>
-                Completed
-              </Text>
-            </TouchableOpacity>
+        {/* Rate toggle */}
+        <View style={{ flex: 1 }}>
+          <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>Rate/m</Text>
+          <View style={[s.rateRow, { borderColor: colors.border, backgroundColor: colors.background }]}>
+            {METER_RATES.map(r => (
+              <TouchableOpacity
+                key={r}
+                style={[s.rateBtn, entry.ratePerMeter === r && { backgroundColor: "#8B5CF6" }]}
+                onPress={() => onUpdate({ ratePerMeter: r })}
+              >
+                <Text style={[s.rateBtnText, { color: entry.ratePerMeter === r ? "#FFF" : colors.foreground }]}>
+                  R{r}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
+        </View>
+      </View>
 
-          {entry.status === "open" && (
-            <View style={[s.autoBox, { backgroundColor: "#F59E0B10", borderColor: "#F59E0B30", marginTop: 8 }]}>
-              <Feather name="clock" size={12} color="#F59E0B" />
-              <Text style={{ color: "#F59E0B", fontFamily: "Inter_500Medium", fontSize: 12, flex: 1 }}>
-                Incomplete — earns R0. Mark Completed when the trench is finished.
-              </Text>
-            </View>
-          )}
-
-          {entry.status === "complete" && entry.metersCompleted && (
-            <View style={[s.calcPreview, { backgroundColor: "#22C55E10" }]}>
-              <Feather name="check-circle" size={13} color="#22C55E" />
-              <Text style={{ color: "#22C55E", fontFamily: "Inter_700Bold", fontSize: 13 }}>
-                {entry.metersCompleted}m × R{entry.ratePerMeter} = R {(Number(entry.metersCompleted) * entry.ratePerMeter).toFixed(2)}
-              </Text>
-            </View>
-          )}
+      {meters > 0 && (
+        <View style={[s.calcRow, { marginTop: 8 }]}>
+          <Feather name="check-circle" size={13} color="#8B5CF6" />
+          <Text style={{ color: "#8B5CF6", fontFamily: "Inter_700Bold", fontSize: 12 }}>
+            {meters}m × R{entry.ratePerMeter} = R{amount.toFixed(2)}
+          </Text>
         </View>
       )}
     </View>
@@ -523,51 +500,51 @@ function makeStyles(colors: any) {
     supervisorBox: { borderRadius: 8, borderWidth: 1, padding: 10, flexDirection: "row", alignItems: "center", gap: 6 },
     supervisorText: { fontFamily: "Inter_500Medium", fontSize: 14 },
 
-    card: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 14 },
-    cardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-    cardNum: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    cardNumText: { color: "#FFF", fontFamily: "Inter_700Bold", fontSize: 12 },
-    typePill: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-    divider: { height: 1, marginVertical: 12 },
+    sectionCard: { borderRadius: 16, borderWidth: 1, padding: 16 },
+    sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+    sectionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+    sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 15 },
+    sectionSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 1 },
+
+    timeBlock: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 14 },
+    timeRow: { flexDirection: "row", gap: 10, alignItems: "flex-end" },
+    timeSep: { width: 1, height: 40, marginBottom: 8 },
+    fieldLabel: { fontFamily: "Inter_500Medium", fontSize: 12, marginBottom: 6 },
+    timeInput: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Inter_600SemiBold", fontSize: 16, textAlign: "center" },
+    calcRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
+
+    pickLabel: { fontFamily: "Inter_500Medium", fontSize: 12, marginBottom: 8 },
+    empRow: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 6 },
+    checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+    empAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+    empName: { fontFamily: "Inter_500Medium", fontSize: 14 },
+
+    emptyHint: { flexDirection: "row", gap: 8, borderRadius: 10, padding: 12, marginBottom: 12, alignItems: "flex-start" },
+
+    meterCard: { borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 10 },
+    meterNum: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+    meterFields: { flexDirection: "row", gap: 10 },
+    meterInput: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Inter_400Regular", fontSize: 15 },
 
     picker: { borderRadius: 10, borderWidth: 1, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
-    pickerText: { fontFamily: "Inter_400Regular", fontSize: 14, flex: 1 },
+    pickerText: { fontFamily: "Inter_400Regular", fontSize: 14 },
+    rateRow: { flexDirection: "row", borderRadius: 8, borderWidth: 1, overflow: "hidden" },
+    rateBtn: { flex: 1, paddingVertical: 10, alignItems: "center", justifyContent: "center" },
+    rateBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
 
-    hintBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 8, padding: 10, marginTop: 10 },
-    hintText: { fontFamily: "Inter_400Regular", fontSize: 12 },
+    addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", paddingVertical: 14, marginTop: 4 },
 
-    autoBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 8, borderWidth: 1, padding: 10 },
-    fieldLabel: { fontFamily: "Inter_500Medium", fontSize: 12, marginBottom: 6 },
-    timeRow: { flexDirection: "row", alignItems: "flex-end", gap: 0 },
-    timeSep: { width: 1, height: 36, marginHorizontal: 8, alignSelf: "flex-end", marginBottom: 10 },
-    timeInput: { borderRadius: 10, borderWidth: 1, padding: 12, fontFamily: "Inter_600SemiBold", fontSize: 18, textAlign: "center" },
-    calcPreview: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 8, padding: 10, marginTop: 8 },
-
-    input: { borderRadius: 10, borderWidth: 1, padding: 12, fontFamily: "Inter_600SemiBold", fontSize: 18 },
-    rateRow: { flexDirection: "row", borderRadius: 10, borderWidth: 1, overflow: "hidden" },
-    rateBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 9 },
-    rateBtnText: { fontFamily: "Inter_700Bold", fontSize: 15 },
-
-    addBtn: { borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, padding: 16, marginTop: 4 },
-    addBtnText: { fontFamily: "Inter_700Bold", fontSize: 16 },
-
-    footer: { borderTopWidth: 1, padding: 16, paddingBottom: 28 },
+    footer: { position: "absolute", bottom: 0, left: 0, right: 0, borderTopWidth: 1, padding: 16, paddingBottom: Platform.OS === "ios" ? 32 : 16 },
     footerInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    footerCount: { fontFamily: "Inter_400Regular", fontSize: 12, marginBottom: 2 },
-    footerTotal: { fontFamily: "Inter_700Bold", fontSize: 22 },
-    saveBtn: { borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 14 },
-    saveBtnText: { color: "#FFF", fontFamily: "Inter_700Bold", fontSize: 16 },
+    footerCount: { fontFamily: "Inter_400Regular", fontSize: 13 },
+    footerTotal: { fontFamily: "Inter_700Bold", fontSize: 20 },
+    saveBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 14 },
+    saveBtnText: { color: "#FFF", fontFamily: "Inter_600SemiBold", fontSize: 15 },
 
-    overlay: { flex: 1, backgroundColor: "#00000060", justifyContent: "flex-end" },
-    sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 36 },
-    handle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-    sheetTitle: { fontFamily: "Inter_700Bold", fontSize: 18, marginBottom: 12 },
-    empRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1 },
-    empAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-    empName: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
-    empSub: { fontFamily: "Inter_400Regular", fontSize: 12 },
-    typeBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-    wtRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 16, borderBottomWidth: 1, paddingHorizontal: 4 },
-    wtLabel: { fontFamily: "Inter_500Medium", fontSize: 16 },
+    overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
+    sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
+    handle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
+    sheetTitle: { fontFamily: "Inter_700Bold", fontSize: 17, marginBottom: 16 },
+    sheetRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1 },
   });
 }

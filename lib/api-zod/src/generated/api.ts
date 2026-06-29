@@ -1079,7 +1079,8 @@ export const BatchCreateLabourEntriesBody = zod.object({
   "supervisorId": zod.number().optional(),
   "entries": zod.array(zod.object({
   "employeeId": zod.number(),
-  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
+  "payrollType": zod.enum(['hourly', 'piece_work']),
+  "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']).optional(),
   "clockIn": zod.string().optional(),
   "clockOut": zod.string().optional(),
   "metersCompleted": zod.number().optional(),

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, labourEntriesTable, usersTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthPayload } from "../middlewares/auth.js";
 import type { Request } from "express";
 
@@ -86,7 +86,7 @@ router.get("/labour-entries", requireAuth, async (req, res): Promise<void> => {
   res.json(rows.map(r => formatEntry({ ...r.entry, employee: r.employee })));
 });
 
-// POST /labour-entries/batch — daily multi-employee entry (simplified)
+// POST /labour-entries/batch — daily multi-employee entry
 router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const auth = (req as AuthReq).auth;
   const { jobId, date, entries } = req.body as {
@@ -95,7 +95,8 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
     supervisorId?: number;
     entries: Array<{
       employeeId: number;
-      workType: string;
+      payrollType: "hourly" | "piece_work";
+      workType?: string;
       clockIn?: string;
       clockOut?: string;
       metersCompleted?: number;
@@ -110,18 +111,13 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
     return;
   }
 
-  // Batch-fetch all employee payroll types
-  const empIds = [...new Set(entries.map(e => Number(e.employeeId)))];
-  const empRows = await db
-    .select({ id: usersTable.id, payrollType: usersTable.payrollType })
-    .from(usersTable)
-    .where(inArray(usersTable.id, empIds));
-  const empMap = new Map(empRows.map(r => [r.id, r.payrollType]));
-
-  // Validate piece work rates before inserting anything
+  // Validate entries
   for (const e of entries) {
-    const payrollType = empMap.get(Number(e.employeeId)) ?? "hourly";
-    if (payrollType === "piece_work" && e.ratePerMeter != null) {
+    if (e.payrollType !== "hourly" && e.payrollType !== "piece_work") {
+      res.status(400).json({ error: `Invalid payrollType "${e.payrollType}": must be hourly or piece_work` });
+      return;
+    }
+    if (e.payrollType === "piece_work" && e.ratePerMeter != null) {
       const r = Number(e.ratePerMeter);
       if (!VALID_METER_RATES.includes(r as MeterRate)) {
         res.status(400).json({ error: `Invalid ratePerMeter ${r}: must be 25 or 30` });
@@ -131,8 +127,8 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
   }
 
   const values = entries.map(e => {
-    const payrollType = empMap.get(Number(e.employeeId)) ?? "hourly";
-    const entryStatus = (e.status ?? "open") as "open" | "complete";
+    const payrollType = e.payrollType;
+    const entryStatus = (e.status ?? "complete") as "open" | "complete";
     let hw: number | null = null;
     let rate: number | null = null;
     let amount = 0;
@@ -153,7 +149,7 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
       jobId: Number(jobId),
       employeeId: Number(e.employeeId),
       date,
-      workType: e.workType as any,
+      workType: (e.workType ?? (payrollType === "piece_work" ? "trenching" : "other")) as any,
       payrollType: payrollType as "hourly" | "piece_work",
       clockIn: e.clockIn ?? null,
       clockOut: e.clockOut ?? null,
@@ -174,7 +170,7 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
   res.status(201).json(inserted.map(e => formatEntry(e)));
 });
 
-// PUT /labour-entries/:id — recalculate on status change (supervisor marks complete)
+// PUT /labour-entries/:id — recalculate on status/field change
 router.put("/labour-entries/:id", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const { clockIn, clockOut, metersCompleted, status, notes, workType, date } = req.body as Record<string, any>;

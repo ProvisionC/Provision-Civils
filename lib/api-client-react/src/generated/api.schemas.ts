@@ -966,6 +966,14 @@ export interface InvoiceUpdate {
   vat?: number;
 }
 
+export type DailyLabourEntryInputPayrollType = typeof DailyLabourEntryInputPayrollType[keyof typeof DailyLabourEntryInputPayrollType];
+
+
+export const DailyLabourEntryInputPayrollType = {
+  hourly: 'hourly',
+  piece_work: 'piece_work',
+} as const;
+
 export type DailyLabourEntryInputWorkType = typeof DailyLabourEntryInputWorkType[keyof typeof DailyLabourEntryInputWorkType];
 
 
@@ -997,7 +1005,8 @@ export const DailyLabourEntryInputStatus = {
 
 export interface DailyLabourEntryInput {
   employeeId: number;
-  workType: DailyLabourEntryInputWorkType;
+  payrollType: DailyLabourEntryInputPayrollType;
+  workType?: DailyLabourEntryInputWorkType;
   clockIn?: string;
   clockOut?: string;
   metersCompleted?: number;

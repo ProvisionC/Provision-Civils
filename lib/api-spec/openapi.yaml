@@ -2123,10 +2123,13 @@ components:
 
     DailyLabourEntryInput:
       type: object
-      required: [employeeId, workType]
+      required: [employeeId, payrollType]
       properties:
         employeeId:
           type: integer
+        payrollType:
+          type: string
+          enum: [hourly, piece_work]
         workType:
           type: string
           enum: [trenching, backfilling, cable_pulling, reinstatement, manhole_installation, concrete, other]
