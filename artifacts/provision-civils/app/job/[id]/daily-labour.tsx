@@ -52,6 +52,7 @@ export default function DailyLabourScreen() {
 
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Hourly section: shared times + which employees worked
   const [clockIn, setClockIn] = useState("");
@@ -69,19 +70,15 @@ export default function DailyLabourScreen() {
 
   const batch = useBatchCreateLabourEntries({
     mutation: {
-      onSuccess: (data) => {
+      onSuccess: () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         qc.invalidateQueries({ queryKey: getListLabourEntriesQueryKey({ jobId }) });
         qc.invalidateQueries({ queryKey: ["labour-entries", "job", jobId] });
-        Alert.alert(
-          "Labour Saved",
-          `${data.length} entr${data.length === 1 ? "y" : "ies"} saved successfully.`,
-          [{ text: "OK", onPress: () => router.back() }]
-        );
+        router.back();
       },
       onError: (error: any) => {
-        const msg = error?.message ?? error?.data?.error ?? "Unexpected error. Please try again.";
-        Alert.alert("Save Failed", msg);
+        const msg: string = error?.message ?? error?.data?.error ?? "Unexpected error. Please try again.";
+        setSaveError(msg);
         console.error("[daily-labour] batch save error:", error);
       },
     },
@@ -152,6 +149,7 @@ export default function DailyLabourScreen() {
       })),
     ];
 
+    setSaveError(null);
     console.log("[daily-labour] saving", allEntries.length, "entries for job", jobId, "date", date);
 
     batch.mutate({
@@ -335,6 +333,17 @@ export default function DailyLabourScreen() {
 
       {/* Footer */}
       <View style={[s.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        {/* Error banner — shown inline, never blocks with a modal */}
+        {saveError !== null && (
+          <View style={s.errorBanner}>
+            <Feather name="alert-circle" size={14} color="#FFF" />
+            <Text style={s.errorBannerText} numberOfLines={3}>{saveError}</Text>
+            <TouchableOpacity onPress={() => setSaveError(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={14} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={s.footerInner}>
           <View>
             <Text style={[s.footerCount, { color: colors.mutedForeground }]}>
@@ -343,14 +352,15 @@ export default function DailyLabourScreen() {
             <Text style={[s.footerTotal, { color: "#22C55E" }]}>R {grandTotal.toFixed(2)}</Text>
           </View>
           <TouchableOpacity
-            style={[s.saveBtn, { backgroundColor: colors.primary, opacity: batch.isPending ? 0.7 : 1 }]}
+            style={[s.saveBtn, { backgroundColor: colors.primary, opacity: batch.isPending ? 0.6 : 1 }]}
             onPress={handleSave}
             disabled={batch.isPending}
           >
-            {batch.isPending
-              ? <ActivityIndicator color="#FFF" size="small" />
-              : <><Feather name="save" size={16} color="#FFF" /><Text style={s.saveBtnText}>Save</Text></>
-            }
+            {batch.isPending ? (
+              <><ActivityIndicator color="#FFF" size="small" /><Text style={s.saveBtnText}>Saving…</Text></>
+            ) : (
+              <><Feather name="save" size={16} color="#FFF" /><Text style={s.saveBtnText}>Save</Text></>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -536,7 +546,9 @@ function makeStyles(colors: any) {
 
     addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", paddingVertical: 14, marginTop: 4 },
 
-    footer: { position: "absolute", bottom: 0, left: 0, right: 0, borderTopWidth: 1, padding: 16, paddingBottom: Platform.OS === "ios" ? 32 : 16 },
+    footer: { position: "absolute", bottom: 0, left: 0, right: 0, borderTopWidth: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: Platform.OS === "ios" ? 32 : 16 },
+    errorBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#EF4444", borderRadius: 10, padding: 12, marginBottom: 10 },
+    errorBannerText: { color: "#FFF", fontFamily: "Inter_500Medium", fontSize: 13, flex: 1 },
     footerInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     footerCount: { fontFamily: "Inter_400Regular", fontSize: 13 },
     footerTotal: { fontFamily: "Inter_700Bold", fontSize: 20 },
