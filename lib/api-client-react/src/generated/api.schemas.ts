@@ -906,8 +906,16 @@ export interface LeaveStatusUpdate {
 export interface PayrollSummary {
   employeeId: number;
   employeeName: string;
+  /** @nullable */
+  employeeNumber?: string | null;
+  /** @nullable */
+  clockNumber?: string | null;
   totalHours: number;
+  hourlyAmount: number;
+  metersAt25: number;
+  metersAt30: number;
   totalMeters: number;
+  pieceAmount: number;
   totalAmount: number;
   entryCount: number;
 }

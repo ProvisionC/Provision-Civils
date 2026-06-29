@@ -18,7 +18,7 @@ export default function TabLayout() {
   const isPM = user?.role === "project_manager";
   const isSupervisor = user?.role === "supervisor";
   const isWorker = user?.role === "worker";
-  const canViewPayroll = isAdmin || isPM || isSupervisor;
+  const canViewPayroll = isAdmin;
 
   const { data: notifications } = useListNotifications({
     query: { queryKey: getListNotificationsQueryKey(), enabled: !!token },
@@ -89,7 +89,7 @@ export default function TabLayout() {
         options={{
           title: "Payroll",
           tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={22} color={color} />,
-          tabBarItemStyle: isWorker ? { display: "none" } : {},
+          tabBarItemStyle: !canViewPayroll ? { display: "none" } : {},
         }}
       />
       <Tabs.Screen

@@ -1226,8 +1226,14 @@ export const GetPayrollSummaryQueryParams = zod.object({
 export const GetPayrollSummaryResponseItem = zod.object({
   "employeeId": zod.number(),
   "employeeName": zod.string(),
+  "employeeNumber": zod.string().nullish(),
+  "clockNumber": zod.string().nullish(),
   "totalHours": zod.number(),
+  "hourlyAmount": zod.number(),
+  "metersAt25": zod.number(),
+  "metersAt30": zod.number(),
   "totalMeters": zod.number(),
+  "pieceAmount": zod.number(),
   "totalAmount": zod.number(),
   "entryCount": zod.number()
 })

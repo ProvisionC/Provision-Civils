@@ -2042,15 +2042,27 @@ components:
 
     PayrollSummary:
       type: object
-      required: [employeeId, employeeName, totalHours, totalMeters, totalAmount, entryCount]
+      required: [employeeId, employeeName, totalHours, totalMeters, totalAmount, entryCount, hourlyAmount, pieceAmount, metersAt25, metersAt30]
       properties:
         employeeId:
           type: integer
         employeeName:
           type: string
+        employeeNumber:
+          type: ["string", "null"]
+        clockNumber:
+          type: ["string", "null"]
         totalHours:
           type: number
+        hourlyAmount:
+          type: number
+        metersAt25:
+          type: number
+        metersAt30:
+          type: number
         totalMeters:
+          type: number
+        pieceAmount:
           type: number
         totalAmount:
           type: number
