@@ -7,7 +7,10 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
-import { useBatchCreateLabourEntries, useListEmployees } from "@workspace/api-client-react";
+import {
+  useBatchCreateLabourEntries, useListEmployees,
+  getListLabourEntriesQueryKey,
+} from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import * as Haptics from "expo-haptics";
@@ -66,12 +69,21 @@ export default function DailyLabourScreen() {
 
   const batch = useBatchCreateLabourEntries({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (data) => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        qc.invalidateQueries({ queryKey: getListLabourEntriesQueryKey({ jobId }) });
         qc.invalidateQueries({ queryKey: ["labour-entries", "job", jobId] });
-        router.back();
+        Alert.alert(
+          "Labour Saved",
+          `${data.length} entr${data.length === 1 ? "y" : "ies"} saved successfully.`,
+          [{ text: "OK", onPress: () => router.back() }]
+        );
       },
-      onError: () => Alert.alert("Error", "Failed to save entries. Please try again."),
+      onError: (error: any) => {
+        const msg = error?.message ?? error?.data?.error ?? "Unexpected error. Please try again.";
+        Alert.alert("Save Failed", msg);
+        console.error("[daily-labour] batch save error:", error);
+      },
     },
   });
 
@@ -110,56 +122,46 @@ export default function DailyLabourScreen() {
 
   const handleSave = () => {
     if (hourlyEmpIds.size === 0 && meterEntries.length === 0) {
-      Alert.alert("Nothing to save", "Add at least one hourly employee or one per-meter entry.");
+      Alert.alert("Nothing to Save", "Tick at least one hourly employee or add a per-meter entry.");
       return;
     }
     if (hourlyEmpIds.size > 0 && (!clockIn || !clockOut)) {
-      Alert.alert("Missing times", "Enter Clock In and Clock Out for hourly workers.");
+      Alert.alert("Missing Times", "Enter Clock In and Clock Out before saving hourly workers.");
       return;
     }
     const badMeter = meterEntries.find(e => !e.employeeId);
     if (badMeter) {
-      Alert.alert("Missing employee", "Select an employee for all per-meter entries.");
+      Alert.alert("Missing Employee", "Select an employee for every per-meter entry.");
       return;
     }
 
-    const hourlyCount = hourlyEmpIds.size;
-    const meterCount = meterEntries.length;
-    const total = hourlyCount + meterCount;
+    const allEntries = [
+      ...[...hourlyEmpIds].map(empId => ({
+        employeeId: empId,
+        payrollType: "hourly" as const,
+        clockIn: clockIn || undefined,
+        clockOut: clockOut || undefined,
+        status: "complete" as const,
+      })),
+      ...meterEntries.filter(e => e.employeeId).map(e => ({
+        employeeId: Number(e.employeeId),
+        payrollType: "piece_work" as const,
+        metersCompleted: e.metersCompleted ? Number(e.metersCompleted) : undefined,
+        ratePerMeter: e.ratePerMeter,
+        status: "complete" as const,
+      })),
+    ];
 
-    Alert.alert(
-      "Save Daily Labour",
-      `Save ${total} entr${total === 1 ? "y" : "ies"} for ${date}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Save",
-          onPress: () => batch.mutate({
-            data: {
-              jobId,
-              date,
-              supervisorId: user?.id,
-              entries: [
-                ...[...hourlyEmpIds].map(empId => ({
-                  employeeId: empId,
-                  payrollType: "hourly" as const,
-                  clockIn: clockIn || undefined,
-                  clockOut: clockOut || undefined,
-                  status: "complete" as const,
-                })),
-                ...meterEntries.filter(e => e.employeeId).map(e => ({
-                  employeeId: Number(e.employeeId),
-                  payrollType: "piece_work" as const,
-                  metersCompleted: e.metersCompleted ? Number(e.metersCompleted) : undefined,
-                  ratePerMeter: e.ratePerMeter,
-                  status: "complete" as const,
-                })),
-              ],
-            },
-          }),
-        },
-      ]
-    );
+    console.log("[daily-labour] saving", allEntries.length, "entries for job", jobId, "date", date);
+
+    batch.mutate({
+      data: {
+        jobId,
+        date,
+        supervisorId: user?.id,
+        entries: allEntries,
+      },
+    });
   };
 
   const s = makeStyles(colors);

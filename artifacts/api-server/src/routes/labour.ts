@@ -89,6 +89,7 @@ router.get("/labour-entries", requireAuth, async (req, res): Promise<void> => {
 // POST /labour-entries/batch — daily multi-employee entry
 router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const auth = (req as AuthReq).auth;
+  req.log.info({ body: req.body }, "labour batch: received");
   const { jobId, date, entries } = req.body as {
     jobId: number;
     date: string;
@@ -107,6 +108,7 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
   };
 
   if (!jobId || !date || !entries?.length) {
+    req.log.warn({ jobId, date, entryCount: entries?.length }, "labour batch: missing required fields");
     res.status(400).json({ error: "jobId, date, and at least one entry required" });
     return;
   }
@@ -114,12 +116,14 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
   // Validate entries
   for (const e of entries) {
     if (e.payrollType !== "hourly" && e.payrollType !== "piece_work") {
+      req.log.warn({ payrollType: e.payrollType }, "labour batch: invalid payrollType");
       res.status(400).json({ error: `Invalid payrollType "${e.payrollType}": must be hourly or piece_work` });
       return;
     }
     if (e.payrollType === "piece_work" && e.ratePerMeter != null) {
       const r = Number(e.ratePerMeter);
       if (!VALID_METER_RATES.includes(r as MeterRate)) {
+        req.log.warn({ ratePerMeter: r }, "labour batch: invalid ratePerMeter");
         res.status(400).json({ error: `Invalid ratePerMeter ${r}: must be 25 or 30` });
         return;
       }
@@ -167,6 +171,7 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
   });
 
   const inserted = await db.insert(labourEntriesTable).values(values).returning();
+  req.log.info({ count: inserted.length, jobId, date }, "labour batch: inserted");
   res.status(201).json(inserted.map(e => formatEntry(e)));
 });
 
