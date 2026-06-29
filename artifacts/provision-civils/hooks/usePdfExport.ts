@@ -5,7 +5,12 @@ import { downloadAsync } from "expo-file-system";
 import { cacheDirectory } from "expo-file-system/legacy";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
 
-const API_DOMAIN = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+const RAW_DOMAIN = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+const API_DOMAIN = RAW_DOMAIN
+  ? RAW_DOMAIN.startsWith("http")
+    ? RAW_DOMAIN
+    : `https://${RAW_DOMAIN}`
+  : "";
 
 export interface PdfExportOptions {
   endpoint: string;
