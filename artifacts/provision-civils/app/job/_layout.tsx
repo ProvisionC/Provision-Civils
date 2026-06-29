@@ -13,6 +13,9 @@ export default function JobLayout() {
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.background },
       }}
-    />
+    >
+      <Stack.Screen name="create" options={{ title: "New Job" }} />
+      <Stack.Screen name="[id]" options={{ headerShown: false }} />
+    </Stack>
   );
 }

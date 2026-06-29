@@ -1,4 +1,5 @@
 export * from "./users";
+export * from "./clients";
 export * from "./jobs";
 export * from "./job_workers";
 export * from "./job_materials";
@@ -8,3 +9,4 @@ export * from "./gps_logs";
 export * from "./daily_reports";
 export * from "./invoices";
 export * from "./notifications";
+export * from "./expenses";

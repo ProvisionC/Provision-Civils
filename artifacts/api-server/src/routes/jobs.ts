@@ -27,12 +27,31 @@ async function getJobWithRelations(jobId: number) {
 }
 
 function formatJob(job: typeof jobsTable.$inferSelect) {
+  const j = job as typeof jobsTable.$inferSelect & {
+    clientId?: number | null;
+    projectName?: string | null;
+    projectNumber?: string | null;
+    projectManagerId?: number | null;
+    poNumber?: string | null;
+    clientOrderNumber?: string | null;
+    contractValue?: string | null;
+    startDate?: string | null;
+    wayleaveRequired?: boolean;
+    wayleaveDocument?: string | null;
+  };
   return {
     id: job.id,
     jobNumber: job.jobNumber,
+    clientId: j.clientId ?? null,
     clientName: job.clientName,
     clientPhone: job.clientPhone ?? null,
     clientEmail: job.clientEmail ?? null,
+    projectName: j.projectName ?? null,
+    projectNumber: j.projectNumber ?? null,
+    projectManagerId: j.projectManagerId ?? null,
+    poNumber: j.poNumber ?? null,
+    clientOrderNumber: j.clientOrderNumber ?? null,
+    contractValue: j.contractValue != null ? Number(j.contractValue) : null,
     siteAddress: job.siteAddress ?? null,
     gpsLat: job.gpsLat != null ? Number(job.gpsLat) : null,
     gpsLng: job.gpsLng != null ? Number(job.gpsLng) : null,
@@ -41,7 +60,10 @@ function formatJob(job: typeof jobsTable.$inferSelect) {
     labourHours: job.labourHours != null ? Number(job.labourHours) : null,
     status: job.status,
     supervisorId: job.supervisorId ?? null,
+    startDate: j.startDate ?? null,
     dueDate: job.dueDate ?? null,
+    wayleaveRequired: j.wayleaveRequired ?? false,
+    wayleaveDocument: j.wayleaveDocument ?? null,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
   };
@@ -85,9 +107,16 @@ router.get("/jobs", requireAuth, async (req, res): Promise<void> => {
 
 router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
   const { workerIds, materials, equipment, ...jobData } = req.body as {
+    clientId?: number;
     clientName: string;
     clientPhone?: string;
     clientEmail?: string;
+    projectName?: string;
+    projectNumber?: string;
+    projectManagerId?: number;
+    poNumber?: string;
+    clientOrderNumber?: string;
+    contractValue?: number;
     siteAddress?: string;
     gpsLat?: number;
     gpsLng?: number;
@@ -95,7 +124,10 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
     notes?: string;
     labourHours?: number;
     supervisorId?: number;
+    startDate?: string;
     dueDate?: string;
+    status?: string;
+    wayleaveRequired?: boolean;
     workerIds?: number[];
     materials?: { name: string; quantity: number; unit: string; cost?: number; checked?: boolean; notes?: string | null; isCustom?: boolean }[];
     equipment?: { name: string; quantity: number; cost?: number }[];
@@ -109,9 +141,16 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
   const jobNumber = await generateJobNumber();
   const [job] = await db.insert(jobsTable).values({
     jobNumber,
+    clientId: jobData.clientId,
     clientName: jobData.clientName,
     clientPhone: jobData.clientPhone,
     clientEmail: jobData.clientEmail,
+    projectName: jobData.projectName,
+    projectNumber: jobData.projectNumber,
+    projectManagerId: jobData.projectManagerId,
+    poNumber: jobData.poNumber,
+    clientOrderNumber: jobData.clientOrderNumber,
+    contractValue: jobData.contractValue?.toString(),
     siteAddress: jobData.siteAddress,
     gpsLat: jobData.gpsLat?.toString(),
     gpsLng: jobData.gpsLng?.toString(),
@@ -119,8 +158,11 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
     notes: jobData.notes,
     labourHours: jobData.labourHours?.toString(),
     supervisorId: jobData.supervisorId,
+    startDate: jobData.startDate,
     dueDate: jobData.dueDate,
-  }).returning();
+    status: (jobData.status as typeof jobsTable.$inferSelect["status"]) ?? "active",
+    wayleaveRequired: jobData.wayleaveRequired ?? false,
+  } as any).returning();
 
   if (workerIds?.length) {
     await db.insert(jobWorkersTable).values(workerIds.map(id => ({ jobId: job.id, workerId: id })));
@@ -181,9 +223,16 @@ router.get("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
 router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const { workerIds, materials, equipment, ...jobData } = req.body as {
+    clientId?: number;
     clientName?: string;
     clientPhone?: string;
     clientEmail?: string;
+    projectName?: string;
+    projectNumber?: string;
+    projectManagerId?: number;
+    poNumber?: string;
+    clientOrderNumber?: string;
+    contractValue?: number;
     siteAddress?: string;
     gpsLat?: number;
     gpsLng?: number;
@@ -192,7 +241,10 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     labourHours?: number;
     status?: typeof jobsTable.$inferSelect["status"];
     supervisorId?: number;
+    startDate?: string;
     dueDate?: string;
+    wayleaveRequired?: boolean;
+    wayleaveDocument?: string;
     workerIds?: number[];
     materials?: { name: string; quantity: number; unit: string; cost?: number; checked?: boolean; notes?: string | null; isCustom?: boolean }[];
     equipment?: { name: string; quantity: number; cost?: number }[];
@@ -205,9 +257,16 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const [job] = await db.update(jobsTable).set({
+    ...(jobData.clientId !== undefined && { clientId: jobData.clientId }),
     ...(jobData.clientName && { clientName: jobData.clientName }),
     ...(jobData.clientPhone !== undefined && { clientPhone: jobData.clientPhone }),
     ...(jobData.clientEmail !== undefined && { clientEmail: jobData.clientEmail }),
+    ...(jobData.projectName !== undefined && { projectName: jobData.projectName }),
+    ...(jobData.projectNumber !== undefined && { projectNumber: jobData.projectNumber }),
+    ...(jobData.projectManagerId !== undefined && { projectManagerId: jobData.projectManagerId }),
+    ...(jobData.poNumber !== undefined && { poNumber: jobData.poNumber }),
+    ...(jobData.clientOrderNumber !== undefined && { clientOrderNumber: jobData.clientOrderNumber }),
+    ...(jobData.contractValue !== undefined && { contractValue: jobData.contractValue?.toString() }),
     ...(jobData.siteAddress !== undefined && { siteAddress: jobData.siteAddress }),
     ...(jobData.gpsLat !== undefined && { gpsLat: jobData.gpsLat?.toString() }),
     ...(jobData.gpsLng !== undefined && { gpsLng: jobData.gpsLng?.toString() }),
@@ -216,8 +275,11 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     ...(jobData.labourHours !== undefined && { labourHours: jobData.labourHours?.toString() }),
     ...(jobData.status && { status: jobData.status }),
     ...(jobData.supervisorId !== undefined && { supervisorId: jobData.supervisorId }),
+    ...(jobData.startDate !== undefined && { startDate: jobData.startDate }),
     ...(jobData.dueDate !== undefined && { dueDate: jobData.dueDate }),
-  }).where(eq(jobsTable.id, id)).returning();
+    ...(jobData.wayleaveRequired !== undefined && { wayleaveRequired: jobData.wayleaveRequired }),
+    ...(jobData.wayleaveDocument !== undefined && { wayleaveDocument: jobData.wayleaveDocument }),
+  } as any).where(eq(jobsTable.id, id)).returning();
 
   if (workerIds !== undefined) {
     await db.delete(jobWorkersTable).where(eq(jobWorkersTable.jobId, id));
@@ -377,27 +439,49 @@ router.post("/jobs/:id/gps-logs", requireAuth, async (req, res): Promise<void> =
 
 router.get("/jobs/:id/daily-reports", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  const reports = await db.select().from(dailyReportsTable).where(eq(dailyReportsTable.jobId, id));
-  res.json(reports.map(r => ({
-    id: r.id, jobId: r.jobId, userId: r.userId, date: r.date,
-    notes: r.notes ?? null, progressNotes: r.progressNotes ?? null,
-    photoUris: r.photoUris ?? [],
-    createdAt: r.createdAt.toISOString(),
-  })));
+  const reports = await db.select().from(dailyReportsTable).where(eq(dailyReportsTable.jobId, id)).orderBy(dailyReportsTable.date);
+  res.json(reports.map(r => {
+    const rr = r as any;
+    return {
+      id: r.id, jobId: r.jobId, userId: r.userId, date: r.date,
+      workCompleted: rr.workCompleted ?? null,
+      problemsEncountered: rr.problemsEncountered ?? null,
+      tomorrowWork: rr.tomorrowWork ?? null,
+      labourOnSite: rr.labourOnSite ?? null,
+      gpsLat: rr.gpsLat != null ? Number(rr.gpsLat) : null,
+      gpsLng: rr.gpsLng != null ? Number(rr.gpsLng) : null,
+      signatureUri: rr.signatureUri ?? null,
+      notes: r.notes ?? null, progressNotes: r.progressNotes ?? null,
+      photoUris: r.photoUris ?? [],
+      createdAt: r.createdAt.toISOString(),
+    };
+  }));
 });
 
 router.post("/jobs/:id/daily-reports", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const auth = (req as typeof req & { auth: { userId: number } }).auth;
-  const { date, notes, progressNotes, photoUris } = req.body as {
+  const { date, notes, progressNotes, photoUris, workCompleted, problemsEncountered, tomorrowWork, labourOnSite, gpsLat, gpsLng, signatureUri } = req.body as {
     date: string; notes?: string; progressNotes?: string; photoUris?: string[];
+    workCompleted?: string; problemsEncountered?: string; tomorrowWork?: string;
+    labourOnSite?: string; gpsLat?: number; gpsLng?: number; signatureUri?: string;
   };
   const [report] = await db.insert(dailyReportsTable).values({
     jobId: id, userId: auth.userId, date,
     notes, progressNotes, photoUris: photoUris ?? [],
-  }).returning();
+    workCompleted, problemsEncountered, tomorrowWork, labourOnSite,
+    gpsLat: gpsLat?.toString(), gpsLng: gpsLng?.toString(), signatureUri,
+  } as any).returning();
+  const rr = report as any;
   res.status(201).json({
     id: report.id, jobId: report.jobId, userId: report.userId, date: report.date,
+    workCompleted: rr.workCompleted ?? null,
+    problemsEncountered: rr.problemsEncountered ?? null,
+    tomorrowWork: rr.tomorrowWork ?? null,
+    labourOnSite: rr.labourOnSite ?? null,
+    gpsLat: rr.gpsLat != null ? Number(rr.gpsLat) : null,
+    gpsLng: rr.gpsLng != null ? Number(rr.gpsLng) : null,
+    signatureUri: rr.signatureUri ?? null,
     notes: report.notes ?? null, progressNotes: report.progressNotes ?? null,
     photoUris: report.photoUris ?? [],
     createdAt: report.createdAt.toISOString(),

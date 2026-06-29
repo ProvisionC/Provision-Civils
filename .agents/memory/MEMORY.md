@@ -3,3 +3,5 @@
 - [DB lib stale declarations](db-lib-stale.md) — if API server can't find DB table exports, run pnpm run typecheck:libs to rebuild before leaf typecheck.
 - [Expo Router nested routes need layout](expo-router-nested-layout.md) — screens in `app/job/[id]/` are silently unroutable without `_layout.tsx` inside that directory.
 - [customFetch export](customfetch-export.md) — customFetch must be explicitly re-exported from `lib/api-client-react/src/index.ts`; it is not included in `export *`.
+- [Orval Zod index conflict](orval-zod-index.md) — Orval generates both `api.ts` (Zod consts) and `types/` dir (TS types) with overlapping names; fix by keeping only `export * from "./generated/api"` in index.ts.
+- [Express 5 params type](express5-params.md) — req.params.id is `string | string[]` in Express 5; use a parseId helper (Array.isArray check) not raw parseInt.

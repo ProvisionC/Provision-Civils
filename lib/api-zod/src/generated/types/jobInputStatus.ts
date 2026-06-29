@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type JobDetailStatus = typeof JobDetailStatus[keyof typeof JobDetailStatus];
+export type JobInputStatus = typeof JobInputStatus[keyof typeof JobInputStatus];
 
 
-export const JobDetailStatus = {
+export const JobInputStatus = {
   pending: 'pending',
   in_progress: 'in_progress',
   active: 'active',

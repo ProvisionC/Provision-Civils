@@ -6,12 +6,20 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { JobEquipmentInput } from './jobEquipmentInput';
+import type { JobInputStatus } from './jobInputStatus';
 import type { JobMaterialInput } from './jobMaterialInput';
 
 export interface JobInput {
+  clientId?: number;
   clientName: string;
   clientPhone?: string;
   clientEmail?: string;
+  projectName?: string;
+  projectNumber?: string;
+  projectManagerId?: number;
+  poNumber?: string;
+  clientOrderNumber?: string;
+  contractValue?: number;
   siteAddress?: string;
   gpsLat?: number;
   gpsLng?: number;
@@ -19,7 +27,10 @@ export interface JobInput {
   notes?: string;
   labourHours?: number;
   supervisorId?: number;
+  startDate?: string;
   dueDate?: string;
+  status?: JobInputStatus;
+  wayleaveRequired?: boolean;
   workerIds?: number[];
   materials?: JobMaterialInput[];
   equipment?: JobEquipmentInput[];

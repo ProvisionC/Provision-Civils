@@ -12,6 +12,20 @@ export interface DailyReport {
   userId: number;
   date: string;
   /** @nullable */
+  workCompleted?: string | null;
+  /** @nullable */
+  problemsEncountered?: string | null;
+  /** @nullable */
+  tomorrowWork?: string | null;
+  /** @nullable */
+  labourOnSite?: string | null;
+  /** @nullable */
+  gpsLat?: number | null;
+  /** @nullable */
+  gpsLng?: number | null;
+  /** @nullable */
+  signatureUri?: string | null;
+  /** @nullable */
   notes?: string | null;
   /** @nullable */
   progressNotes?: string | null;

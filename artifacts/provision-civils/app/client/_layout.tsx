@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 import React from "react";
 import { useColors } from "@/hooks/useColors";
 
-export default function JobSubLayout() {
+export default function ClientLayout() {
   const colors = useColors();
   return (
     <Stack
@@ -14,12 +14,8 @@ export default function JobSubLayout() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Job Details" }} />
-      <Stack.Screen name="photos" options={{ title: "Photos" }} />
-      <Stack.Screen name="materials" options={{ title: "Materials Checklist" }} />
-      <Stack.Screen name="edit" options={{ title: "Edit Job" }} />
-      <Stack.Screen name="reports" options={{ title: "Daily Reports" }} />
-      <Stack.Screen name="expenses" options={{ title: "Expenses" }} />
+      <Stack.Screen name="create" options={{ title: "New Client" }} />
+      <Stack.Screen name="[id]" options={{ title: "Edit Client" }} />
     </Stack>
   );
 }

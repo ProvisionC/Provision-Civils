@@ -8,6 +8,13 @@
 
 export interface DailyReportInput {
   date: string;
+  workCompleted?: string;
+  problemsEncountered?: string;
+  tomorrowWork?: string;
+  labourOnSite?: string;
+  gpsLat?: number;
+  gpsLng?: number;
+  signatureUri?: string;
   notes?: string;
   progressNotes?: string;
   photoUris?: string[];

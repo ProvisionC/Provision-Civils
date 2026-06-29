@@ -13,4 +13,9 @@ export interface DashboardStats {
   jobsDueToday: number;
   totalEmployees: number;
   totalInvoices: number;
+  pendingWayleave?: number;
+  totalContractValue?: number;
+  totalExpenses?: number;
+  totalInvoiced?: number;
+  estimatedProfit?: number;
 }

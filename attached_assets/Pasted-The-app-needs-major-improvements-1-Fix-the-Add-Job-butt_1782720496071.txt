@@ -1,0 +1,299 @@
+The app needs major improvements.
+
+1. Fix the Add Job button
+
+When I press the "+" button under Active Jobs, it says "Something went wrong".
+
+Fix this completely so new jobs can always be created.
+
+---
+
+2. Client Management
+
+Create a separate Clients page.
+
+Each client must have:
+
+- Company Name
+- Contact Person
+- Phone Number
+- Email Address
+- Physical Address
+- VAT Number
+- Notes
+
+When creating a new job, do NOT ask the user to type the client information again.
+
+Instead, allow the user to simply select the client from a dropdown list.
+
+Also select:
+
+- Project Name
+- Project Manager (PM)
+
+---
+
+3. Job Creation
+
+A new job must contain:
+
+- Client
+- Project Name
+- Project Number
+- Project Manager
+- Supervisor
+- Site Address
+- GPS Coordinates
+- Start Date
+- Expected Completion Date
+- Status
+
+Statuses:
+
+- Active
+- Waiting for Wayleave
+- Completed
+
+---
+
+4. Supervisor Daily Reports
+
+A supervisor must be able to open a job and upload daily work.
+
+Daily report must include:
+
+- Date
+- Work completed today
+- Problems encountered
+- Tomorrow's work
+- Materials used
+- Labour on site
+- Photos
+- GPS location
+- Signature
+
+Each report must be saved separately so Admin can see the full history.
+
+---
+
+5. Materials
+
+Each job must contain a predefined materials list.
+
+Materials:
+
+- 14mm Couplers
+- 8mm Couplers
+- 14/12 Reducers
+- 12mm Couplers
+- Foam
+- 110mm Sleeve
+- 160mm Sleeve
+- Metro Standard Manhole
+- Metro Mini Manhole
+- Rhino 400
+- 7 Way Blue
+- 7 Way Green
+- 12 Way Stripe
+- 12 Way Non Stripe
+- 50mm Orange Duct
+
+Each material must have:
+
+- Quantity
+- Notes
+
+Allow custom materials as well.
+
+---
+
+6. Photos
+
+Fix the Photo button.
+
+It currently does nothing.
+
+The user must be able to:
+
+- Take Photo
+- Choose From Gallery
+
+Save all photos under the correct job.
+
+Display photos in a gallery.
+
+Allow deleting photos.
+
+---
+
+7. Job Completion
+
+When a supervisor finishes a project he must press "Complete Job".
+
+If Wayleave is required:
+
+Status changes to:
+
+Waiting for Wayleave
+
+Admin must upload the signed Wayleave document.
+
+After Wayleave is uploaded:
+
+Status changes to:
+
+Completed
+
+If Wayleave is NOT required:
+
+Supervisor can immediately complete the job.
+
+---
+
+8. Admin Documents
+
+When a job is completed Admin must be able to download:
+
+- Full Job Report
+- Daily Reports
+- Material List
+- Photos
+- GPS Records
+- Signatures
+- Wayleave
+- PDF Report
+
+Everything must be downloadable from one button.
+
+---
+
+9. Purchase Orders
+
+Each project must have:
+
+- PO Number
+- Client Order Number
+- Contract Value
+
+Admin enters these.
+
+---
+
+10. Invoice
+
+Only Admin can create invoices.
+
+Invoice must include:
+
+- Client Details
+- Project Name
+- PO Number
+- Materials
+- Labour
+- Expenses
+- VAT
+- Total
+
+Generate a professional PDF invoice.
+
+---
+
+11. Expenses
+
+Each project needs an Expenses section.
+
+Examples:
+
+- Fuel
+- Diesel
+- Accommodation
+- Labour
+- Plant Hire
+- Tools
+- Concrete
+- Materials
+- Subcontractors
+- Other
+
+Each expense contains:
+
+- Date
+- Description
+- Amount
+- Receipt Photo
+
+Only Admin can see expenses.
+
+Supervisors must NOT have access.
+
+---
+
+12. Profit Dashboard
+
+Admin Dashboard must display:
+
+- Active Jobs
+- Completed Jobs
+- Outstanding Jobs
+- Total Contract Value
+- Total Expenses
+- Total Invoiced
+- Estimated Profit
+- Estimated Loss
+
+Use charts and professional cards.
+
+---
+
+13. User Roles
+
+There are three user types.
+
+Admin
+
+- Full access
+- Clients
+- Projects
+- Expenses
+- Invoices
+- Reports
+- User Management
+
+Project Manager
+
+- View all jobs
+- Assign supervisors
+- Review reports
+- Cannot see financial information
+
+Supervisor
+
+- Update daily reports
+- Upload photos
+- Upload materials
+- GPS
+- Complete jobs
+- Cannot view expenses or invoices
+
+---
+
+14. Branding
+
+I will upload my company logo.
+
+Use the logo throughout the app.
+
+Use the logo colours for:
+
+- Splash Screen
+- Login Screen
+- Navigation
+- Buttons
+- Dashboard
+- Icons
+
+The app must look modern, clean and professional, suitable for a civil engineering company.
+
+---
+
+Build the entire application professionally, fix all existing bugs, and ensure every feature works correctly without runtime errors.

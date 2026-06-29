@@ -10,9 +10,16 @@ import type { JobMaterialInput } from './jobMaterialInput';
 import type { JobUpdateStatus } from './jobUpdateStatus';
 
 export interface JobUpdate {
+  clientId?: number;
   clientName?: string;
   clientPhone?: string;
   clientEmail?: string;
+  projectName?: string;
+  projectNumber?: string;
+  projectManagerId?: number;
+  poNumber?: string;
+  clientOrderNumber?: string;
+  contractValue?: number;
   siteAddress?: string;
   gpsLat?: number;
   gpsLng?: number;
@@ -21,7 +28,10 @@ export interface JobUpdate {
   labourHours?: number;
   status?: JobUpdateStatus;
   supervisorId?: number;
+  startDate?: string;
   dueDate?: string;
+  wayleaveRequired?: boolean;
+  wayleaveDocument?: string;
   workerIds?: number[];
   materials?: JobMaterialInput[];
   equipment?: JobEquipmentInput[];

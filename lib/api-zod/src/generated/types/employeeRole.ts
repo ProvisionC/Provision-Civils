@@ -11,6 +11,7 @@ export type EmployeeRole = typeof EmployeeRole[keyof typeof EmployeeRole];
 
 export const EmployeeRole = {
   admin: 'admin',
+  project_manager: 'project_manager',
   supervisor: 'supervisor',
   worker: 'worker',
 } as const;

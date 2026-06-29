@@ -13,7 +13,12 @@ export default function TabLayout() {
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const isPM = user?.role === "project_manager";
+  const isSupervisor = user?.role === "supervisor";
+  const isWorker = user?.role === "worker";
+
   const { data: notifications } = useListNotifications({
     query: { queryKey: getListNotificationsQueryKey(), enabled: !!token },
   });
@@ -64,10 +69,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="clients"
+        options={{
+          title: "Clients",
+          tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} />,
+          tabBarItemStyle: isWorker || isSupervisor ? { display: "none" } : {},
+        }}
+      />
+      <Tabs.Screen
         name="employees"
         options={{
           title: "Team",
-          tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="user-check" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -75,6 +88,7 @@ export default function TabLayout() {
         options={{
           title: "Invoices",
           tabBarIcon: ({ color }) => <Feather name="file-text" size={22} color={color} />,
+          tabBarItemStyle: isWorker ? { display: "none" } : {},
         }}
       />
       <Tabs.Screen

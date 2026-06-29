@@ -13,11 +13,25 @@ import type { JobMaterial } from './jobMaterial';
 export interface JobDetail {
   id: number;
   jobNumber: string;
+  /** @nullable */
+  clientId?: number | null;
   clientName: string;
   /** @nullable */
   clientPhone?: string | null;
   /** @nullable */
   clientEmail?: string | null;
+  /** @nullable */
+  projectName?: string | null;
+  /** @nullable */
+  projectNumber?: string | null;
+  /** @nullable */
+  projectManagerId?: number | null;
+  /** @nullable */
+  poNumber?: string | null;
+  /** @nullable */
+  clientOrderNumber?: string | null;
+  /** @nullable */
+  contractValue?: number | null;
   /** @nullable */
   siteAddress?: string | null;
   /** @nullable */
@@ -34,7 +48,12 @@ export interface JobDetail {
   /** @nullable */
   supervisorId?: number | null;
   /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
   dueDate?: string | null;
+  wayleaveRequired?: boolean;
+  /** @nullable */
+  wayleaveDocument?: string | null;
   createdAt: string;
   updatedAt?: string;
   workers: Employee[];

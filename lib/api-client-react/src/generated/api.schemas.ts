@@ -19,6 +19,7 @@ export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export const UserRole = {
   admin: 'admin',
+  project_manager: 'project_manager',
   supervisor: 'supervisor',
   worker: 'worker',
 } as const;
@@ -45,6 +46,93 @@ export interface DashboardStats {
   jobsDueToday: number;
   totalEmployees: number;
   totalInvoices: number;
+  pendingWayleave?: number;
+  totalContractValue?: number;
+  totalExpenses?: number;
+  totalInvoiced?: number;
+  estimatedProfit?: number;
+}
+
+export interface Client {
+  id: number;
+  companyName: string;
+  /** @nullable */
+  contactPerson?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  vatNumber?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ClientInput {
+  companyName: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  vatNumber?: string;
+  notes?: string;
+}
+
+export type ExpenseCategory = typeof ExpenseCategory[keyof typeof ExpenseCategory];
+
+
+export const ExpenseCategory = {
+  fuel: 'fuel',
+  diesel: 'diesel',
+  accommodation: 'accommodation',
+  labour: 'labour',
+  plant_hire: 'plant_hire',
+  tools: 'tools',
+  concrete: 'concrete',
+  materials: 'materials',
+  subcontractors: 'subcontractors',
+  other: 'other',
+} as const;
+
+export interface Expense {
+  id: number;
+  jobId: number;
+  createdById: number;
+  date: string;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  /** @nullable */
+  receiptPhotoUri?: string | null;
+  createdAt: string;
+}
+
+export type ExpenseInputCategory = typeof ExpenseInputCategory[keyof typeof ExpenseInputCategory];
+
+
+export const ExpenseInputCategory = {
+  fuel: 'fuel',
+  diesel: 'diesel',
+  accommodation: 'accommodation',
+  labour: 'labour',
+  plant_hire: 'plant_hire',
+  tools: 'tools',
+  concrete: 'concrete',
+  materials: 'materials',
+  subcontractors: 'subcontractors',
+  other: 'other',
+} as const;
+
+export interface ExpenseInput {
+  date: string;
+  category: ExpenseInputCategory;
+  description: string;
+  amount: number;
+  receiptPhotoUri?: string;
 }
 
 export type JobStatus = typeof JobStatus[keyof typeof JobStatus];
@@ -53,6 +141,8 @@ export type JobStatus = typeof JobStatus[keyof typeof JobStatus];
 export const JobStatus = {
   pending: 'pending',
   in_progress: 'in_progress',
+  active: 'active',
+  waiting_for_wayleave: 'waiting_for_wayleave',
   waiting_for_materials: 'waiting_for_materials',
   completed: 'completed',
   cancelled: 'cancelled',
@@ -61,11 +151,25 @@ export const JobStatus = {
 export interface Job {
   id: number;
   jobNumber: string;
+  /** @nullable */
+  clientId?: number | null;
   clientName: string;
   /** @nullable */
   clientPhone?: string | null;
   /** @nullable */
   clientEmail?: string | null;
+  /** @nullable */
+  projectName?: string | null;
+  /** @nullable */
+  projectNumber?: string | null;
+  /** @nullable */
+  projectManagerId?: number | null;
+  /** @nullable */
+  poNumber?: string | null;
+  /** @nullable */
+  clientOrderNumber?: string | null;
+  /** @nullable */
+  contractValue?: number | null;
   /** @nullable */
   siteAddress?: string | null;
   /** @nullable */
@@ -82,7 +186,12 @@ export interface Job {
   /** @nullable */
   supervisorId?: number | null;
   /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
   dueDate?: string | null;
+  wayleaveRequired?: boolean;
+  /** @nullable */
+  wayleaveDocument?: string | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -93,6 +202,8 @@ export type JobDetailStatus = typeof JobDetailStatus[keyof typeof JobDetailStatu
 export const JobDetailStatus = {
   pending: 'pending',
   in_progress: 'in_progress',
+  active: 'active',
+  waiting_for_wayleave: 'waiting_for_wayleave',
   waiting_for_materials: 'waiting_for_materials',
   completed: 'completed',
   cancelled: 'cancelled',
@@ -103,6 +214,7 @@ export type EmployeeRole = typeof EmployeeRole[keyof typeof EmployeeRole];
 
 export const EmployeeRole = {
   admin: 'admin',
+  project_manager: 'project_manager',
   supervisor: 'supervisor',
   worker: 'worker',
 } as const;
@@ -143,11 +255,25 @@ export interface JobEquipment {
 export interface JobDetail {
   id: number;
   jobNumber: string;
+  /** @nullable */
+  clientId?: number | null;
   clientName: string;
   /** @nullable */
   clientPhone?: string | null;
   /** @nullable */
   clientEmail?: string | null;
+  /** @nullable */
+  projectName?: string | null;
+  /** @nullable */
+  projectNumber?: string | null;
+  /** @nullable */
+  projectManagerId?: number | null;
+  /** @nullable */
+  poNumber?: string | null;
+  /** @nullable */
+  clientOrderNumber?: string | null;
+  /** @nullable */
+  contractValue?: number | null;
   /** @nullable */
   siteAddress?: string | null;
   /** @nullable */
@@ -164,13 +290,31 @@ export interface JobDetail {
   /** @nullable */
   supervisorId?: number | null;
   /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
   dueDate?: string | null;
+  wayleaveRequired?: boolean;
+  /** @nullable */
+  wayleaveDocument?: string | null;
   createdAt: string;
   updatedAt?: string;
   workers: Employee[];
   materials: JobMaterial[];
   equipment: JobEquipment[];
 }
+
+export type JobInputStatus = typeof JobInputStatus[keyof typeof JobInputStatus];
+
+
+export const JobInputStatus = {
+  pending: 'pending',
+  in_progress: 'in_progress',
+  active: 'active',
+  waiting_for_wayleave: 'waiting_for_wayleave',
+  waiting_for_materials: 'waiting_for_materials',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
 
 export interface JobMaterialInput {
   name: string;
@@ -190,9 +334,16 @@ export interface JobEquipmentInput {
 }
 
 export interface JobInput {
+  clientId?: number;
   clientName: string;
   clientPhone?: string;
   clientEmail?: string;
+  projectName?: string;
+  projectNumber?: string;
+  projectManagerId?: number;
+  poNumber?: string;
+  clientOrderNumber?: string;
+  contractValue?: number;
   siteAddress?: string;
   gpsLat?: number;
   gpsLng?: number;
@@ -200,7 +351,10 @@ export interface JobInput {
   notes?: string;
   labourHours?: number;
   supervisorId?: number;
+  startDate?: string;
   dueDate?: string;
+  status?: JobInputStatus;
+  wayleaveRequired?: boolean;
   workerIds?: number[];
   materials?: JobMaterialInput[];
   equipment?: JobEquipmentInput[];
@@ -212,15 +366,24 @@ export type JobUpdateStatus = typeof JobUpdateStatus[keyof typeof JobUpdateStatu
 export const JobUpdateStatus = {
   pending: 'pending',
   in_progress: 'in_progress',
+  active: 'active',
+  waiting_for_wayleave: 'waiting_for_wayleave',
   waiting_for_materials: 'waiting_for_materials',
   completed: 'completed',
   cancelled: 'cancelled',
 } as const;
 
 export interface JobUpdate {
+  clientId?: number;
   clientName?: string;
   clientPhone?: string;
   clientEmail?: string;
+  projectName?: string;
+  projectNumber?: string;
+  projectManagerId?: number;
+  poNumber?: string;
+  clientOrderNumber?: string;
+  contractValue?: number;
   siteAddress?: string;
   gpsLat?: number;
   gpsLng?: number;
@@ -229,7 +392,10 @@ export interface JobUpdate {
   labourHours?: number;
   status?: JobUpdateStatus;
   supervisorId?: number;
+  startDate?: string;
   dueDate?: string;
+  wayleaveRequired?: boolean;
+  wayleaveDocument?: string;
   workerIds?: number[];
   materials?: JobMaterialInput[];
   equipment?: JobEquipmentInput[];
@@ -281,6 +447,20 @@ export interface DailyReport {
   userId: number;
   date: string;
   /** @nullable */
+  workCompleted?: string | null;
+  /** @nullable */
+  problemsEncountered?: string | null;
+  /** @nullable */
+  tomorrowWork?: string | null;
+  /** @nullable */
+  labourOnSite?: string | null;
+  /** @nullable */
+  gpsLat?: number | null;
+  /** @nullable */
+  gpsLng?: number | null;
+  /** @nullable */
+  signatureUri?: string | null;
+  /** @nullable */
   notes?: string | null;
   /** @nullable */
   progressNotes?: string | null;
@@ -290,6 +470,13 @@ export interface DailyReport {
 
 export interface DailyReportInput {
   date: string;
+  workCompleted?: string;
+  problemsEncountered?: string;
+  tomorrowWork?: string;
+  labourOnSite?: string;
+  gpsLat?: number;
+  gpsLng?: number;
+  signatureUri?: string;
   notes?: string;
   progressNotes?: string;
   photoUris?: string[];
@@ -300,6 +487,7 @@ export type EmployeeInputRole = typeof EmployeeInputRole[keyof typeof EmployeeIn
 
 export const EmployeeInputRole = {
   admin: 'admin',
+  project_manager: 'project_manager',
   supervisor: 'supervisor',
   worker: 'worker',
 } as const;
@@ -317,6 +505,7 @@ export type EmployeeUpdateRole = typeof EmployeeUpdateRole[keyof typeof Employee
 
 export const EmployeeUpdateRole = {
   admin: 'admin',
+  project_manager: 'project_manager',
   supervisor: 'supervisor',
   worker: 'worker',
 } as const;
@@ -403,9 +592,17 @@ export interface Notification {
   createdAt: string;
 }
 
+export type ListClientsParams = {
+search?: string;
+};
+
 export type ListJobsParams = {
 status?: string;
 search?: string;
 supervisorId?: number;
+};
+
+export type UpdateJobMaterialsBody = {
+  materials: JobMaterialInput[];
 };
 

@@ -12,6 +12,8 @@ export type JobUpdateStatus = typeof JobUpdateStatus[keyof typeof JobUpdateStatu
 export const JobUpdateStatus = {
   pending: 'pending',
   in_progress: 'in_progress',
+  active: 'active',
+  waiting_for_wayleave: 'waiting_for_wayleave',
   waiting_for_materials: 'waiting_for_materials',
   completed: 'completed',
   cancelled: 'cancelled',

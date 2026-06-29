@@ -15,6 +15,8 @@ tags:
     description: Dashboard stats
   - name: jobs
     description: Job management
+  - name: clients
+    description: Client management
   - name: employees
     description: Employee management
   - name: invoices
@@ -84,6 +86,104 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DashboardStats"
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List all clients
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "201":
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      summary: Get a client by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          description: Not found
+    put:
+      operationId: updateClient
+      tags: [clients]
+      summary: Update a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteClient
+      tags: [clients]
+      summary: Delete a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
 
   /jobs:
     get:
@@ -260,6 +360,39 @@ paths:
         "404":
           description: Not found
 
+  /jobs/{id}/materials:
+    put:
+      operationId: updateJobMaterials
+      tags: [jobs]
+      summary: Update materials checklist for a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [materials]
+              properties:
+                materials:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/JobMaterialInput"
+      responses:
+        "200":
+          description: Materials updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobMaterial"
+
   /jobs/{id}/gps-logs:
     get:
       operationId: listJobGpsLogs
@@ -349,6 +482,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DailyReport"
+
+  /jobs/{id}/expenses:
+    get:
+      operationId: listJobExpenses
+      tags: [jobs]
+      summary: List expenses for a job (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+        "403":
+          description: Forbidden
+
+    post:
+      operationId: createJobExpense
+      tags: [jobs]
+      summary: Create an expense for a job (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+        "403":
+          description: Forbidden
+
+  /jobs/{id}/expenses/{expenseId}:
+    delete:
+      operationId: deleteJobExpense
+      tags: [jobs]
+      summary: Delete an expense (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: expenseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
 
   /employees:
     get:
@@ -581,7 +787,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, supervisor, worker]
+          enum: [admin, project_manager, supervisor, worker]
         phone:
           type: ["string", "null"]
         createdAt:
@@ -603,6 +809,100 @@ components:
           type: integer
         totalInvoices:
           type: integer
+        pendingWayleave:
+          type: integer
+        totalContractValue:
+          type: number
+        totalExpenses:
+          type: number
+        totalInvoiced:
+          type: number
+        estimatedProfit:
+          type: number
+
+    Client:
+      type: object
+      required: [id, companyName, createdAt]
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        contactPerson:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        vatNumber:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    ClientInput:
+      type: object
+      required: [companyName]
+      properties:
+        companyName:
+          type: string
+        contactPerson:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        address:
+          type: string
+        vatNumber:
+          type: string
+        notes:
+          type: string
+
+    Expense:
+      type: object
+      required: [id, jobId, createdById, date, category, description, amount, createdAt]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        createdById:
+          type: integer
+        date:
+          type: string
+        category:
+          type: string
+          enum: [fuel, diesel, accommodation, labour, plant_hire, tools, concrete, materials, subcontractors, other]
+        description:
+          type: string
+        amount:
+          type: number
+        receiptPhotoUri:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ExpenseInput:
+      type: object
+      required: [date, category, description, amount]
+      properties:
+        date:
+          type: string
+        category:
+          type: string
+          enum: [fuel, diesel, accommodation, labour, plant_hire, tools, concrete, materials, subcontractors, other]
+        description:
+          type: string
+        amount:
+          type: number
+        receiptPhotoUri:
+          type: string
 
     Job:
       type: object
@@ -612,12 +912,26 @@ components:
           type: integer
         jobNumber:
           type: string
+        clientId:
+          type: ["integer", "null"]
         clientName:
           type: string
         clientPhone:
           type: ["string", "null"]
         clientEmail:
           type: ["string", "null"]
+        projectName:
+          type: ["string", "null"]
+        projectNumber:
+          type: ["string", "null"]
+        projectManagerId:
+          type: ["integer", "null"]
+        poNumber:
+          type: ["string", "null"]
+        clientOrderNumber:
+          type: ["string", "null"]
+        contractValue:
+          type: ["number", "null"]
         siteAddress:
           type: ["string", "null"]
         gpsLat:
@@ -632,10 +946,16 @@ components:
           type: ["number", "null"]
         status:
           type: string
-          enum: [pending, in_progress, waiting_for_materials, completed, cancelled]
+          enum: [pending, in_progress, active, waiting_for_wayleave, waiting_for_materials, completed, cancelled]
         supervisorId:
           type: ["integer", "null"]
+        startDate:
+          type: ["string", "null"]
         dueDate:
+          type: ["string", "null"]
+        wayleaveRequired:
+          type: boolean
+        wayleaveDocument:
           type: ["string", "null"]
         createdAt:
           type: string
@@ -650,12 +970,26 @@ components:
           type: integer
         jobNumber:
           type: string
+        clientId:
+          type: ["integer", "null"]
         clientName:
           type: string
         clientPhone:
           type: ["string", "null"]
         clientEmail:
           type: ["string", "null"]
+        projectName:
+          type: ["string", "null"]
+        projectNumber:
+          type: ["string", "null"]
+        projectManagerId:
+          type: ["integer", "null"]
+        poNumber:
+          type: ["string", "null"]
+        clientOrderNumber:
+          type: ["string", "null"]
+        contractValue:
+          type: ["number", "null"]
         siteAddress:
           type: ["string", "null"]
         gpsLat:
@@ -670,10 +1004,16 @@ components:
           type: ["number", "null"]
         status:
           type: string
-          enum: [pending, in_progress, waiting_for_materials, completed, cancelled]
+          enum: [pending, in_progress, active, waiting_for_wayleave, waiting_for_materials, completed, cancelled]
         supervisorId:
           type: ["integer", "null"]
+        startDate:
+          type: ["string", "null"]
         dueDate:
+          type: ["string", "null"]
+        wayleaveRequired:
+          type: boolean
+        wayleaveDocument:
           type: ["string", "null"]
         createdAt:
           type: string
@@ -696,12 +1036,26 @@ components:
       type: object
       required: [clientName]
       properties:
+        clientId:
+          type: integer
         clientName:
           type: string
         clientPhone:
           type: string
         clientEmail:
           type: string
+        projectName:
+          type: string
+        projectNumber:
+          type: string
+        projectManagerId:
+          type: integer
+        poNumber:
+          type: string
+        clientOrderNumber:
+          type: string
+        contractValue:
+          type: number
         siteAddress:
           type: string
         gpsLat:
@@ -716,8 +1070,15 @@ components:
           type: number
         supervisorId:
           type: integer
+        startDate:
+          type: string
         dueDate:
           type: string
+        status:
+          type: string
+          enum: [pending, in_progress, active, waiting_for_wayleave, waiting_for_materials, completed, cancelled]
+        wayleaveRequired:
+          type: boolean
         workerIds:
           type: array
           items:
@@ -734,12 +1095,26 @@ components:
     JobUpdate:
       type: object
       properties:
+        clientId:
+          type: integer
         clientName:
           type: string
         clientPhone:
           type: string
         clientEmail:
           type: string
+        projectName:
+          type: string
+        projectNumber:
+          type: string
+        projectManagerId:
+          type: integer
+        poNumber:
+          type: string
+        clientOrderNumber:
+          type: string
+        contractValue:
+          type: number
         siteAddress:
           type: string
         gpsLat:
@@ -754,10 +1129,16 @@ components:
           type: number
         status:
           type: string
-          enum: [pending, in_progress, waiting_for_materials, completed, cancelled]
+          enum: [pending, in_progress, active, waiting_for_wayleave, waiting_for_materials, completed, cancelled]
         supervisorId:
           type: integer
+        startDate:
+          type: string
         dueDate:
+          type: string
+        wayleaveRequired:
+          type: boolean
+        wayleaveDocument:
           type: string
         workerIds:
           type: array
@@ -918,6 +1299,20 @@ components:
           type: integer
         date:
           type: string
+        workCompleted:
+          type: ["string", "null"]
+        problemsEncountered:
+          type: ["string", "null"]
+        tomorrowWork:
+          type: ["string", "null"]
+        labourOnSite:
+          type: ["string", "null"]
+        gpsLat:
+          type: ["number", "null"]
+        gpsLng:
+          type: ["number", "null"]
+        signatureUri:
+          type: ["string", "null"]
         notes:
           type: ["string", "null"]
         progressNotes:
@@ -934,6 +1329,20 @@ components:
       required: [date]
       properties:
         date:
+          type: string
+        workCompleted:
+          type: string
+        problemsEncountered:
+          type: string
+        tomorrowWork:
+          type: string
+        labourOnSite:
+          type: string
+        gpsLat:
+          type: number
+        gpsLng:
+          type: number
+        signatureUri:
           type: string
         notes:
           type: string
@@ -956,7 +1365,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, supervisor, worker]
+          enum: [admin, project_manager, supervisor, worker]
         phone:
           type: ["string", "null"]
         createdAt:
@@ -972,7 +1381,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, supervisor, worker]
+          enum: [admin, project_manager, supervisor, worker]
         phone:
           type: string
         password:
@@ -987,7 +1396,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, supervisor, worker]
+          enum: [admin, project_manager, supervisor, worker]
         phone:
           type: string
 
