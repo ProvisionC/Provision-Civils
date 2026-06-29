@@ -219,8 +219,8 @@ export default function DashboardScreen() {
         {(isAdmin || isPM) && (
           <QuickAction colors={colors} icon="users" label="New Client" onPress={() => router.push("/client/create")} color="#0097A7" />
         )}
-        <QuickAction colors={colors} icon="user-plus" label="Add Employee" onPress={() => router.push("/employees" as any)} color={colors.secondary} />
-        <QuickAction colors={colors} icon="file-text" label="New Invoice" onPress={() => router.push("/invoices" as any)} color="#7B1FA2" />
+        <QuickAction colors={colors} icon="user-plus" label="Add Employee" onPress={() => router.push("/employee/create" as any)} color={colors.secondary} />
+        <QuickAction colors={colors} icon="file-text" label="New Invoice" onPress={() => router.push("/invoice/create" as any)} color="#7B1FA2" />
       </View>
     </ScrollView>
   );

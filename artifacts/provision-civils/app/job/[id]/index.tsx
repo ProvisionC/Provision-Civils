@@ -125,9 +125,18 @@ export default function JobDetailScreen() {
   };
 
   const openMaps = () => {
-    if (!job?.gpsLat || !job?.gpsLng) return;
+    if (!job?.gpsLat || !job?.gpsLng) {
+      Alert.alert(
+        "No GPS Coordinates",
+        "This job does not have GPS coordinates recorded yet. Add them by editing the job.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
     const url = `https://maps.google.com/?q=${job.gpsLat},${job.gpsLng}`;
-    Linking.openURL(url);
+    Linking.openURL(url).catch(() =>
+      Alert.alert("Cannot Open Maps", "Could not open maps app on this device.")
+    );
   };
 
   if (isLoading) {
@@ -222,7 +231,7 @@ export default function JobDetailScreen() {
             </View>
           )}
 
-          {job.gpsLat && job.gpsLng && (
+          {true && (
             <TouchableOpacity
               style={[styles.mapsBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}
               onPress={openMaps}
@@ -565,6 +574,18 @@ export default function JobDetailScreen() {
               >
                 <Feather name="award" size={18} color="#2E7D32" />
                 <Text style={[styles.exportBtnLabel, { color: "#2E7D32" }]}>Completion{"\n"}Pack</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.exportBtn, { backgroundColor: "#1565C012", borderColor: "#1565C030" }]}
+                onPress={() => exportPdf({
+                  endpoint: `/api/jobs/${jobId}/pdf/photos`,
+                  filename: `${(job as any)?.jobNumber ?? "JOB"}-Photos.pdf`,
+                })}
+                disabled={isExporting}
+              >
+                <Feather name="image" size={18} color="#1565C0" />
+                <Text style={[styles.exportBtnLabel, { color: "#1565C0" }]}>Photo{"\n"}Report</Text>
               </TouchableOpacity>
             </View>
 

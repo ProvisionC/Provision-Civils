@@ -13,6 +13,7 @@ import {
   generateMaterialsPDF,
   generateReportsPDF,
   generateCompletionPDF,
+  generatePhotosPDF,
 } from "../utils/pdf-generator.js";
 
 const router: IRouter = Router();
@@ -155,6 +156,42 @@ router.get(
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to generate PDF" });
       }
+    }
+  }
+);
+
+router.get(
+  "/jobs/:id/pdf/photos",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const id = parseId(req.params.id);
+    if (!id || isNaN(id)) { res.status(400).json({ error: "Invalid job ID" }); return; }
+    try {
+      const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+      if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+      const [jobPhotos, reports] = await Promise.all([
+        db.select().from(jobPhotosTable).where(eq(jobPhotosTable.jobId, id)).orderBy(jobPhotosTable.createdAt),
+        db.select().from(dailyReportsTable).where(eq(dailyReportsTable.jobId, id)).orderBy(dailyReportsTable.date),
+      ]);
+
+      const reportPhotos: { uri: string; date: string; label: string }[] = [];
+      for (const r of reports) {
+        const uris: string[] = (r as any).photoUris ?? [];
+        uris.forEach((uri, idx) => {
+          reportPhotos.push({ uri, date: r.date, label: `Report ${r.date} — Photo ${idx + 1}` });
+        });
+      }
+
+      generatePhotosPDF(
+        job,
+        jobPhotos.map(p => ({ uri: p.uri, caption: p.caption ?? null, createdAt: p.createdAt.toISOString() })),
+        reportPhotos,
+        res
+      );
+    } catch (err) {
+      req.log?.error({ err }, "PDF photos generation failed");
+      if (!res.headersSent) res.status(500).json({ error: "Failed to generate PDF" });
     }
   }
 );

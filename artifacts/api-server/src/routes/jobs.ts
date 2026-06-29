@@ -387,6 +387,64 @@ router.put("/jobs/:id/materials", requireAuth, async (req, res): Promise<void> =
   })));
 });
 
+router.get("/jobs/:id/photos/zip", requireAuth, async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  try {
+    const [jobRow] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!jobRow) { res.status(404).json({ error: "Job not found" }); return; }
+
+    const [jobPhotos, reports] = await Promise.all([
+      db.select().from(jobPhotosTable).where(eq(jobPhotosTable.jobId, id)),
+      db.select().from(dailyReportsTable).where(eq(dailyReportsTable.jobId, id)).orderBy(dailyReportsTable.date),
+    ]);
+
+    function b64Buf(uri: string): Buffer | null {
+      if (!uri?.startsWith("data:")) return null;
+      const idx = uri.indexOf(",");
+      if (idx < 0) return null;
+      try { return Buffer.from(uri.slice(idx + 1), "base64"); } catch { return null; }
+    }
+
+    const allPhotos: { buf: Buffer; name: string }[] = [];
+    jobPhotos.forEach((p, i) => {
+      const buf = b64Buf(p.uri);
+      if (buf) allPhotos.push({ buf, name: `job-photo-${String(i + 1).padStart(3, "0")}.jpg` });
+    });
+    reports.forEach(r => {
+      const uris: string[] = (r as any).photoUris ?? [];
+      uris.forEach((uri, i) => {
+        const buf = b64Buf(uri);
+        if (buf) allPhotos.push({ buf, name: `report-${r.date}-photo-${String(i + 1).padStart(2, "0")}.jpg` });
+      });
+    });
+
+    if (allPhotos.length === 0) {
+      res.status(404).json({ error: "No photos found for this job" });
+      return;
+    }
+
+    const jobNumber = jobRow.jobNumber ?? "JOB";
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${jobNumber}-Photos.zip"`);
+    res.setHeader("Cache-Control", "no-cache");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const archiverMod = await import("archiver") as any;
+    const archiverFn: (format: string, opts?: object) => import("archiver").Archiver =
+      archiverMod.default ?? archiverMod;
+    const archive = archiverFn("zip", { zlib: { level: 6 } });
+    archive.on("error", (err: Error) => { req.log?.error({ err }, "ZIP error"); });
+    archive.pipe(res);
+    for (const { buf, name } of allPhotos) {
+      archive.append(buf, { name });
+    }
+    await archive.finalize();
+  } catch (err) {
+    req.log?.error({ err }, "ZIP photos failed");
+    if (!res.headersSent) res.status(500).json({ error: "Failed to generate ZIP" });
+  }
+});
+
 router.delete("/jobs/:id/photos/:photoId", requireAuth, async (req, res): Promise<void> => {
   const photoId = parseId(req.params.photoId);
   const [deleted] = await db.delete(jobPhotosTable).where(eq(jobPhotosTable.id, photoId)).returning();
