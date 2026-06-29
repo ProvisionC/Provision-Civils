@@ -120,6 +120,20 @@ function addFooters(doc: PDFKit.PDFDocument): void {
   doc.fillColor(DARK);
 }
 
+function ensureSpace(
+  doc: PDFKit.PDFDocument,
+  y: number,
+  needed: number,
+  subtitle: string
+): number {
+  if (y + needed > SAFE_BOTTOM) {
+    doc.addPage();
+    drawHeader(doc, subtitle);
+    return HEADER_H + 14;
+  }
+  return y;
+}
+
 function rule(doc: PDFKit.PDFDocument, y: number, color = BORDER): number {
   doc
     .moveTo(MARGIN, y)
@@ -542,7 +556,7 @@ export function generateCompletionPDF(
   userMap: Record<number, string>,
   res: Response
 ): void {
-  const doc = new PDFDocument({ size: "A4", bufferPages: true });
+  const doc = new PDFDocument({ size: "A4", bufferPages: true, autoFirstPage: true });
   const filename = `${job.jobNumber ?? "JOB"}-CompletionPack-${new Date().toISOString().slice(0, 10)}.pdf`;
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
@@ -550,43 +564,26 @@ export function generateCompletionPDF(
   doc.pipe(res);
 
   const logo = getLogoBuffer();
+  const subtitle = "PROJECT COMPLETION PACK";
+  const sorted = [...reports].sort((a, b) => (a.date < b.date ? -1 : 1));
 
+  // ── PAGE 1: COVER ────────────────────────────────────────────────
   doc.rect(0, 0, PAGE_W, PAGE_H).fill(BLUE);
-  doc.rect(0, 0, PAGE_W, 170).fill(DARK);
+  doc.rect(0, 0, PAGE_W, 158).fill(DARK);
 
   if (logo) {
-    try {
-      doc.image(logo, PAGE_W / 2 - 50, 28, { width: 100, height: 100 });
-    } catch {}
+    try { doc.image(logo, PAGE_W / 2 - 44, 22, { width: 88, height: 88 }); } catch {}
   }
-
-  doc
-    .fillColor(WHITE)
-    .fontSize(10)
-    .font("Helvetica")
-    .text("CONSTRUCTION JOB MANAGEMENT", 0, 140, { align: "center" });
-
-  doc
-    .fillColor(WHITE)
-    .fontSize(28)
-    .font("Helvetica-Bold")
-    .text("PROJECT", 0, 215, { align: "center" });
-  doc
-    .fillColor(ORANGE)
-    .fontSize(28)
-    .font("Helvetica-Bold")
-    .text("COMPLETION PACK", 0, 252, { align: "center" });
-
-  doc
-    .fillColor(WHITE)
-    .fontSize(14)
-    .font("Helvetica-Bold")
-    .text(job.jobNumber ?? "—", 0, 308, { align: "center" });
-  doc
-    .fillColor("#BBDEFB")
-    .fontSize(11)
-    .font("Helvetica")
-    .text(job.projectName ?? job.clientName ?? "—", 0, 330, { align: "center" });
+  doc.fillColor(WHITE).fontSize(9).font("Helvetica")
+    .text("CONSTRUCTION JOB MANAGEMENT", 0, 122, { align: "center" });
+  doc.fillColor(WHITE).fontSize(30).font("Helvetica-Bold")
+    .text("PROJECT", 0, 196, { align: "center" });
+  doc.fillColor(ORANGE).fontSize(30).font("Helvetica-Bold")
+    .text("COMPLETION PACK", 0, 234, { align: "center" });
+  doc.fillColor(WHITE).fontSize(14).font("Helvetica-Bold")
+    .text(job.jobNumber ?? "—", 0, 290, { align: "center" });
+  doc.fillColor("#BBDEFB").fontSize(11).font("Helvetica")
+    .text(job.projectName ?? job.clientName ?? "—", 0, 310, { align: "center" });
 
   const coverData: [string, string][] = [
     ["Client", job.clientName ?? "—"],
@@ -596,254 +593,227 @@ export function generateCompletionPDF(
     ["Daily Reports", String(reports.length)],
     ["Materials on Record", String(materials.length)],
   ];
-  let cy = 378;
+  let cy = 358;
   for (const [k, v] of coverData) {
-    doc
-      .fillColor("#BBDEFB")
-      .fontSize(7.5)
-      .font("Helvetica")
+    doc.fillColor("#90CAF9").fontSize(7.5).font("Helvetica")
       .text(k, MARGIN + 80, cy, { lineBreak: false });
-    doc
-      .fillColor(WHITE)
-      .fontSize(10)
-      .font("Helvetica-Bold")
+    doc.fillColor(WHITE).fontSize(10).font("Helvetica-Bold")
       .text(v, MARGIN + 80, cy + 11, { lineBreak: false });
-    cy += 32;
+    cy += 30;
   }
+  doc.fillColor("#BBDEFB").fontSize(7).font("Helvetica")
+    .text("PROVISION CIVILS  ·  Construction Job Management  ·  Confidential Document",
+      0, PAGE_H - 32, { align: "center" });
 
-  doc
-    .fillColor("#BBDEFB")
-    .fontSize(7)
-    .font("Helvetica")
-    .text(
-      "PROVISION CIVILS  ·  Construction Job Management  ·  Confidential Document",
-      0,
-      PAGE_H - 36,
-      { align: "center" }
-    );
-
+  // ── PAGE 2+: FLOWING CONTENT ─────────────────────────────────────
   doc.addPage();
-  drawHeader(doc, "PROJECT COMPLETION PACK");
-  let y = HEADER_H + 16;
+  drawHeader(doc, subtitle);
+  let y = HEADER_H + 14;
 
-  doc
-    .fillColor(DARK)
-    .fontSize(16)
-    .font("Helvetica-Bold")
-    .text("Job Details", MARGIN, y);
-  y += 26;
-  y = rule(doc, y);
-  y = sectionBar(doc, "CLIENT & PROJECT INFORMATION", y);
-  y = infoGrid(
-    doc,
-    [
-      ["Job Number", job.jobNumber],
-      ["Project Name", job.projectName],
-      ["Client", job.clientName],
-      ["Client Phone", job.clientPhone],
-      ["Client Email", job.clientEmail],
-      ["Site Address", job.siteAddress],
-      ["Start Date", formatDate(job.startDate)],
-      ["Due Date", formatDate(job.dueDate)],
-      ["Contract Value", formatCurrency(job.contractValue)],
-      ["PO Number", job.poNumber],
-      ["Wayleave Required", job.wayleaveRequired ? "YES" : "NO"],
-      ["Status", (job.status || "completed").replace(/_/g, " ").toUpperCase()],
-    ],
-    y,
-    2
-  );
+  // ── PROJECT INFORMATION ──────────────────────────────────────────
+  y = sectionBar(doc, "PROJECT INFORMATION", y);
+  y = infoGrid(doc, [
+    ["Job Number", job.jobNumber],
+    ["Project Name", job.projectName],
+    ["Client", job.clientName],
+    ["Client Phone", job.clientPhone],
+    ["Client Email", job.clientEmail],
+    ["Site Address", job.siteAddress],
+    ["Start Date", formatDate(job.startDate)],
+    ["Due Date", formatDate(job.dueDate)],
+    ["Contract Value", formatCurrency(job.contractValue)],
+    ["PO Number", job.poNumber],
+    ["Wayleave Required", job.wayleaveRequired ? "YES" : "NO"],
+    ["Status", (job.status || "completed").replace(/_/g, " ").toUpperCase()],
+  ], y, 2);
 
-  doc.addPage();
-  drawHeader(doc, "PROJECT COMPLETION PACK");
-  y = HEADER_H + 16;
-
-  doc
-    .fillColor(DARK)
-    .fontSize(16)
-    .font("Helvetica-Bold")
-    .text("Daily Reports Summary", MARGIN, y);
-  y += 26;
-  y = rule(doc, y);
-
-  const sorted = [...reports].sort((a, b) => (a.date < b.date ? -1 : 1));
-
-  if (!sorted.length) {
-    doc
-      .fillColor(MUTED)
-      .fontSize(10)
-      .font("Helvetica")
-      .text("No daily reports on record.", MARGIN, y);
-    y += 20;
-  } else {
-    for (const report of sorted) {
-      if (y + 64 > SAFE_BOTTOM) {
-        doc.addPage();
-        drawHeader(doc, "PROJECT COMPLETION PACK");
-        y = HEADER_H + 16;
-      }
-      doc.rect(MARGIN, y, CONTENT_W, 22).fill("#E3F2FD");
-      const sup = userMap[report.userId] || `User ${report.userId}`;
-      doc
-        .fillColor(BLUE)
-        .fontSize(9)
-        .font("Helvetica-Bold")
-        .text(
-          `${formatDate(report.date)}  —  ${sup}`,
-          MARGIN + 8,
-          y + 7,
-          { lineBreak: false }
-        );
-      doc.fillColor(DARK).font("Helvetica");
-      y += 24;
-      if (report.workCompleted || report.progressNotes) {
-        const snippet = (report.workCompleted || report.progressNotes || "").slice(0, 180);
-        doc
-          .fillColor(MUTED)
-          .fontSize(7.5)
-          .text("Work completed:", MARGIN + 8, y);
-        doc
-          .fillColor(DARK)
-          .fontSize(9)
-          .font("Helvetica")
-          .text(snippet, MARGIN + 8, y + 10, {
-            width: CONTENT_W - 16,
-            lineBreak: false,
-          });
-        y = doc.y + 6;
-      }
-      y = rule(doc, y);
-    }
-  }
-
-  doc.addPage();
-  drawHeader(doc, "PROJECT COMPLETION PACK");
-  y = HEADER_H + 16;
-
-  doc
-    .fillColor(DARK)
-    .fontSize(16)
-    .font("Helvetica-Bold")
-    .text("Material Usage", MARGIN, y);
-  y += 26;
-  y = rule(doc, y);
-  y = sectionBar(
-    doc,
-    `MATERIALS LIST — ${materials.length} ITEM${materials.length !== 1 ? "S" : ""}`,
-    y
-  );
-  y = drawMaterialsTable(doc, materials, y, "PROJECT COMPLETION PACK");
-
-  if (photos.length > 0) {
-    doc.addPage();
-    drawHeader(doc, "PROJECT COMPLETION PACK");
-    y = HEADER_H + 16;
-    doc
-      .fillColor(DARK)
-      .fontSize(16)
-      .font("Helvetica-Bold")
-      .text("Project Photos", MARGIN, y);
-    y += 26;
-    y = rule(doc, y);
+  // ── DAILY REPORTS SUMMARY (skip if none) ────────────────────────
+  if (sorted.length > 0) {
+    y = ensureSpace(doc, y + 8, 100, subtitle);
     y = sectionBar(
       doc,
-      `PHOTO GALLERY — ${photos.length} PHOTO${photos.length !== 1 ? "S" : ""}`,
+      `DAILY REPORTS  —  ${sorted.length} REPORT${sorted.length !== 1 ? "S" : ""}`,
       y
     );
 
-    const PW = 155, PH = 120;
-    let px = MARGIN;
-    let maxY = y;
-    for (let i = 0; i < photos.length; i++) {
-      if (y + PH > SAFE_BOTTOM - 20) {
-        doc.addPage();
-        drawHeader(doc, "PROJECT COMPLETION PACK");
-        y = HEADER_H + 16;
-        px = MARGIN;
-        maxY = y;
+    for (const report of sorted) {
+      const sup = userMap[report.userId] || `User ${report.userId}`;
+      const workText = ((report.workCompleted || report.progressNotes) ?? "").slice(0, 280);
+      const problemText = (report.problemsEncountered ?? "").slice(0, 180);
+      const notesText = (report.notes ?? "").slice(0, 180);
+      const labourText = report.labourOnSite ?? "";
+      const tomorrowText = (report.tomorrowWork ?? "").slice(0, 180);
+
+      const estLines = (workText ? Math.ceil(workText.length / 95) : 0)
+        + (problemText ? Math.ceil(problemText.length / 95) : 0)
+        + (labourText ? 1 : 0) + (tomorrowText ? 1 : 0) + (notesText ? 1 : 0);
+      const estH = 30 + estLines * 13 + 24;
+      y = ensureSpace(doc, y, estH, subtitle);
+
+      // Report header
+      doc.rect(MARGIN, y, CONTENT_W, 22).fill("#E3F2FD");
+      doc.fillColor(BLUE).fontSize(9).font("Helvetica-Bold")
+        .text(formatDate(report.date), MARGIN + 8, y + 7, { lineBreak: false });
+      doc.fillColor(MUTED).fontSize(8).font("Helvetica")
+        .text(`Supervisor: ${sup}`, PAGE_W - MARGIN - 180, y + 8, { lineBreak: false });
+      doc.fillColor(DARK).font("Helvetica");
+      y += 26;
+
+      if (workText) {
+        doc.fillColor(MUTED).fontSize(7.5).font("Helvetica")
+          .text("Work completed:", MARGIN + 8, y);
+        y += 11;
+        doc.fillColor(DARK).fontSize(9).font("Helvetica")
+          .text(workText, MARGIN + 8, y, { width: CONTENT_W - 16 });
+        y = doc.y + 4;
       }
-      const buf = b64ToBuffer(photos[i].uri);
+      if (problemText) {
+        doc.fillColor(RED).fontSize(7.5).font("Helvetica")
+          .text("Problems / Delays:", MARGIN + 8, y);
+        y += 11;
+        doc.fillColor(DARK).fontSize(9).font("Helvetica")
+          .text(problemText, MARGIN + 8, y, { width: CONTENT_W - 16 });
+        y = doc.y + 4;
+      }
+      if (labourText) {
+        doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
+          .text(`Labour on site: ${labourText}`, MARGIN + 8, y, { width: CONTENT_W - 16 });
+        y = doc.y + 4;
+      }
+      if (tomorrowText) {
+        doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
+          .text(`Planned tomorrow: ${tomorrowText}`, MARGIN + 8, y, { width: CONTENT_W - 16 });
+        y = doc.y + 4;
+      }
+      if (notesText) {
+        doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
+          .text(`Notes: ${notesText}`, MARGIN + 8, y, { width: CONTENT_W - 16 });
+        y = doc.y + 4;
+      }
+
+      // Inline report photos (max 4, small)
+      if (report.photoUris?.length > 0) {
+        const PW2 = 108, PH2 = 80;
+        const maxPh = Math.min(report.photoUris.length, 4);
+        y = ensureSpace(doc, y + 4, PH2 + 14, subtitle);
+        let px2 = MARGIN + 8;
+        for (let i = 0; i < maxPh; i++) {
+          const buf = b64ToBuffer(report.photoUris[i]);
+          if (buf) {
+            try { doc.image(buf, px2, y, { fit: [PW2, PH2] }); } catch {}
+          }
+          px2 += PW2 + 6;
+          if (px2 + PW2 > PAGE_W - MARGIN - 8) break;
+        }
+        y += PH2 + 10;
+      }
+
+      y = rule(doc, y + 2);
+    }
+  }
+
+  // ── MATERIAL USAGE ───────────────────────────────────────────────
+  y = ensureSpace(doc, y + 6, 100, subtitle);
+  y = sectionBar(
+    doc,
+    `MATERIAL USAGE  —  ${materials.length} ITEM${materials.length !== 1 ? "S" : ""}`,
+    y
+  );
+  y = drawMaterialsTable(doc, materials, y, subtitle);
+
+  // ── SITE PHOTOS (job-level, skip if none) ────────────────────────
+  const validPhotos = photos.filter(p => b64ToBuffer(p.uri) !== null);
+  if (validPhotos.length > 0) {
+    y = ensureSpace(doc, y + 8, 160, subtitle);
+    y = sectionBar(
+      doc,
+      `SITE PHOTOS  —  ${validPhotos.length} PHOTO${validPhotos.length !== 1 ? "S" : ""}`,
+      y
+    );
+
+    const PW = 152, PH = 114;
+    let px = MARGIN;
+    let rowMaxY = y;
+
+    for (let i = 0; i < validPhotos.length; i++) {
+      if (y + PH > SAFE_BOTTOM - 8) {
+        doc.addPage();
+        drawHeader(doc, subtitle);
+        y = HEADER_H + 14;
+        px = MARGIN;
+        rowMaxY = y;
+      }
+      const buf = b64ToBuffer(validPhotos[i].uri);
       if (buf) {
         try {
           doc.image(buf, px, y, { fit: [PW, PH] });
-          if (photos[i].caption) {
-            doc
-              .fillColor(MUTED)
-              .fontSize(7)
-              .text(photos[i].caption, px, y + PH + 2, {
-                width: PW,
-                lineBreak: false,
-              });
+          if (validPhotos[i].caption) {
+            doc.fillColor(MUTED).fontSize(6.5)
+              .text(validPhotos[i].caption, px, y + PH + 2, { width: PW, lineBreak: false });
           }
-          maxY = Math.max(maxY, y + PH + 16);
+          rowMaxY = Math.max(rowMaxY, y + PH + 14);
         } catch {}
       }
-      px += PW + 12;
+      px += PW + 10;
       if (px + PW > PAGE_W - MARGIN) {
         px = MARGIN;
-        y = maxY + 8;
+        y = rowMaxY;
+        rowMaxY = y;
       }
     }
-    y = maxY + 20;
+    y = rowMaxY + 8;
   }
 
+  // ── WAYLEAVE STATUS (only if required) ──────────────────────────
+  if (job.wayleaveRequired) {
+    y = ensureSpace(doc, y + 6, 58, subtitle);
+    y = sectionBar(doc, "WAYLEAVE STATUS", y);
+    doc.rect(MARGIN, y, CONTENT_W, 38).fill("#FFF8E1");
+    doc.fillColor(ORANGE).fontSize(9).font("Helvetica-Bold")
+      .text("WAYLEAVE REQUIRED", MARGIN + 12, y + 8, { lineBreak: false });
+    doc.fillColor(DARK).fontSize(8.5).font("Helvetica")
+      .text(
+        "This project required a Wayleave permit. Supporting documents must be filed with this pack.",
+        MARGIN + 12, y + 22, { width: CONTENT_W - 24, lineBreak: false }
+      );
+    doc.fillColor(DARK).font("Helvetica");
+    y += 46;
+  }
+
+  // ── CERTIFICATE OF COMPLETION — always own page ──────────────────
   doc.addPage();
-  drawHeader(doc, "PROJECT COMPLETION PACK");
-  y = HEADER_H + 20;
+  drawHeader(doc, subtitle);
+  y = HEADER_H + 22;
 
-  doc
-    .rect(MARGIN, y, CONTENT_W, 400)
-    .strokeColor(BLUE)
-    .lineWidth(2)
-    .stroke();
-  y += 24;
+  // Outer border
+  doc.rect(MARGIN, y, CONTENT_W, 376).strokeColor(BLUE).lineWidth(2).stroke();
+  // Orange top accent
+  doc.rect(MARGIN, y, CONTENT_W, 6).fill(ORANGE);
+  y += 30;
 
-  doc
-    .fillColor(BLUE)
-    .fontSize(18)
-    .font("Helvetica-Bold")
+  doc.fillColor(BLUE).fontSize(20).font("Helvetica-Bold")
     .text("CERTIFICATE OF COMPLETION", 0, y, { align: "center" });
-  y += 32;
+  y += 28;
+  doc.moveTo(MARGIN + 50, y).lineTo(PAGE_W - MARGIN - 50, y)
+    .strokeColor(ORANGE).lineWidth(1.5).stroke();
+  y += 18;
 
-  doc
-    .moveTo(MARGIN + 60, y)
-    .lineTo(PAGE_W - MARGIN - 60, y)
-    .strokeColor(ORANGE)
-    .lineWidth(2)
-    .stroke();
-  y += 22;
-
-  doc
-    .fillColor(DARK)
-    .fontSize(10)
-    .font("Helvetica")
+  doc.fillColor(DARK).fontSize(9.5).font("Helvetica")
     .text(
       "This is to certify that the following project has been completed in accordance\nwith the agreed specifications and to the satisfaction of the client:",
-      0,
-      y,
-      { align: "center" }
+      0, y, { align: "center" }
     );
-  y += 36;
+  y += 34;
 
-  doc
-    .fillColor(BLUE)
-    .fontSize(16)
-    .font("Helvetica-Bold")
+  doc.fillColor(BLUE).fontSize(17).font("Helvetica-Bold")
     .text(job.projectName || job.clientName || "—", 0, y, { align: "center" });
-  y += 24;
-  doc
-    .fillColor(DARK)
-    .fontSize(11)
-    .font("Helvetica")
+  y += 22;
+  doc.fillColor(DARK).fontSize(11).font("Helvetica-Bold")
     .text(job.jobNumber ?? "—", 0, y, { align: "center" });
-  y += 28;
+  y += 26;
 
-  doc
-    .moveTo(MARGIN + 60, y)
-    .lineTo(PAGE_W - MARGIN - 60, y)
-    .strokeColor(BORDER)
-    .lineWidth(0.5)
-    .stroke();
+  doc.moveTo(MARGIN + 50, y).lineTo(PAGE_W - MARGIN - 50, y)
+    .strokeColor(BORDER).lineWidth(0.5).stroke();
   y += 16;
 
   const certItems: [string, string][] = [
@@ -855,74 +825,44 @@ export function generateCompletionPDF(
     ["Materials on Record", String(materials.length)],
   ];
   for (const [k, v] of certItems) {
-    doc
-      .fillColor(MUTED)
-      .fontSize(8.5)
-      .font("Helvetica")
+    doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
       .text(`${k}:`, MARGIN + 80, y, { lineBreak: false });
-    doc
-      .fillColor(DARK)
-      .fontSize(9)
-      .font("Helvetica-Bold")
-      .text(v, MARGIN + 210, y, { lineBreak: false });
+    doc.fillColor(DARK).fontSize(9).font("Helvetica-Bold")
+      .text(v, MARGIN + 216, y, { lineBreak: false });
     y += 18;
   }
+  y += 20;
 
-  y += 22;
-  doc
-    .fillColor(MUTED)
-    .fontSize(8.5)
-    .font("Helvetica")
-    .text("Supervisor Signature:", MARGIN + 40, y, { lineBreak: false });
-  doc
-    .moveTo(MARGIN + 40, y + 28)
-    .lineTo(MARGIN + 220, y + 28)
-    .strokeColor(DARK)
-    .lineWidth(0.8)
-    .stroke();
-  doc
-    .fillColor(MUTED)
-    .fontSize(8.5)
-    .text("Date:", MARGIN + 260, y, { lineBreak: false });
-  doc
-    .moveTo(MARGIN + 290, y + 28)
-    .lineTo(MARGIN + 440, y + 28)
-    .strokeColor(DARK)
-    .lineWidth(0.8)
-    .stroke();
-  y += 46;
+  // Supervisor signature
+  doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
+    .text("Supervisor Signature:", MARGIN + 30, y, { lineBreak: false });
+  doc.moveTo(MARGIN + 152, y + 26).lineTo(MARGIN + 310, y + 26)
+    .strokeColor(DARK).lineWidth(0.8).stroke();
+  doc.fillColor(MUTED).fontSize(7.5).font("Helvetica")
+    .text("Signature", MARGIN + 152, y + 28);
+  doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
+    .text("Date:", MARGIN + 330, y, { lineBreak: false });
+  doc.moveTo(MARGIN + 356, y + 26).lineTo(MARGIN + 490, y + 26)
+    .strokeColor(DARK).lineWidth(0.8).stroke();
+  y += 48;
 
-  doc
-    .fillColor(MUTED)
-    .fontSize(8.5)
-    .text("Client Acceptance:", MARGIN + 40, y, { lineBreak: false });
-  doc
-    .moveTo(MARGIN + 40, y + 28)
-    .lineTo(MARGIN + 220, y + 28)
-    .strokeColor(DARK)
-    .lineWidth(0.8)
-    .stroke();
-  doc
-    .fillColor(MUTED)
-    .fontSize(8.5)
-    .text("Date:", MARGIN + 260, y, { lineBreak: false });
-  doc
-    .moveTo(MARGIN + 290, y + 28)
-    .lineTo(MARGIN + 440, y + 28)
-    .strokeColor(DARK)
-    .lineWidth(0.8)
-    .stroke();
-  y += 46;
+  // Client acceptance
+  doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
+    .text("Client Acceptance:", MARGIN + 30, y, { lineBreak: false });
+  doc.moveTo(MARGIN + 152, y + 26).lineTo(MARGIN + 310, y + 26)
+    .strokeColor(DARK).lineWidth(0.8).stroke();
+  doc.fillColor(MUTED).fontSize(7.5).font("Helvetica")
+    .text("Signature", MARGIN + 152, y + 28);
+  doc.fillColor(MUTED).fontSize(8.5).font("Helvetica")
+    .text("Date:", MARGIN + 330, y, { lineBreak: false });
+  doc.moveTo(MARGIN + 356, y + 26).lineTo(MARGIN + 490, y + 26)
+    .strokeColor(DARK).lineWidth(0.8).stroke();
+  y += 48;
 
-  doc
-    .fillColor(DARK)
-    .fontSize(8)
-    .font("Helvetica-Oblique")
+  doc.fillColor(DARK).fontSize(7.5).font("Helvetica-Oblique")
     .text(
       "This document has been generated by Provision Civils Construction Job Management System.",
-      0,
-      y + 8,
-      { align: "center" }
+      0, y + 4, { align: "center" }
     );
 
   addFooters(doc);
