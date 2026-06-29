@@ -3,6 +3,7 @@ import { AppState, Platform } from "react-native";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { useQuery } from "@tanstack/react-query";
+import { customFetch } from "@workspace/api-client-react";
 
 export type UpdateStatus =
   | "idle"
@@ -38,9 +39,7 @@ const LOCAL_VERSION: string = Constants.expoConfig?.version ?? "1.0.0";
 const CAN_USE_OTA = !__DEV__ && Platform.OS !== "web";
 
 async function fetchServerVersion(): Promise<ServerVersion> {
-  const res = await fetch("/api/version");
-  if (!res.ok) throw new Error("Version check failed");
-  return res.json();
+  return customFetch<ServerVersion>("/api/version", { responseType: "json" });
 }
 
 export function useAppUpdate() {
