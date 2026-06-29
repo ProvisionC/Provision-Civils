@@ -32,7 +32,6 @@ export default function CreateEmployeeScreen() {
     homeAddress: "", emergencyContactName: "", emergencyContactNumber: "",
     jobTitle: "", department: "", employmentStartDate: "",
     employmentStatus: "active", payrollType: "hourly",
-    hourlyRate: "", meterRate: "",
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -73,8 +72,6 @@ export default function CreateEmployeeScreen() {
         employmentStartDate: form.employmentStartDate || undefined,
         employmentStatus: form.employmentStatus as any,
         payrollType: form.payrollType as any,
-        hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : undefined,
-        meterRate: form.meterRate ? Number(form.meterRate) : undefined,
       },
     });
   };
@@ -119,10 +116,20 @@ export default function CreateEmployeeScreen() {
           ))}
         </View>
         {form.payrollType === "hourly" && (
-          <Field label="Hourly Rate (R)" value={form.hourlyRate} onChange={set("hourlyRate")} colors={colors} keyboard="decimal-pad" />
+          <View style={[s.infoBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <Feather name="info" size={13} color={colors.mutedForeground} />
+            <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 13, flex: 1 }}>
+              Fixed rate: R25/hr · 30-min lunch deducted automatically
+            </Text>
+          </View>
         )}
         {form.payrollType === "piece_work" && (
-          <Field label="Meter Rate (R/m)" value={form.meterRate} onChange={set("meterRate")} colors={colors} keyboard="decimal-pad" />
+          <View style={[s.infoBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <Feather name="info" size={13} color={colors.mutedForeground} />
+            <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 13, flex: 1 }}>
+              Rate chosen per entry: R25/m or R30/m
+            </Text>
+          </View>
         )}
       </Section>
 
@@ -180,6 +187,7 @@ function styles(colors: any) {
   return StyleSheet.create({
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 12 },
     chip: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, alignItems: "center", borderWidth: 1 },
+    infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 10, borderWidth: 1, padding: 12, marginTop: 4 },
     field: { marginBottom: 12 },
     label: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
     passwordWrap: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, gap: 8 },

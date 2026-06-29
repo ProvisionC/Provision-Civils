@@ -979,12 +979,12 @@ export const DailyLabourEntryInputWorkType = {
   other: 'other',
 } as const;
 
-export type DailyLabourEntryInputPayrollType = typeof DailyLabourEntryInputPayrollType[keyof typeof DailyLabourEntryInputPayrollType];
+export type DailyLabourEntryInputRatePerMeter = typeof DailyLabourEntryInputRatePerMeter[keyof typeof DailyLabourEntryInputRatePerMeter];
 
 
-export const DailyLabourEntryInputPayrollType = {
-  hourly: 'hourly',
-  piece_work: 'piece_work',
+export const DailyLabourEntryInputRatePerMeter = {
+  NUMBER_25: 25,
+  NUMBER_30: 30,
 } as const;
 
 export type DailyLabourEntryInputStatus = typeof DailyLabourEntryInputStatus[keyof typeof DailyLabourEntryInputStatus];
@@ -998,15 +998,10 @@ export const DailyLabourEntryInputStatus = {
 export interface DailyLabourEntryInput {
   employeeId: number;
   workType: DailyLabourEntryInputWorkType;
-  payrollType: DailyLabourEntryInputPayrollType;
   clockIn?: string;
   clockOut?: string;
-  breakMinutes?: number;
-  hourlyRate?: number;
-  startChainage?: number;
-  endChainage?: number;
   metersCompleted?: number;
-  ratePerMeter?: number;
+  ratePerMeter?: DailyLabourEntryInputRatePerMeter;
   status?: DailyLabourEntryInputStatus;
   notes?: string;
 }

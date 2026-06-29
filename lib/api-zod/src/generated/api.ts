@@ -1080,15 +1080,10 @@ export const BatchCreateLabourEntriesBody = zod.object({
   "entries": zod.array(zod.object({
   "employeeId": zod.number(),
   "workType": zod.enum(['trenching', 'backfilling', 'cable_pulling', 'reinstatement', 'manhole_installation', 'concrete', 'other']),
-  "payrollType": zod.enum(['hourly', 'piece_work']),
   "clockIn": zod.string().optional(),
   "clockOut": zod.string().optional(),
-  "breakMinutes": zod.number().optional(),
-  "hourlyRate": zod.number().optional(),
-  "startChainage": zod.number().optional(),
-  "endChainage": zod.number().optional(),
   "metersCompleted": zod.number().optional(),
-  "ratePerMeter": zod.number().optional(),
+  "ratePerMeter": zod.union([zod.literal(25),zod.literal(30)]).optional(),
   "status": zod.enum(['open', 'complete']).optional(),
   "notes": zod.string().optional()
 }))

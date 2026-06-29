@@ -2123,32 +2123,22 @@ components:
 
     DailyLabourEntryInput:
       type: object
-      required: [employeeId, workType, payrollType]
+      required: [employeeId, workType]
       properties:
         employeeId:
           type: integer
         workType:
           type: string
           enum: [trenching, backfilling, cable_pulling, reinstatement, manhole_installation, concrete, other]
-        payrollType:
-          type: string
-          enum: [hourly, piece_work]
         clockIn:
           type: string
         clockOut:
           type: string
-        breakMinutes:
-          type: integer
-        hourlyRate:
-          type: number
-        startChainage:
-          type: number
-        endChainage:
-          type: number
         metersCompleted:
           type: number
         ratePerMeter:
           type: number
+          enum: [25, 30]
         status:
           type: string
           enum: [open, complete]

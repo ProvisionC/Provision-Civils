@@ -1,11 +1,16 @@
 import { Router, type IRouter } from "express";
 import { db, labourEntriesTable, usersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthPayload } from "../middlewares/auth.js";
 import type { Request } from "express";
 
 const router: IRouter = Router();
 type AuthReq = Request & { auth: AuthPayload };
+
+const HOURLY_RATE = 25;
+const BREAK_MINUTES = 30;
+const VALID_METER_RATES = [25, 30] as const;
+type MeterRate = typeof VALID_METER_RATES[number];
 
 function parseId(raw: string | string[]): number {
   const s = Array.isArray(raw) ? raw[0] : raw;
@@ -17,8 +22,8 @@ function parseTime(t: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
-function calcHours(clockIn: string, clockOut: string, breakMinutes: number): number {
-  const diff = parseTime(clockOut) - parseTime(clockIn) - (breakMinutes || 0);
+function calcHours(clockIn: string, clockOut: string): number {
+  const diff = parseTime(clockOut) - parseTime(clockIn) - BREAK_MINUTES;
   return Math.max(0, diff) / 60;
 }
 
@@ -32,11 +37,8 @@ function calcAmount(entry: {
   if (entry.payrollType === "hourly") {
     return (entry.hoursWorked ?? 0) * (entry.rateUsed ?? 0);
   }
-  if (entry.payrollType === "piece_work") {
-    if (entry.status === "complete") {
-      return (entry.metersCompleted ?? 0) * (entry.rateUsed ?? 0);
-    }
-    return 0;
+  if (entry.payrollType === "piece_work" && entry.status === "complete") {
+    return (entry.metersCompleted ?? 0) * (entry.rateUsed ?? 0);
   }
   return 0;
 }
@@ -53,8 +55,6 @@ function formatEntry(e: typeof labourEntriesTable.$inferSelect & { employee?: ty
     clockOut: e.clockOut ?? null,
     breakMinutes: e.breakMinutes,
     hoursWorked: e.hoursWorked ? String(e.hoursWorked) : null,
-    startChainage: e.startChainage ? String(e.startChainage) : null,
-    endChainage: e.endChainage ? String(e.endChainage) : null,
     metersCompleted: e.metersCompleted ? String(e.metersCompleted) : null,
     rateUsed: e.rateUsed ? String(e.rateUsed) : null,
     amountPayable: e.amountPayable ? String(e.amountPayable) : null,
@@ -86,51 +86,7 @@ router.get("/labour-entries", requireAuth, async (req, res): Promise<void> => {
   res.json(rows.map(r => formatEntry({ ...r.entry, employee: r.employee })));
 });
 
-// POST /labour-entries (single)
-router.post("/labour-entries", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
-  const auth = (req as AuthReq).auth;
-  const {
-    jobId, employeeId, date, workType, payrollType,
-    clockIn, clockOut, breakMinutes, hoursWorked,
-    startChainage, endChainage, metersCompleted, rateUsed, amountPayable,
-    status, notes,
-  } = req.body as Record<string, any>;
-
-  if (!jobId || !employeeId || !date || !workType || !payrollType) {
-    res.status(400).json({ error: "jobId, employeeId, date, workType, payrollType required" });
-    return;
-  }
-
-  const hw = clockIn && clockOut
-    ? calcHours(clockIn, clockOut, Number(breakMinutes ?? 0))
-    : hoursWorked ? Number(hoursWorked) : null;
-
-  const rate = rateUsed ? Number(rateUsed) : null;
-  const meters = metersCompleted ? Number(metersCompleted) : null;
-  const entryStatus = status ?? "open";
-  const amount = amountPayable != null
-    ? Number(amountPayable)
-    : calcAmount({ payrollType, status: entryStatus, hoursWorked: hw, metersCompleted: meters, rateUsed: rate });
-
-  const [entry] = await db.insert(labourEntriesTable).values({
-    jobId: Number(jobId), employeeId: Number(employeeId), date, workType, payrollType,
-    clockIn: clockIn ?? null, clockOut: clockOut ?? null,
-    breakMinutes: breakMinutes ? Number(breakMinutes) : 0,
-    hoursWorked: hw != null ? String(hw) : null,
-    startChainage: startChainage ? String(startChainage) : null,
-    endChainage: endChainage ? String(endChainage) : null,
-    metersCompleted: meters != null ? String(meters) : null,
-    rateUsed: rate != null ? String(rate) : null,
-    amountPayable: String(amount),
-    status: entryStatus,
-    notes: notes ?? null,
-    createdById: auth.userId,
-  }).returning();
-
-  res.status(201).json(formatEntry(entry));
-});
-
-// POST /labour-entries/batch — daily multi-employee entry
+// POST /labour-entries/batch — daily multi-employee entry (simplified)
 router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const auth = (req as AuthReq).auth;
   const { jobId, date, entries } = req.body as {
@@ -140,13 +96,8 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
     entries: Array<{
       employeeId: number;
       workType: string;
-      payrollType: string;
       clockIn?: string;
       clockOut?: string;
-      breakMinutes?: number;
-      hourlyRate?: number;
-      startChainage?: number;
-      endChainage?: number;
       metersCompleted?: number;
       ratePerMeter?: number;
       status?: string;
@@ -159,17 +110,38 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
     return;
   }
 
+  // Batch-fetch all employee payroll types
+  const empIds = [...new Set(entries.map(e => Number(e.employeeId)))];
+  const empRows = await db
+    .select({ id: usersTable.id, payrollType: usersTable.payrollType })
+    .from(usersTable)
+    .where(inArray(usersTable.id, empIds));
+  const empMap = new Map(empRows.map(r => [r.id, r.payrollType]));
+
+  // Validate piece work rates before inserting anything
+  for (const e of entries) {
+    const payrollType = empMap.get(Number(e.employeeId)) ?? "hourly";
+    if (payrollType === "piece_work" && e.ratePerMeter != null) {
+      const r = Number(e.ratePerMeter);
+      if (!VALID_METER_RATES.includes(r as MeterRate)) {
+        res.status(400).json({ error: `Invalid ratePerMeter ${r}: must be 25 or 30` });
+        return;
+      }
+    }
+  }
+
   const values = entries.map(e => {
+    const payrollType = empMap.get(Number(e.employeeId)) ?? "hourly";
     const entryStatus = (e.status ?? "open") as "open" | "complete";
     let hw: number | null = null;
     let rate: number | null = null;
     let amount = 0;
 
-    if (e.payrollType === "hourly") {
+    if (payrollType === "hourly") {
       if (e.clockIn && e.clockOut) {
-        hw = calcHours(e.clockIn, e.clockOut, Number(e.breakMinutes ?? 0));
+        hw = calcHours(e.clockIn, e.clockOut);
       }
-      rate = e.hourlyRate ? Number(e.hourlyRate) : null;
+      rate = HOURLY_RATE;
       amount = calcAmount({ payrollType: "hourly", status: entryStatus, hoursWorked: hw, rateUsed: rate });
     } else {
       rate = e.ratePerMeter ? Number(e.ratePerMeter) : null;
@@ -182,13 +154,13 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
       employeeId: Number(e.employeeId),
       date,
       workType: e.workType as any,
-      payrollType: e.payrollType as "hourly" | "piece_work",
+      payrollType: payrollType as "hourly" | "piece_work",
       clockIn: e.clockIn ?? null,
       clockOut: e.clockOut ?? null,
-      breakMinutes: Number(e.breakMinutes ?? 0),
+      breakMinutes: payrollType === "hourly" ? BREAK_MINUTES : 0,
       hoursWorked: hw != null ? String(hw.toFixed(2)) : null,
-      startChainage: e.startChainage != null ? String(e.startChainage) : null,
-      endChainage: e.endChainage != null ? String(e.endChainage) : null,
+      startChainage: null,
+      endChainage: null,
       metersCompleted: e.metersCompleted != null ? String(e.metersCompleted) : null,
       rateUsed: rate != null ? String(rate) : null,
       amountPayable: String(amount.toFixed(2)),
@@ -202,57 +174,44 @@ router.post("/labour-entries/batch", requireAuth, requireRole("admin", "supervis
   res.status(201).json(inserted.map(e => formatEntry(e)));
 });
 
-// PUT /labour-entries/:id — recalculate amount on status change
+// PUT /labour-entries/:id — recalculate on status change (supervisor marks complete)
 router.put("/labour-entries/:id", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  const {
-    clockIn, clockOut, breakMinutes, hoursWorked,
-    startChainage, endChainage, metersCompleted, rateUsed,
-    status, notes, workType, payrollType, date,
-  } = req.body as Record<string, any>;
+  const { clockIn, clockOut, metersCompleted, status, notes, workType, date } = req.body as Record<string, any>;
 
-  // Fetch current entry to recalculate
   const [current] = await db.select().from(labourEntriesTable).where(eq(labourEntriesTable.id, id)).limit(1);
   if (!current) { res.status(404).json({ error: "Labour entry not found" }); return; }
 
-  const newPayrollType = payrollType ?? current.payrollType;
   const newStatus = status ?? current.status;
-
-  // Recalculate hours if clock times change
   const newClockIn = clockIn !== undefined ? clockIn : current.clockIn;
   const newClockOut = clockOut !== undefined ? clockOut : current.clockOut;
-  const newBreak = breakMinutes !== undefined ? Number(breakMinutes) : current.breakMinutes;
 
   let newHours: number | null = current.hoursWorked ? Number(current.hoursWorked) : null;
-  if (newPayrollType === "hourly" && newClockIn && newClockOut) {
-    newHours = calcHours(newClockIn, newClockOut, newBreak);
-  } else if (hoursWorked !== undefined) {
-    newHours = hoursWorked ? Number(hoursWorked) : null;
+  if (current.payrollType === "hourly" && newClockIn && newClockOut) {
+    newHours = calcHours(newClockIn, newClockOut);
   }
 
-  const newRate = rateUsed !== undefined ? (rateUsed ? Number(rateUsed) : null) : (current.rateUsed ? Number(current.rateUsed) : null);
-  const newMeters = metersCompleted !== undefined ? (metersCompleted ? Number(metersCompleted) : null) : (current.metersCompleted ? Number(current.metersCompleted) : null);
+  const currentRate = current.rateUsed ? Number(current.rateUsed) : null;
+  const newMeters = metersCompleted !== undefined
+    ? (metersCompleted ? Number(metersCompleted) : null)
+    : (current.metersCompleted ? Number(current.metersCompleted) : null);
 
   const newAmount = calcAmount({
-    payrollType: newPayrollType,
+    payrollType: current.payrollType,
     status: newStatus,
     hoursWorked: newHours,
     metersCompleted: newMeters,
-    rateUsed: newRate,
+    rateUsed: current.payrollType === "hourly" ? HOURLY_RATE : currentRate,
   });
 
   const [entry] = await db.update(labourEntriesTable).set({
     ...(date !== undefined && { date }),
     ...(workType !== undefined && { workType }),
-    ...(payrollType !== undefined && { payrollType }),
     ...(clockIn !== undefined && { clockIn }),
     ...(clockOut !== undefined && { clockOut }),
-    ...(breakMinutes !== undefined && { breakMinutes: newBreak }),
     hoursWorked: newHours != null ? String(newHours.toFixed(2)) : null,
-    ...(startChainage !== undefined && { startChainage: startChainage ? String(startChainage) : null }),
-    ...(endChainage !== undefined && { endChainage: endChainage ? String(endChainage) : null }),
     metersCompleted: newMeters != null ? String(newMeters) : null,
-    rateUsed: newRate != null ? String(newRate) : null,
+    rateUsed: current.payrollType === "hourly" ? String(HOURLY_RATE) : (current.rateUsed ?? null),
     amountPayable: String(newAmount.toFixed(2)),
     status: newStatus,
     ...(notes !== undefined && { notes }),
@@ -263,7 +222,7 @@ router.put("/labour-entries/:id", requireAuth, requireRole("admin", "supervisor"
 });
 
 // DELETE /labour-entries/:id
-router.delete("/labour-entries/:id", requireAuth, requireRole("admin"), async (req, res): Promise<void> => {
+router.delete("/labour-entries/:id", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const [deleted] = await db.delete(labourEntriesTable).where(eq(labourEntriesTable.id, id)).returning();
   if (!deleted) { res.status(404).json({ error: "Labour entry not found" }); return; }
