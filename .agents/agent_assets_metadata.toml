@@ -11,3 +11,9 @@ id = "VsSnC2Ku6eKCiEqzWYO3A"
 uri = "file://provision-civils-apk.tar.gz"
 type = "unspecified"
 title = "Provision Civils APK (Android)"
+
+[[outputs]]
+id = "Bcn2X90elH8sDxIe59oOP"
+uri = "file://provision-civils.zip"
+type = "unspecified"
+title = "Provision Civils APK — extract and install on Android"
