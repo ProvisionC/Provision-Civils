@@ -3,7 +3,7 @@ import { db, jobsTable, usersTable, jobWorkersTable, jobMaterialsTable, jobEquip
 import { eq, and, ilike, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { ZipArchive } = require("archiver") as { ZipArchive: new (opts?: object) => import("archiver").Archiver };
+const archiverLib = require("archiver") as typeof import("archiver");
 
 const router: IRouter = Router();
 
@@ -446,7 +446,7 @@ router.get("/jobs/:id/photos/zip", requireAuth, async (req, res): Promise<void> 
     res.setHeader("Content-Disposition", `attachment; filename="${jobNumber}-Photos.zip"`);
     res.setHeader("Cache-Control", "no-cache");
 
-    const archive = new ZipArchive({ zlib: { level: 6 } });
+    const archive = archiverLib("zip", { zlib: { level: 6 } });
     archive.on("error", (err: Error) => { req.log?.error({ err }, "ZIP error"); });
     archive.pipe(res);
     for (const { buf, name } of allPhotos) {
