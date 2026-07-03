@@ -14,10 +14,12 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { CrashReporter } from "@/components/CrashReporter";
 import { AuthProvider } from "@/context/AuthContext";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { UpdateModal } from "@/components/UpdateModal";
 import { useAppUpdate } from "@/hooks/useAppUpdate";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,10 +50,16 @@ function UpdateController() {
   );
 }
 
+function HeartbeatController() {
+  useHeartbeat();
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <>
       <UpdateController />
+      <HeartbeatController />
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -62,6 +70,7 @@ function RootLayoutNav() {
         <Stack.Screen name="employee" options={{ headerShown: false }} />
         <Stack.Screen name="messages" options={{ headerShown: false }} />
         <Stack.Screen name="teams" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
     </>
   );
@@ -85,17 +94,19 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </AuthProvider>
-        </QueryClientProvider>
-      </ErrorBoundary>
+      <CrashReporter>
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </AuthProvider>
+          </QueryClientProvider>
+        </ErrorBoundary>
+      </CrashReporter>
     </SafeAreaProvider>
   );
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Platform, useColorScheme, ActivityIndicator,
+  Alert, Platform, useColorScheme, ActivityIndicator, Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -41,9 +41,7 @@ function SettingRow({ icon, label, value, onPress, destructive, right }: {
 
 function UpdateStatusBadge({ status }: { status: string }) {
   const colors = useColors();
-  if (status === "checking") {
-    return <ActivityIndicator size="small" color={colors.primary} />;
-  }
+  if (status === "checking") return <ActivityIndicator size="small" color={colors.primary} />;
   if (status === "up-to-date") {
     return (
       <View style={[styles.badge, { backgroundColor: "#22C55E20" }]}>
@@ -74,7 +72,7 @@ function UpdateStatusBadge({ status }: { status: string }) {
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user, logout, biometricAvailable, biometricEnabled, enableBiometric, disableBiometric } = useAuth();
   const scheme = useColorScheme();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
@@ -101,7 +99,20 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleBiometricToggle = async (val: boolean) => {
+    if (val) {
+      const ok = await enableBiometric();
+      if (!ok) Alert.alert("Failed", "Could not enable biometric login. Please try again.");
+    } else {
+      Alert.alert("Disable Biometrics", "Disable biometric login?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Disable", style: "destructive", onPress: () => disableBiometric() },
+      ]);
+    }
+  };
+
   const initials = user?.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() ?? "??";
+  const isAdmin = user?.role === "admin";
 
   return (
     <ScrollView
@@ -110,7 +121,7 @@ export default function SettingsScreen() {
     >
       <Text style={[styles.title, { color: colors.foreground, paddingHorizontal: 16 }]}>Settings</Text>
 
-      {/* ── Profile card ── */}
+      {/* Profile card */}
       <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border, marginHorizontal: 16 }]}>
         <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
           <Text style={[styles.avatarText, { color: colors.primary }]}>{initials}</Text>
@@ -119,28 +130,51 @@ export default function SettingsScreen() {
           <Text style={[styles.profileName, { color: colors.foreground }]}>{user?.name}</Text>
           <Text style={[styles.profileEmail, { color: colors.mutedForeground }]}>{user?.email}</Text>
           <Text style={[styles.profileRole, { color: colors.primary }]}>
-            {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ""}
+            {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).replace("_", " ") : ""}
           </Text>
         </View>
       </View>
 
-      {/* ── Appearance ── */}
+      {/* Appearance */}
       <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>APPEARANCE</Text>
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <SettingRow icon="sun" label="Theme" value={scheme === "dark" ? "Dark" : "Light"} />
       </View>
 
-      {/* ── Account ── */}
+      {/* Security */}
+      <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>SECURITY</Text>
+      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {biometricAvailable && (
+          <SettingRow
+            icon="lock"
+            label="Biometric Login"
+            right={
+              <Switch
+                value={biometricEnabled}
+                onValueChange={handleBiometricToggle}
+                trackColor={{ true: colors.primary }}
+                thumbColor="#fff"
+              />
+            }
+          />
+        )}
+        <SettingRow
+          icon="clock"
+          label="Auto-logout"
+          value="After 15 min inactivity"
+        />
+      </View>
+
+      {/* Account */}
       <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>ACCOUNT</Text>
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <SettingRow icon="user" label="Profile" value={user?.name ?? ""} />
         <SettingRow icon="phone" label="Phone" value={user?.phone ?? "Not set"} />
       </View>
 
-      {/* ── App / Updates ── */}
+      {/* App / Updates */}
       <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>APP</Text>
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {/* Version */}
         <SettingRow
           icon="info"
           label="Version"
@@ -151,8 +185,6 @@ export default function SettingsScreen() {
             </View>
           }
         />
-
-        {/* Check for updates */}
         <SettingRow
           icon="download-cloud"
           label={isOtaReady ? "Restart to Apply Update" : "Check for Updates"}
@@ -163,8 +195,6 @@ export default function SettingsScreen() {
               : <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
           }
         />
-
-        {/* Server version info */}
         {serverVersion && (
           <SettingRow
             icon="server"
@@ -174,8 +204,61 @@ export default function SettingsScreen() {
         )}
       </View>
 
-      {/* ── Admin Tools ── */}
-      {(user?.role === "admin" || user?.role === "project_manager") && (
+      {/* Admin Tools */}
+      {isAdmin && (
+        <>
+          <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>ADMIN — OPERATIONS</Text>
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <SettingRow
+              icon="settings"
+              label="Company Settings"
+              onPress={() => router.push("/admin/company-settings" as any)}
+            />
+            <SettingRow
+              icon="database"
+              label="Database Backups"
+              onPress={() => router.push("/admin/backups" as any)}
+            />
+            <SettingRow
+              icon="trash-2"
+              label="Recycle Bin"
+              onPress={() => router.push("/admin/recycle-bin" as any)}
+            />
+          </View>
+
+          <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>ADMIN — MONITORING</Text>
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <SettingRow
+              icon="activity"
+              label="System Status"
+              onPress={() => router.push("/admin/system-status" as any)}
+            />
+            <SettingRow
+              icon="list"
+              label="Audit Log"
+              onPress={() => router.push("/admin/audit-log" as any)}
+            />
+            <SettingRow
+              icon="users"
+              label="User Activity"
+              onPress={() => router.push("/admin/user-activity" as any)}
+            />
+            <SettingRow
+              icon="alert-triangle"
+              label="Crash Reports"
+              onPress={() => router.push("/admin/crash-reports" as any)}
+            />
+            <SettingRow
+              icon="users"
+              label="Manage Teams"
+              onPress={() => router.push("/teams" as any)}
+            />
+          </View>
+        </>
+      )}
+
+      {/* PM tools (non-admin) */}
+      {user?.role === "project_manager" && (
         <>
           <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>ADMIN</Text>
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -188,14 +271,14 @@ export default function SettingsScreen() {
         </>
       )}
 
-      {/* ── About ── */}
+      {/* About */}
       <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>ABOUT</Text>
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <SettingRow icon="shield" label="Provision Civils" value="© 2025" />
         <SettingRow icon="layers" label="Platform" value="Provision Field Suite" />
       </View>
 
-      {/* ── Sign Out ── */}
+      {/* Sign Out */}
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border, marginHorizontal: 16 }]}>
         <SettingRow icon="log-out" label="Sign Out" onPress={handleLogout} destructive />
       </View>

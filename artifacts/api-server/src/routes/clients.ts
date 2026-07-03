@@ -80,7 +80,9 @@ router.put("/clients/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.delete("/clients/:id", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  await db.delete(clientsTable).where(eq(clientsTable.id, id));
+  const [existing] = await db.select({ id: clientsTable.id }).from(clientsTable).where(eq(clientsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+  await db.update(clientsTable).set({ deletedAt: new Date() }).where(eq(clientsTable.id, id));
   res.status(204).send();
 });
 

@@ -18,6 +18,13 @@ import versionRouter from "./version.js";
 import teamsRouter from "./teams.js";
 import messagesRouter from "./messages.js";
 import announcementsRouter from "./announcements.js";
+import auditRouter from "./audit.js";
+import backupsRouter from "./backups.js";
+import settingsRouter from "./settings.js";
+import systemRouter from "./system.js";
+import crashRouter from "./crash.js";
+import activityRouter from "./activity.js";
+import recycleRouter from "./recycle.js";
 
 const router: IRouter = Router();
 
@@ -40,5 +47,12 @@ router.use(costingRouter);
 router.use(teamsRouter);
 router.use(messagesRouter);
 router.use(announcementsRouter);
+router.use(auditRouter);
+router.use(backupsRouter);
+router.use(settingsRouter);
+router.use(systemRouter);
+router.use(crashRouter);
+router.use(activityRouter);
+router.use(recycleRouter);
 
 export default router;

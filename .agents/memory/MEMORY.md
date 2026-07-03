@@ -12,3 +12,5 @@
 - [Orval useQuery requires queryKey](orval-querykey-required.md) — Orval-generated hooks require queryKey in query options; always pass the generated getXxxQueryKey() helper to avoid TS2741.
 - [expo-document-picker SDK version](expo-document-picker-version.md) — use expo-document-picker@~14.0.8 for Expo SDK 54; v57 is incompatible and triggers a Metro warning.
 - [Orval void mutation bodies](orval-void-mutation.md) — mutations generated from endpoints with no request body have type void; call mutate() not mutate({}) or TS rejects it.
+- [Drizzle-kit push needs TTY](drizzle-kit-push-tty.md) — drizzle-kit push crashes in non-interactive shells when new tables cause rename prompts; apply migrations with raw SQL via executeSql instead.
+- [Soft delete pattern](soft-delete-pattern.md) — all entity deletes now set deletedAt instead of hard-delete; recycle bin reads via isNotNull(table.deletedAt); admin restore sets deletedAt=null; permanent delete uses db.delete.

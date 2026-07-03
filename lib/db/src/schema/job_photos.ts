@@ -14,6 +14,7 @@ export const jobPhotosTable = pgTable("job_photos", {
   category: text("category").notNull().default("other"),
   uploadedById: integer("uploaded_by_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
 export const insertJobPhotoSchema = createInsertSchema(jobPhotosTable).omit({ id: true, createdAt: true });

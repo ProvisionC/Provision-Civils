@@ -15,6 +15,7 @@ export const invoicesTable = pgTable("invoices", {
   status: text("status", { enum: ["draft", "sent", "paid", "overdue"] }).notNull().default("draft"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
 export const insertInvoiceSchema = createInsertSchema(invoicesTable).omit({ id: true, invoiceNumber: true, createdAt: true });

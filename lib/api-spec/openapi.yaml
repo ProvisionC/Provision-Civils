@@ -33,6 +33,20 @@ tags:
     description: Team management
   - name: messages
     description: Messaging centre
+  - name: audit
+    description: Audit log
+  - name: backups
+    description: Database backup management
+  - name: settings
+    description: Company settings
+  - name: system
+    description: System health and status
+  - name: crash
+    description: Crash reporting
+  - name: activity
+    description: User activity and presence
+  - name: recycle
+    description: Recycle bin (soft deleted items)
 
 paths:
   /healthz:
@@ -1695,6 +1709,289 @@ paths:
         "200":
           description: Token registered
 
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit]
+      summary: List audit logs (admin only)
+      parameters:
+        - in: query
+          name: userId
+          schema: { type: integer }
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: entityType
+          schema: { type: string }
+        - in: query
+          name: dateFrom
+          schema: { type: string }
+        - in: query
+          name: dateTo
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, total]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLog"
+                  total:
+                    type: integer
+
+  /backups:
+    get:
+      operationId: listBackups
+      tags: [backups]
+      summary: List database backups (admin only)
+      responses:
+        "200":
+          description: Backup list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Backup"
+    post:
+      operationId: createBackup
+      tags: [backups]
+      summary: Trigger a manual database backup (admin only)
+      responses:
+        "200":
+          description: Backup started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Backup"
+
+  /backups/{id}/restore:
+    post:
+      operationId: restoreBackup
+      tags: [backups]
+      summary: Restore from a backup (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Restore initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /system/status:
+    get:
+      operationId: getSystemStatus
+      tags: [system]
+      summary: Get system health status (admin only)
+      responses:
+        "200":
+          description: System status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatus"
+
+  /settings/company:
+    get:
+      operationId: getCompanySettings
+      tags: [settings]
+      summary: Get company settings
+      responses:
+        "200":
+          description: Company settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanySettings"
+    put:
+      operationId: updateCompanySettings
+      tags: [settings]
+      summary: Update company settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanySettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanySettings"
+
+  /crash-reports:
+    post:
+      operationId: createCrashReport
+      tags: [crash]
+      summary: Submit a crash report from the mobile app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrashReportInput"
+      responses:
+        "200":
+          description: Report received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+    get:
+      operationId: listCrashReports
+      tags: [crash]
+      summary: List crash reports (admin only)
+      parameters:
+        - in: query
+          name: resolved
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Crash report list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrashReport"
+
+  /crash-reports/{id}/resolve:
+    post:
+      operationId: resolveCrashReport
+      tags: [crash]
+      summary: Mark crash report as resolved (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Resolved
+
+  /activity:
+    get:
+      operationId: listUserActivity
+      tags: [activity]
+      summary: List all user activity / presence (admin only)
+      responses:
+        "200":
+          description: User activity list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserActivity"
+
+  /activity/heartbeat:
+    post:
+      operationId: sendHeartbeat
+      tags: [activity]
+      summary: Update current user online status and last seen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platform:
+                  type: string
+                appVersion:
+                  type: string
+                deviceInfo:
+                  type: string
+      responses:
+        "200":
+          description: Heartbeat recorded
+
+  /recycle-bin:
+    get:
+      operationId: listRecycleBin
+      tags: [recycle]
+      summary: List all soft-deleted items (admin only)
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [job, client, employee, invoice, photo]
+      responses:
+        "200":
+          description: Deleted items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecycleBinItem"
+
+  /recycle-bin/{type}/{id}/restore:
+    post:
+      operationId: restoreRecycleBinItem
+      tags: [recycle]
+      summary: Restore a soft-deleted item (admin only)
+      parameters:
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [job, client, employee, invoice, photo]
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Item restored
+
+  /recycle-bin/{type}/{id}:
+    delete:
+      operationId: permanentlyDeleteItem
+      tags: [recycle]
+      summary: Permanently delete a soft-deleted item (admin only)
+      parameters:
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [job, client, employee, invoice, photo]
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Permanently deleted
+
 components:
   schemas:
     HealthStatus:
@@ -3113,3 +3410,224 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
+
+    AuditLog:
+      type: object
+      required: [id, action, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+        userRole:
+          type: ["string", "null"]
+        action:
+          type: string
+        entityType:
+          type: ["string", "null"]
+        entityId:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        metadata:
+          nullable: true
+        ipAddress:
+          type: ["string", "null"]
+        userAgent:
+          type: ["string", "null"]
+        deviceInfo:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    Backup:
+      type: object
+      required: [id, filename, status, createdAt]
+      properties:
+        id:
+          type: integer
+        filename:
+          type: string
+        filePath:
+          type: string
+        sizeBytes:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        errorMessage:
+          type: ["string", "null"]
+        createdBy:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        restoredAt:
+          type: ["string", "null"]
+        restoredBy:
+          type: ["integer", "null"]
+
+    CompanySettings:
+      type: object
+      required: [id, companyName]
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        logoBase64:
+          type: ["string", "null"]
+        vatNumber:
+          type: ["string", "null"]
+        registrationNumber:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        bankingDetails:
+          nullable: true
+        defaultLabourRates:
+          nullable: true
+        payrollPeriod:
+          type: ["string", "null"]
+        notificationTimes:
+          nullable: true
+        updatedAt:
+          type: string
+
+    CompanySettingsInput:
+      type: object
+      properties:
+        companyName:
+          type: string
+        logoBase64:
+          type: string
+        vatNumber:
+          type: string
+        registrationNumber:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        bankingDetails:
+          type: object
+          additionalProperties: true
+        defaultLabourRates:
+          type: object
+          additionalProperties: true
+        payrollPeriod:
+          type: string
+        notificationTimes:
+          type: object
+          additionalProperties: true
+
+    SystemStatus:
+      type: object
+      required: [api, database, uptime, appVersion, checkedAt]
+      properties:
+        api:
+          type: boolean
+        database:
+          type: boolean
+        storage:
+          type: boolean
+        pushNotifications:
+          type: boolean
+        lastBackupAt:
+          type: ["string", "null"]
+        lastBackupStatus:
+          type: ["string", "null"]
+        appVersion:
+          type: string
+        uptime:
+          type: number
+        checkedAt:
+          type: string
+
+    CrashReport:
+      type: object
+      required: [id, errorMessage, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+        appVersion:
+          type: ["string", "null"]
+        platform:
+          type: ["string", "null"]
+        deviceInfo:
+          nullable: true
+        errorMessage:
+          type: string
+        stackTrace:
+          type: ["string", "null"]
+        extraContext:
+          nullable: true
+        resolved:
+          type: boolean
+        createdAt:
+          type: string
+
+    CrashReportInput:
+      type: object
+      required: [errorMessage]
+      properties:
+        appVersion:
+          type: string
+        platform:
+          type: string
+        deviceInfo:
+          type: object
+          additionalProperties: true
+        errorMessage:
+          type: string
+        stackTrace:
+          type: string
+        extraContext:
+          type: object
+          additionalProperties: true
+
+    UserActivity:
+      type: object
+      required: [userId, userName, isOnline, lastSeenAt]
+      properties:
+        userId:
+          type: integer
+        userName:
+          type: string
+        userRole:
+          type: string
+        isOnline:
+          type: boolean
+        lastSeenAt:
+          type: string
+        platform:
+          type: ["string", "null"]
+        appVersion:
+          type: ["string", "null"]
+
+    RecycleBinItem:
+      type: object
+      required: [id, type, name, deletedAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [job, client, employee, invoice, photo]
+        name:
+          type: string
+        deletedAt:
+          type: string
+        metadata:
+          nullable: true

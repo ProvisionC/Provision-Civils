@@ -22,3 +22,8 @@ export * from "./messages";
 export * from "./message_reads";
 export * from "./push_tokens";
 export * from "./announcements";
+export * from "./audit_logs";
+export * from "./backups";
+export * from "./company_settings";
+export * from "./crash_reports";
+export * from "./user_sessions";

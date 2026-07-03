@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -13,11 +13,12 @@ import { Feather } from "@expo/vector-icons";
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, biometricAvailable, biometricEnabled, loginWithBiometric } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -35,6 +36,22 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  const handleBiometric = async () => {
+    setBiometricLoading(true);
+    try {
+      const success = await loginWithBiometric();
+      if (success) {
+        router.replace("/(tabs)");
+      } else {
+        Alert.alert("Biometric Failed", "Could not verify your identity. Please sign in with your password.");
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  const showBiometricBtn = biometricAvailable && biometricEnabled;
 
   return (
     <KeyboardAvoidingView
@@ -106,6 +123,26 @@ export default function LoginScreen() {
               <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
+
+          {showBiometricBtn && (
+            <TouchableOpacity
+              style={[styles.biometricBtn, { borderColor: colors.border, backgroundColor: colors.muted }]}
+              onPress={handleBiometric}
+              disabled={biometricLoading}
+              activeOpacity={0.8}
+            >
+              {biometricLoading ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <>
+                  <Feather name="lock" size={18} color={colors.primary} />
+                  <Text style={[styles.biometricBtnText, { color: colors.primary }]}>
+                    Sign in with Biometrics
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
@@ -127,9 +164,7 @@ const styles = StyleSheet.create({
   },
   appName: { fontSize: 26, fontFamily: "Inter_700Bold" },
   tagline: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  card: {
-    borderRadius: 16, padding: 24, borderWidth: 1, gap: 6,
-  },
+  card: { borderRadius: 16, padding: 24, borderWidth: 1, gap: 6 },
   title: { fontSize: 22, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 8 },
   fields: { gap: 16, marginTop: 8 },
@@ -145,5 +180,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  biometricBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 10, borderRadius: 12, paddingVertical: 13, marginTop: 10, borderWidth: 1,
+  },
+  biometricBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   hint: { textAlign: "center", fontSize: 12, fontFamily: "Inter_400Regular" },
 });

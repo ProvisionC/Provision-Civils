@@ -27,6 +27,7 @@ export const usersTable = pgTable("users", {
   hourlyRate: numeric("hourly_rate", { precision: 10, scale: 2 }),
   meterRate: numeric("meter_rate", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });

@@ -1314,6 +1314,179 @@ export interface MessageSearchResult {
   createdAt: string;
 }
 
+export interface AuditLog {
+  id: number;
+  /** @nullable */
+  userId?: number | null;
+  /** @nullable */
+  userName?: string | null;
+  /** @nullable */
+  userRole?: string | null;
+  action: string;
+  /** @nullable */
+  entityType?: string | null;
+  /** @nullable */
+  entityId?: number | null;
+  /** @nullable */
+  description?: string | null;
+  metadata?: unknown | null;
+  /** @nullable */
+  ipAddress?: string | null;
+  /** @nullable */
+  userAgent?: string | null;
+  /** @nullable */
+  deviceInfo?: string | null;
+  createdAt: string;
+}
+
+export type BackupStatus = typeof BackupStatus[keyof typeof BackupStatus];
+
+
+export const BackupStatus = {
+  pending: 'pending',
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface Backup {
+  id: number;
+  filename: string;
+  filePath?: string;
+  /** @nullable */
+  sizeBytes?: number | null;
+  status: BackupStatus;
+  /** @nullable */
+  errorMessage?: string | null;
+  /** @nullable */
+  createdBy?: number | null;
+  createdAt: string;
+  /** @nullable */
+  restoredAt?: string | null;
+  /** @nullable */
+  restoredBy?: number | null;
+}
+
+export interface CompanySettings {
+  id: number;
+  companyName: string;
+  /** @nullable */
+  logoBase64?: string | null;
+  /** @nullable */
+  vatNumber?: string | null;
+  /** @nullable */
+  registrationNumber?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  bankingDetails?: unknown | null;
+  defaultLabourRates?: unknown | null;
+  /** @nullable */
+  payrollPeriod?: string | null;
+  notificationTimes?: unknown | null;
+  updatedAt?: string;
+}
+
+export type CompanySettingsInputBankingDetails = { [key: string]: unknown };
+
+export type CompanySettingsInputDefaultLabourRates = { [key: string]: unknown };
+
+export type CompanySettingsInputNotificationTimes = { [key: string]: unknown };
+
+export interface CompanySettingsInput {
+  companyName?: string;
+  logoBase64?: string;
+  vatNumber?: string;
+  registrationNumber?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  bankingDetails?: CompanySettingsInputBankingDetails;
+  defaultLabourRates?: CompanySettingsInputDefaultLabourRates;
+  payrollPeriod?: string;
+  notificationTimes?: CompanySettingsInputNotificationTimes;
+}
+
+export interface SystemStatus {
+  api: boolean;
+  database: boolean;
+  storage?: boolean;
+  pushNotifications?: boolean;
+  /** @nullable */
+  lastBackupAt?: string | null;
+  /** @nullable */
+  lastBackupStatus?: string | null;
+  appVersion: string;
+  uptime: number;
+  checkedAt: string;
+}
+
+export interface CrashReport {
+  id: number;
+  /** @nullable */
+  userId?: number | null;
+  /** @nullable */
+  userName?: string | null;
+  /** @nullable */
+  appVersion?: string | null;
+  /** @nullable */
+  platform?: string | null;
+  deviceInfo?: unknown | null;
+  errorMessage: string;
+  /** @nullable */
+  stackTrace?: string | null;
+  extraContext?: unknown | null;
+  resolved?: boolean;
+  createdAt: string;
+}
+
+export type CrashReportInputDeviceInfo = { [key: string]: unknown };
+
+export type CrashReportInputExtraContext = { [key: string]: unknown };
+
+export interface CrashReportInput {
+  appVersion?: string;
+  platform?: string;
+  deviceInfo?: CrashReportInputDeviceInfo;
+  errorMessage: string;
+  stackTrace?: string;
+  extraContext?: CrashReportInputExtraContext;
+}
+
+export interface UserActivity {
+  userId: number;
+  userName: string;
+  userRole?: string;
+  isOnline: boolean;
+  lastSeenAt: string;
+  /** @nullable */
+  platform?: string | null;
+  /** @nullable */
+  appVersion?: string | null;
+}
+
+export type RecycleBinItemType = typeof RecycleBinItemType[keyof typeof RecycleBinItemType];
+
+
+export const RecycleBinItemType = {
+  job: 'job',
+  client: 'client',
+  employee: 'employee',
+  invoice: 'invoice',
+  photo: 'photo',
+} as const;
+
+export interface RecycleBinItem {
+  id: number;
+  type: RecycleBinItemType;
+  name: string;
+  deletedAt: string;
+  metadata?: unknown | null;
+}
+
 export type ListClientsParams = {
 search?: string;
 };
@@ -1457,4 +1630,53 @@ export type RegisterPushTokenBody = {
   token: string;
   platform?: RegisterPushTokenBodyPlatform;
 };
+
+export type ListAuditLogsParams = {
+userId?: number;
+action?: string;
+entityType?: string;
+dateFrom?: string;
+dateTo?: string;
+limit?: number;
+offset?: number;
+};
+
+export type ListAuditLogs200 = {
+  data: AuditLog[];
+  total: number;
+};
+
+export type RestoreBackup200 = {
+  success?: boolean;
+  message?: string;
+};
+
+export type CreateCrashReport200 = {
+  id?: number;
+};
+
+export type ListCrashReportsParams = {
+resolved?: boolean;
+};
+
+export type SendHeartbeatBody = {
+  platform?: string;
+  appVersion?: string;
+  deviceInfo?: string;
+};
+
+export type ListRecycleBinParams = {
+type?: ListRecycleBinType;
+};
+
+export type ListRecycleBinType = typeof ListRecycleBinType[keyof typeof ListRecycleBinType];
+
+
+export const ListRecycleBinType = {
+  job: 'job',
+  client: 'client',
+  employee: 'employee',
+  invoice: 'invoice',
+  photo: 'photo',
+} as const;
 

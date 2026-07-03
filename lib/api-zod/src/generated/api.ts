@@ -2160,3 +2160,270 @@ export const RegisterPushTokenBody = zod.object({
 export const RegisterPushTokenResponse = zod.unknown()
 
 
+/**
+ * @summary List audit logs (admin only)
+ */
+export const ListAuditLogsQueryParams = zod.object({
+  "userId": zod.coerce.number().optional(),
+  "action": zod.coerce.string().optional(),
+  "entityType": zod.coerce.string().optional(),
+  "dateFrom": zod.coerce.string().optional(),
+  "dateTo": zod.coerce.string().optional(),
+  "limit": zod.coerce.number().optional(),
+  "offset": zod.coerce.number().optional()
+})
+
+export const ListAuditLogsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number().nullish(),
+  "userName": zod.string().nullish(),
+  "userRole": zod.string().nullish(),
+  "action": zod.string(),
+  "entityType": zod.string().nullish(),
+  "entityId": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "metadata": zod.unknown().nullish(),
+  "ipAddress": zod.string().nullish(),
+  "userAgent": zod.string().nullish(),
+  "deviceInfo": zod.string().nullish(),
+  "createdAt": zod.string()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary List database backups (admin only)
+ */
+export const ListBackupsResponseItem = zod.object({
+  "id": zod.number(),
+  "filename": zod.string(),
+  "filePath": zod.string().optional(),
+  "sizeBytes": zod.number().nullish(),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed']),
+  "errorMessage": zod.string().nullish(),
+  "createdBy": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "restoredAt": zod.string().nullish(),
+  "restoredBy": zod.number().nullish()
+})
+export const ListBackupsResponse = zod.array(ListBackupsResponseItem)
+
+
+/**
+ * @summary Trigger a manual database backup (admin only)
+ */
+export const CreateBackupResponse = zod.object({
+  "id": zod.number(),
+  "filename": zod.string(),
+  "filePath": zod.string().optional(),
+  "sizeBytes": zod.number().nullish(),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed']),
+  "errorMessage": zod.string().nullish(),
+  "createdBy": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "restoredAt": zod.string().nullish(),
+  "restoredBy": zod.number().nullish()
+})
+
+
+/**
+ * @summary Restore from a backup (admin only)
+ */
+export const RestoreBackupParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RestoreBackupResponse = zod.object({
+  "success": zod.boolean().optional(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Get system health status (admin only)
+ */
+export const GetSystemStatusResponse = zod.object({
+  "api": zod.boolean(),
+  "database": zod.boolean(),
+  "storage": zod.boolean().optional(),
+  "pushNotifications": zod.boolean().optional(),
+  "lastBackupAt": zod.string().nullish(),
+  "lastBackupStatus": zod.string().nullish(),
+  "appVersion": zod.string(),
+  "uptime": zod.number(),
+  "checkedAt": zod.string()
+})
+
+
+/**
+ * @summary Get company settings
+ */
+export const GetCompanySettingsResponse = zod.object({
+  "id": zod.number(),
+  "companyName": zod.string(),
+  "logoBase64": zod.string().nullish(),
+  "vatNumber": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "bankingDetails": zod.unknown().nullish(),
+  "defaultLabourRates": zod.unknown().nullish(),
+  "payrollPeriod": zod.string().nullish(),
+  "notificationTimes": zod.unknown().nullish(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Update company settings (admin only)
+ */
+export const UpdateCompanySettingsBody = zod.object({
+  "companyName": zod.string().optional(),
+  "logoBase64": zod.string().optional(),
+  "vatNumber": zod.string().optional(),
+  "registrationNumber": zod.string().optional(),
+  "address": zod.string().optional(),
+  "phone": zod.string().optional(),
+  "email": zod.string().optional(),
+  "bankingDetails": zod.record(zod.string(), zod.unknown()).optional(),
+  "defaultLabourRates": zod.record(zod.string(), zod.unknown()).optional(),
+  "payrollPeriod": zod.string().optional(),
+  "notificationTimes": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const UpdateCompanySettingsResponse = zod.object({
+  "id": zod.number(),
+  "companyName": zod.string(),
+  "logoBase64": zod.string().nullish(),
+  "vatNumber": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "bankingDetails": zod.unknown().nullish(),
+  "defaultLabourRates": zod.unknown().nullish(),
+  "payrollPeriod": zod.string().nullish(),
+  "notificationTimes": zod.unknown().nullish(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Submit a crash report from the mobile app
+ */
+export const CreateCrashReportBody = zod.object({
+  "appVersion": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "deviceInfo": zod.record(zod.string(), zod.unknown()).optional(),
+  "errorMessage": zod.string(),
+  "stackTrace": zod.string().optional(),
+  "extraContext": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const CreateCrashReportResponse = zod.object({
+  "id": zod.number().optional()
+})
+
+
+/**
+ * @summary List crash reports (admin only)
+ */
+export const ListCrashReportsQueryParams = zod.object({
+  "resolved": zod.coerce.boolean().optional()
+})
+
+export const ListCrashReportsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number().nullish(),
+  "userName": zod.string().nullish(),
+  "appVersion": zod.string().nullish(),
+  "platform": zod.string().nullish(),
+  "deviceInfo": zod.unknown().nullish(),
+  "errorMessage": zod.string(),
+  "stackTrace": zod.string().nullish(),
+  "extraContext": zod.unknown().nullish(),
+  "resolved": zod.boolean().optional(),
+  "createdAt": zod.string()
+})
+export const ListCrashReportsResponse = zod.array(ListCrashReportsResponseItem)
+
+
+/**
+ * @summary Mark crash report as resolved (admin only)
+ */
+export const ResolveCrashReportParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ResolveCrashReportResponse = zod.unknown()
+
+
+/**
+ * @summary List all user activity / presence (admin only)
+ */
+export const ListUserActivityResponseItem = zod.object({
+  "userId": zod.number(),
+  "userName": zod.string(),
+  "userRole": zod.string().optional(),
+  "isOnline": zod.boolean(),
+  "lastSeenAt": zod.string(),
+  "platform": zod.string().nullish(),
+  "appVersion": zod.string().nullish()
+})
+export const ListUserActivityResponse = zod.array(ListUserActivityResponseItem)
+
+
+/**
+ * @summary Update current user online status and last seen
+ */
+export const SendHeartbeatBody = zod.object({
+  "platform": zod.string().optional(),
+  "appVersion": zod.string().optional(),
+  "deviceInfo": zod.string().optional()
+})
+
+export const SendHeartbeatResponse = zod.unknown()
+
+
+/**
+ * @summary List all soft-deleted items (admin only)
+ */
+export const ListRecycleBinQueryParams = zod.object({
+  "type": zod.enum(['job', 'client', 'employee', 'invoice', 'photo']).optional()
+})
+
+export const ListRecycleBinResponseItem = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['job', 'client', 'employee', 'invoice', 'photo']),
+  "name": zod.string(),
+  "deletedAt": zod.string(),
+  "metadata": zod.unknown().nullish()
+})
+export const ListRecycleBinResponse = zod.array(ListRecycleBinResponseItem)
+
+
+/**
+ * @summary Restore a soft-deleted item (admin only)
+ */
+export const RestoreRecycleBinItemParams = zod.object({
+  "type": zod.enum(['job', 'client', 'employee', 'invoice', 'photo']),
+  "id": zod.coerce.number()
+})
+
+export const RestoreRecycleBinItemResponse = zod.unknown()
+
+
+/**
+ * @summary Permanently delete a soft-deleted item (admin only)
+ */
+export const PermanentlyDeleteItemParams = zod.object({
+  "type": zod.enum(['job', 'client', 'employee', 'invoice', 'photo']),
+  "id": zod.coerce.number()
+})
+
+export const PermanentlyDeleteItemResponse = zod.unknown()
+
+

@@ -118,8 +118,9 @@ router.put("/employees/:id", requireAuth, requireRole("admin"), async (req, res)
 
 router.delete("/employees/:id", requireAuth, requireRole("admin"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
-  if (!deleted) { res.status(404).json({ error: "Employee not found" }); return; }
+  const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Employee not found" }); return; }
+  await db.update(usersTable).set({ deletedAt: new Date() }).where(eq(usersTable.id, id));
   res.sendStatus(204);
 });
 
