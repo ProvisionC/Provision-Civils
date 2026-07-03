@@ -9,8 +9,8 @@ const router = Router();
 const VERSION_CONFIG = {
   version: "1.0.0",        // Latest published app version
   minimumVersion: "1.0.0", // Oldest allowed native version (bump to force-update)
-  buildDate: "2025-06-29",
-  releaseNotes: "Production release — payroll PDF reports, job costing, daily reports.",
+  buildDate: "2026-07-03",
+  releaseNotes: "Messaging reliability, photo upload queue, system status endpoint, bug fixes.",
   downloadUrl: process.env.APK_DOWNLOAD_URL ?? null,
 };
 
