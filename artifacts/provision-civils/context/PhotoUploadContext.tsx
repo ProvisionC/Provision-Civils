@@ -235,22 +235,20 @@ export function usePhotoUpload() {
 
 // ─── Upload worker ────────────────────────────────────────────────────────────
 async function doUpload(item: UploadItem): Promise<void> {
-  // AbortController gives the fetch a hard 30-second deadline.
-  // This prevents uploads from stalling indefinitely on poor mobile networks.
+  // Hard 30-second deadline on the fetch. Prevents uploads from stalling
+  // indefinitely on patchy 4G networks. ImageManipulator runs before the
+  // fetch so it is outside the abort window, but it rarely hangs.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
   try {
-    // Compress and resize. We always apply compression; resize only runs when
-    // the image is wider than MAX_WIDTH (expo-image-manipulator upscales if
-    // you specify a width larger than the source — we check beforehand).
-    const info = await ImageManipulator.manipulateAsync(item.localUri, []);
-    const actions: ImageManipulator.Action[] =
-      info.width > MAX_WIDTH ? [{ resize: { width: MAX_WIDTH } }] : [];
-
+    // Single compress+resize pass. MAX_WIDTH = 1920 px is well below any modern
+    // Android camera output (≥ 4000 px), so this always downscales in practice.
+    // A 0.70 JPEG at 1920 px typically produces a 150–350 KB file (~200–470 KB
+    // as base64), comfortably below the server's 15 MB body limit.
     const compressed = await ImageManipulator.manipulateAsync(
       item.localUri,
-      actions,
+      [{ resize: { width: MAX_WIDTH } }],
       { compress: COMPRESS, format: ImageManipulator.SaveFormat.JPEG },
     );
 

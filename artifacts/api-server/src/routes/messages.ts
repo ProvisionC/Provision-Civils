@@ -211,9 +211,11 @@ router.get("/conversations/:id/messages", requireAuth, async (req, res): Promise
   const readers = readerIds.length ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, readerIds)) : [];
   const readerMap = new Map(readers.map(s => [s.id, s.name ?? "Unknown"]));
 
-  // Mark all as read by current user
-  await db.insert(messageReadsTable).values(msgIds.filter(id => !reads.find(r => r.messageId === id && r.userId === userId))
-    .map(id => ({ messageId: id, userId }))).onConflictDoNothing().catch(() => {});
+  // Mark all as read by current user — guard against empty array (Drizzle throws if values([]))
+  const unreadIds = msgIds.filter(id => !reads.find(r => r.messageId === id && r.userId === userId));
+  if (unreadIds.length > 0) {
+    await db.insert(messageReadsTable).values(unreadIds.map(id => ({ messageId: id, userId }))).onConflictDoNothing().catch(() => {});
+  }
 
   // Fetch reply-to messages
   const replyIds = [...new Set(msgs.map(m => m.replyToId).filter(Boolean))] as number[];

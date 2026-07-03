@@ -237,7 +237,7 @@ export default function ChatScreen() {
   const members: { userId: number; name: string }[] = convo?.members ?? [];
 
   const { data: messages, refetch } = useListMessages(convId, undefined, {
-    query: { queryKey: getListMessagesQueryKey(convId), refetchInterval: 4000 },
+    query: { queryKey: getListMessagesQueryKey(convId), refetchInterval: 2000 },
   });
   const { data: pinnedMsgs } = useGetPinnedMessages(convId, { query: { queryKey: ["getPinnedMessages", convId], staleTime: 30000, enabled: showPinned } });
 
@@ -254,13 +254,42 @@ export default function ChatScreen() {
 
   const msgs = useMemo(() => (messages ?? []) as Msg[], [messages]);
 
-  // Optimistic messages: added immediately on send, removed once the server
-  // refetch confirms delivery (see `send` below).
+  // Optimistic messages: added immediately on send, cleaned up automatically.
   const [pendingMsgs, setPendingMsgs] = useState<Msg[]>([]);
 
-  // Merge server messages with locally-pending ones.
-  // Pending messages use negative temp IDs so they never collide with server IDs.
-  const allMsgs = useMemo(() => [...msgs, ...pendingMsgs], [msgs, pendingMsgs]);
+  // FIFO dedup: merge server msgs with still-unconfirmed pending ones.
+  // Each server message can absorb only ONE pending message with matching
+  // content+sender+type (handles identical texts sent in quick succession).
+  const allMsgs = useMemo(() => {
+    if (pendingMsgs.length === 0) return msgs;
+    const usedServerIds = new Set<number>();
+    const unconfirmed = pendingMsgs.filter(p => {
+      const pTime = new Date(p.createdAt).getTime();
+      const match = msgs.find(
+        m =>
+          !usedServerIds.has(m.id) &&
+          m.senderId === p.senderId &&
+          m.content === p.content &&
+          m.type === p.type &&
+          Math.abs(new Date(m.createdAt).getTime() - pTime) < 60_000,
+      );
+      if (match) { usedServerIds.add(match.id); return false; }
+      return true;
+    });
+    return [...msgs, ...unconfirmed];
+  }, [msgs, pendingMsgs]);
+
+  // Purge pending messages older than 30 s on every poll tick.
+  // By then the 2-second poll has run 15+ times — if the message isn't in
+  // msgs yet it will be shortly; keeping it longer risks phantom messages.
+  useEffect(() => {
+    if (pendingMsgs.length === 0) return;
+    const cutoff = Date.now() - 30_000;
+    setPendingMsgs(prev => {
+      const next = prev.filter(p => new Date(p.createdAt).getTime() > cutoff);
+      return next.length !== prev.length ? next : prev;
+    });
+  }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const convoName = useMemo(() => {
     if (!convo) return "Chat";
@@ -346,24 +375,31 @@ export default function ChatScreen() {
     setReplyTo(null); setMentions([]);
     setText("");
 
+    // ── Offline path ─────────────────────────────────────────────────────────
+    // Pending message stays visible; offline queue delivers it when network
+    // returns. The 30-second purge + FIFO dedup handle cleanup automatically.
+    if (!isOnline) {
+      enqueue(convId, payload).catch(() => {});
+      setSending(false);
+      return;
+    }
+
+    // ── Online path ──────────────────────────────────────────────────────────
     try {
-      if (!isOnline) {
-        await enqueue(convId, payload);
-        return;
-      }
       await sendMsg.mutateAsync({ id: convId, data: payload });
-      // Refetch immediately so the server-confirmed message replaces the
-      // optimistic one in the same render cycle.
-      await qc.refetchQueries({ queryKey: getListMessagesQueryKey(convId) });
+      // Non-blocking refetch: fires immediately but we don't await it.
+      // Failure here must NOT trigger the catch block (which would double-send).
+      // The 2-second poll is the safety net if refetch happens to fail.
+      qc.refetchQueries({ queryKey: getListMessagesQueryKey(convId) }).catch(() => {});
       qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
       setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
-      await enqueue(convId, payload);
+      // Only reaches here if the actual server save failed — safe to re-queue.
+      enqueue(convId, payload).catch(() => {});
     } finally {
       setSending(false);
-      // Remove the optimistic message. By this point the refetch has either
-      // succeeded (real msg is in cache) or failed (next poll will catch it).
-      setPendingMsgs(prev => prev.filter(m => m.id !== tempId));
+      // Do NOT touch pendingMsgs here. The FIFO dedup in allMsgs and the
+      // 30-second purge effect handle cleanup with zero risk of flash/disappear.
     }
   }, [text, editingMsg, replyTo, mentions, isOnline, convId, myId, user]);
 
