@@ -452,20 +452,42 @@ export interface JobUpdate {
   equipment?: JobEquipmentInput[];
 }
 
+export type JobPhotoCategory = typeof JobPhotoCategory[keyof typeof JobPhotoCategory];
+
+
+export const JobPhotoCategory = {
+  before: 'before',
+  during: 'during',
+  after: 'after',
+  other: 'other',
+} as const;
+
 export interface JobPhoto {
   id: number;
   jobId: number;
   uri: string;
   /** @nullable */
   caption?: string | null;
+  category: JobPhotoCategory;
   /** @nullable */
   uploadedById?: number | null;
   createdAt: string;
 }
 
+export type JobPhotoInputCategory = typeof JobPhotoInputCategory[keyof typeof JobPhotoInputCategory];
+
+
+export const JobPhotoInputCategory = {
+  before: 'before',
+  during: 'during',
+  after: 'after',
+  other: 'other',
+} as const;
+
 export interface JobPhotoInput {
   uri: string;
   caption?: string;
+  category?: JobPhotoInputCategory;
 }
 
 export interface GpsLog {
@@ -1075,6 +1097,37 @@ status?: string;
 search?: string;
 supervisorId?: number;
 };
+
+export type ListJobPhotosParams = {
+category?: ListJobPhotosCategory;
+};
+
+export type ListJobPhotosCategory = typeof ListJobPhotosCategory[keyof typeof ListJobPhotosCategory];
+
+
+export const ListJobPhotosCategory = {
+  before: 'before',
+  during: 'during',
+  after: 'after',
+  other: 'other',
+} as const;
+
+export type DownloadJobPhotosZipParams = {
+/**
+ * Filter by category. Omit to download all photos.
+ */
+category?: DownloadJobPhotosZipCategory;
+};
+
+export type DownloadJobPhotosZipCategory = typeof DownloadJobPhotosZipCategory[keyof typeof DownloadJobPhotosZipCategory];
+
+
+export const DownloadJobPhotosZipCategory = {
+  before: 'before',
+  during: 'during',
+  after: 'after',
+  other: 'other',
+} as const;
 
 export type UpdateJobMaterialsBody = {
   materials: JobMaterialInput[];

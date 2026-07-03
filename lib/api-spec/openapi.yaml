@@ -310,6 +310,12 @@ paths:
           required: true
           schema:
             type: integer
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [before, during, after, other]
       responses:
         "200":
           description: Photos
@@ -365,6 +371,35 @@ paths:
           description: Deleted
         "404":
           description: Not found
+
+  /jobs/{id}/photos/zip:
+    get:
+      operationId: downloadJobPhotosZip
+      tags: [jobs]
+      summary: Download photos as ZIP (optionally filtered by category)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: category
+          in: query
+          required: false
+          description: Filter by category. Omit to download all photos.
+          schema:
+            type: string
+            enum: [before, during, after, other]
+      responses:
+        "200":
+          description: ZIP archive
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: No photos found
 
   /jobs/{id}/materials:
     put:
@@ -1549,7 +1584,7 @@ components:
 
     JobPhoto:
       type: object
-      required: [id, jobId, uri, createdAt]
+      required: [id, jobId, uri, category, createdAt]
       properties:
         id:
           type: integer
@@ -1559,6 +1594,9 @@ components:
           type: string
         caption:
           type: ["string", "null"]
+        category:
+          type: string
+          enum: [before, during, after, other]
         uploadedById:
           type: ["integer", "null"]
         createdAt:
@@ -1572,6 +1610,9 @@ components:
           type: string
         caption:
           type: string
+        category:
+          type: string
+          enum: [before, during, after, other]
 
     GpsLog:
       type: object

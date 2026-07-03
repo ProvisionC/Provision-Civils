@@ -1,22 +1,21 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
   Alert, ActivityIndicator, Dimensions, Modal, Platform,
-  StatusBar, SafeAreaView, ScrollView,
+  StatusBar, SafeAreaView,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
-import { downloadAsync, cacheDirectory, writeAsStringAsync, EncodingType } from "expo-file-system/legacy";
+import { cacheDirectory, writeAsStringAsync, EncodingType, downloadAsync } from "expo-file-system/legacy";
 import { isAvailableAsync as isSharingAvailable, shareAsync } from "expo-sharing";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import {
   useListJobPhotos, useAddJobPhoto, useDeleteJobPhoto,
-  useListDailyReports,
-  getListJobPhotosQueryKey, getListDailyReportsQueryKey,
+  getListJobPhotosQueryKey,
   getBaseUrl,
 } from "@workspace/api-client-react";
 
@@ -25,16 +24,22 @@ const COLS = 3;
 const GAP = 3;
 const PHOTO_SIZE = (SW - GAP * (COLS + 1)) / COLS;
 
-type Filter = "all" | "job" | "report";
-type Sort = "newest" | "oldest";
+type PhotoCategory = "before" | "during" | "after" | "other";
 
-interface CombinedPhoto {
-  key: string;
+const CATEGORIES: { key: PhotoCategory; label: string; emoji: string; color: string }[] = [
+  { key: "before", label: "Before",  emoji: "📁", color: "#1E88E5" },
+  { key: "during", label: "During",  emoji: "📁", color: "#FB8C00" },
+  { key: "after",  label: "After",   emoji: "📁", color: "#43A047" },
+  { key: "other",  label: "Other",   emoji: "📁", color: "#8E24AA" },
+];
+
+interface PhotoItem {
+  id: number;
+  jobId: number;
   uri: string;
-  source: "job" | "report";
-  sourceLabel: string;
-  date: Date;
-  jobPhotoId?: number;
+  caption: string | null;
+  category: PhotoCategory;
+  createdAt: string;
 }
 
 export default function JobPhotosScreen() {
@@ -45,66 +50,38 @@ export default function JobPhotosScreen() {
   const { user, token } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const [filter, setFilter] = useState<Filter>("all");
-  const [sort, setSort] = useState<Sort>("newest");
-  const [pendingAssets, setPendingAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
-  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
-  const [uploading, setUploading] = useState(false);
-  const [viewerPhoto, setViewerPhoto] = useState<CombinedPhoto | null>(null);
+  const [openFolder, setOpenFolder] = useState<PhotoCategory | null>(null);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [viewerPhoto, setViewerPhoto] = useState<PhotoItem | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
 
-  const { data: jobPhotos, isLoading: loadingJob } = useListJobPhotos(jobId, {
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0, failed: 0 });
+  const uploadCategoryRef = useRef<PhotoCategory>("other");
+
+  const { data: allPhotos = [], isLoading } = useListJobPhotos(jobId, undefined, {
     query: { queryKey: getListJobPhotosQueryKey(jobId) },
   });
-  const { data: reports, isLoading: loadingReports } = useListDailyReports(jobId, {
-    query: { queryKey: getListDailyReportsQueryKey(jobId) },
-  });
 
-  const isLoading = loadingJob || loadingReports;
+  const photosByCategory = useMemo(() => {
+    const map: Record<PhotoCategory, PhotoItem[]> = {
+      before: [], during: [], after: [], other: [],
+    };
+    for (const p of allPhotos as PhotoItem[]) {
+      const cat: PhotoCategory = (p.category as PhotoCategory) ?? "other";
+      if (map[cat]) map[cat].push(p);
+      else map.other.push(p);
+    }
+    return map;
+  }, [allPhotos]);
 
-  const combined = useMemo<CombinedPhoto[]>(() => {
-    const list: CombinedPhoto[] = [];
-    (jobPhotos ?? []).forEach(p => {
-      list.push({
-        key: `job-${p.id}`,
-        uri: p.uri,
-        source: "job",
-        sourceLabel: "Job Photo",
-        date: new Date(p.createdAt),
-        jobPhotoId: p.id,
-      });
-    });
-    (reports ?? []).forEach(r => {
-      const rr = r as any;
-      const uris: string[] = rr.photoUris ?? [];
-      uris.forEach((uri, i) => {
-        list.push({
-          key: `report-${r.id}-${i}`,
-          uri,
-          source: "report",
-          sourceLabel: `Report: ${r.date}`,
-          date: new Date(r.createdAt),
-        });
-      });
-    });
-    return list;
-  }, [jobPhotos, reports]);
-
-  const displayed = useMemo(() => {
-    let list = combined.filter(p => filter === "all" || p.source === filter);
-    list = [...list].sort((a, b) =>
-      sort === "newest" ? b.date.getTime() - a.date.getTime() : a.date.getTime() - b.date.getTime()
-    );
-    return list;
-  }, [combined, filter, sort]);
+  const folderPhotos = openFolder ? photosByCategory[openFolder] : [];
 
   const addPhoto = useAddJobPhoto({
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListJobPhotosQueryKey(jobId) });
       },
-      onError: () => Alert.alert("Upload Failed", "Could not save photo. Please try again."),
     },
   });
 
@@ -117,8 +94,13 @@ export default function JobPhotosScreen() {
     },
   });
 
-  const pickFromGallery = useCallback(async () => {
-    setSheetOpen(false);
+  const startCategoryPicker = useCallback(() => {
+    setCategoryPickerOpen(true);
+  }, []);
+
+  const pickFromGallery = useCallback(async (category: PhotoCategory) => {
+    setCategoryPickerOpen(false);
+    uploadCategoryRef.current = category;
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
@@ -128,21 +110,20 @@ export default function JobPhotosScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        quality: 0.9,
+        quality: 0.85,
         base64: true,
         exif: false,
-        selectionLimit: 10,
       });
-      if (!result.canceled && result.assets.length > 0) {
-        setPendingAssets(prev => [...prev, ...result.assets].slice(0, 10));
-      }
+      if (result.canceled || result.assets.length === 0) return;
+      await uploadAssets(result.assets, category);
     } catch {
       Alert.alert("Error", "Could not open gallery.");
     }
   }, []);
 
-  const takePhoto = useCallback(async () => {
-    setSheetOpen(false);
+  const takePhoto = useCallback(async (category: PhotoCategory) => {
+    setCategoryPickerOpen(false);
+    uploadCategoryRef.current = category;
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
@@ -150,81 +131,84 @@ export default function JobPhotosScreen() {
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
-        quality: 0.9,
+        quality: 0.85,
         base64: true,
         exif: false,
       });
-      if (!result.canceled && result.assets.length > 0) {
-        setPendingAssets(prev => [...prev, result.assets[0]].slice(0, 10));
-      }
+      if (result.canceled || result.assets.length === 0) return;
+      await uploadAssets(result.assets, category);
     } catch {
       Alert.alert("Error", "Could not open camera.");
     }
   }, []);
 
-  const uploadAll = useCallback(async () => {
-    if (pendingAssets.length === 0) return;
+  const uploadAssets = useCallback(async (
+    assets: ImagePicker.ImagePickerAsset[],
+    category: PhotoCategory,
+  ) => {
     setUploading(true);
-    setUploadProgress({ done: 0, total: pendingAssets.length });
+    setUploadProgress({ done: 0, total: assets.length, failed: 0 });
+    if (openFolder !== category) setOpenFolder(category);
 
-    for (let i = 0; i < pendingAssets.length; i++) {
-      const asset = pendingAssets[i];
-      if (!asset.base64) continue;
+    let failed = 0;
+    for (let i = 0; i < assets.length; i++) {
+      const asset = assets[i];
+      if (!asset.base64) {
+        failed++;
+        setUploadProgress({ done: i + 1, total: assets.length, failed });
+        continue;
+      }
       const mime = asset.mimeType ?? "image/jpeg";
       const uri = `data:${mime};base64,${asset.base64}`;
       await new Promise<void>(resolve => {
         addPhoto.mutate(
-          { id: jobId, data: { uri } },
-          { onSettled: () => { setUploadProgress({ done: i + 1, total: pendingAssets.length }); resolve(); } }
+          { id: jobId, data: { uri, category } },
+          {
+            onSettled: (_data, err) => {
+              if (err) failed++;
+              setUploadProgress(prev => ({ ...prev, done: i + 1, failed }));
+              resolve();
+            },
+          },
         );
       });
     }
 
-    setPendingAssets([]);
     setUploading(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [pendingAssets, jobId, addPhoto]);
 
-  const downloadPhoto = useCallback(async (photo: CombinedPhoto) => {
-    if (isDownloading) return;
-    setIsDownloading(true);
-    const filename = `${photo.sourceLabel.replace(/[^a-zA-Z0-9-]/g, "_")}_${Date.now()}.jpg`;
-    try {
-      if (Platform.OS === "web") {
-        const a = document.createElement("a");
-        a.href = photo.uri;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        const fileUri = (cacheDirectory ?? "") + filename;
-        const idx = photo.uri.indexOf(",");
-        const b64 = idx >= 0 ? photo.uri.slice(idx + 1) : photo.uri;
-        await writeAsStringAsync(fileUri, b64, {
-          encoding: EncodingType.Base64,
-        });
-        const canShare = await isSharingAvailable();
-        if (canShare) {
-          await shareAsync(fileUri, { mimeType: "image/jpeg", dialogTitle: filename, UTI: "public.jpeg" });
-        } else {
-          Alert.alert("Saved", "Photo saved to device.");
-        }
-      }
-    } catch (e) {
-      Alert.alert("Download Failed", e instanceof Error ? e.message : "Could not download photo.");
-    } finally {
-      setIsDownloading(false);
+    const succeeded = assets.length - failed;
+    if (failed === 0) {
+      Alert.alert("Upload Complete", `${succeeded} photo${succeeded !== 1 ? "s" : ""} uploaded successfully.`);
+    } else {
+      Alert.alert(
+        "Upload Finished",
+        `${succeeded} uploaded, ${failed} failed. You can try again for the failed photos.`,
+      );
     }
-  }, [isDownloading]);
+  }, [jobId, addPhoto, openFolder]);
 
-  const downloadAllZip = useCallback(async () => {
+  const downloadZip = useCallback(async (category: PhotoCategory | null) => {
     if (isDownloading) return;
-    if (combined.length === 0) { Alert.alert("No Photos", "There are no photos to download."); return; }
+    const totalCount = category
+      ? photosByCategory[category].length
+      : (allPhotos as PhotoItem[]).length;
+
+    if (totalCount === 0) {
+      Alert.alert("No Photos", category
+        ? `No photos in the ${CATEGORIES.find(c => c.key === category)?.label ?? ""} folder.`
+        : "There are no photos to download.");
+      return;
+    }
     setIsDownloading(true);
-    const url = `${getBaseUrl()}/api/jobs/${jobId}/photos/zip`;
+    const catParam = category ? `?category=${category}` : "";
+    const url = `${getBaseUrl()}/api/jobs/${jobId}/photos/zip${catParam}`;
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    const filename = `Job-${jobId}-Photos.zip`;
+    const catLabel = category
+      ? (CATEGORIES.find(c => c.key === category)?.label ?? "Photos") + " Photos"
+      : "All Photos";
+    const filename = `Job-${jobId}-${catLabel.replace(/\s+/g, "-")}.zip`;
+
     try {
       if (Platform.OS === "web") {
         const resp = await fetch(url, { headers });
@@ -244,7 +228,7 @@ export default function JobPhotosScreen() {
         if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
         const canShare = await isSharingAvailable();
         if (canShare) {
-          await shareAsync(fileUri, { mimeType: "application/zip", dialogTitle: "All Photos" });
+          await shareAsync(fileUri, { mimeType: "application/zip", dialogTitle: catLabel });
         } else {
           Alert.alert("Saved", "ZIP saved to device.");
         }
@@ -254,257 +238,292 @@ export default function JobPhotosScreen() {
     } finally {
       setIsDownloading(false);
     }
-  }, [isDownloading, combined.length, jobId, token]);
+  }, [isDownloading, photosByCategory, allPhotos, jobId, token]);
 
-  const downloadPhotoReport = useCallback(async () => {
+  const downloadSinglePhoto = useCallback(async (photo: PhotoItem) => {
     if (isDownloading) return;
     setIsDownloading(true);
-    const url = `${getBaseUrl()}/api/jobs/${jobId}/pdf/photos`;
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    const filename = `Job-${jobId}-PhotoReport.pdf`;
+    const filename = `photo-${photo.id}-${Date.now()}.jpg`;
     try {
-      if (Platform.OS === "web") {
-        const resp = await fetch(url, { headers });
-        if (!resp.ok) throw new Error(`Server error ${resp.status}`);
-        const blob = await resp.blob();
-        const objUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = objUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(objUrl);
+      const fileUri = (cacheDirectory ?? "") + filename;
+      const idx = photo.uri.indexOf(",");
+      const b64 = idx >= 0 ? photo.uri.slice(idx + 1) : photo.uri;
+      await writeAsStringAsync(fileUri, b64, { encoding: EncodingType.Base64 });
+      const canShare = await isSharingAvailable();
+      if (canShare) {
+        await shareAsync(fileUri, { mimeType: "image/jpeg", dialogTitle: filename, UTI: "public.jpeg" });
       } else {
-        const fileUri = (cacheDirectory ?? "") + filename;
-        const { status } = await downloadAsync(url, fileUri, { headers });
-        if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
-        const canShare = await isSharingAvailable();
-        if (canShare) {
-          await shareAsync(fileUri, { mimeType: "application/pdf", dialogTitle: "Photo Report", UTI: "com.adobe.pdf" });
-        } else {
-          Alert.alert("Saved", "PDF saved to device.");
-        }
+        Alert.alert("Saved", "Photo saved to device.");
       }
     } catch (e) {
-      Alert.alert("Export Failed", e instanceof Error ? e.message : "Could not generate PDF.");
+      Alert.alert("Error", e instanceof Error ? e.message : "Could not save photo.");
     } finally {
       setIsDownloading(false);
     }
-  }, [isDownloading, jobId, token]);
+  }, [isDownloading]);
 
-  const handleDeleteJobPhoto = useCallback((photoId: number) => {
+  const handleDeletePhoto = useCallback((photoId: number) => {
     Alert.alert("Delete Photo", "Remove this photo from the job?", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: () => deletePhoto.mutate({ id: jobId, photoId }) },
     ]);
   }, [jobId, deletePhoto]);
 
-  const handlePhotoPress = useCallback((photo: CombinedPhoto) => {
-    setViewerPhoto(photo);
-  }, []);
-
-  const FILTER_OPTS: { key: Filter; label: string }[] = [
-    { key: "all", label: `All (${combined.length})` },
-    { key: "job", label: `Job (${combined.filter(p => p.source === "job").length})` },
-    { key: "report", label: `Reports (${combined.filter(p => p.source === "report").length})` },
-  ];
+  const openFolder$ = openFolder;
+  const currentCat = CATEGORIES.find(c => c.key === openFolder$);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Toolbar */}
-      <View style={[styles.toolbar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={styles.toolbarLeft}>
-          {isDownloading ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <>
-              {isAdmin && (
-                <>
-                  <TouchableOpacity
-                    style={[styles.toolbarBtn, { borderColor: colors.border }]}
-                    onPress={downloadAllZip}
-                    disabled={combined.length === 0}
-                  >
-                    <Feather name="download" size={14} color={combined.length > 0 ? colors.primary : colors.mutedForeground} />
-                    <Text style={[styles.toolbarBtnText, { color: combined.length > 0 ? colors.primary : colors.mutedForeground }]}>ZIP</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.toolbarBtn, { borderColor: colors.border }]}
-                    onPress={downloadPhotoReport}
-                    disabled={combined.length === 0}
-                  >
-                    <Feather name="file-text" size={14} color={combined.length > 0 ? "#FF6F00" : colors.mutedForeground} />
-                    <Text style={[styles.toolbarBtnText, { color: combined.length > 0 ? "#FF6F00" : colors.mutedForeground }]}>PDF</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </>
-          )}
-        </View>
-        <TouchableOpacity
-          style={[styles.toolbarBtn, { borderColor: colors.border }]}
-          onPress={() => setSort(s => s === "newest" ? "oldest" : "newest")}
-        >
-          <Feather name="clock" size={14} color={colors.mutedForeground} />
-          <Text style={[styles.toolbarBtnText, { color: colors.mutedForeground }]}>
-            {sort === "newest" ? "Newest" : "Oldest"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
-          onPress={() => setSheetOpen(true)}
-          activeOpacity={0.8}
-        >
-          <Feather name="plus" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
 
-      {/* Filter tabs */}
-      <View style={[styles.filterRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {FILTER_OPTS.map(opt => (
-          <TouchableOpacity
-            key={opt.key}
-            style={[styles.filterTab, filter === opt.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setFilter(opt.key)}
-          >
-            <Text style={[styles.filterTabText, { color: filter === opt.key ? colors.primary : colors.mutedForeground }]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Pending uploads panel */}
-      {pendingAssets.length > 0 && (
-        <View style={[styles.pendingPanel, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {pendingAssets.map((asset, i) => (
-              <View key={i} style={styles.pendingThumb}>
-                <Image source={{ uri: asset.uri }} style={styles.pendingImg} />
-                {!uploading && (
-                  <TouchableOpacity
-                    style={styles.pendingRemove}
-                    onPress={() => setPendingAssets(prev => prev.filter((_, idx) => idx !== i))}
-                  >
-                    <Feather name="x" size={10} color="#FFF" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-          <View style={styles.pendingActions}>
-            <Text style={[styles.pendingCount, { color: colors.primary }]}>
-              {uploading
-                ? `Uploading ${uploadProgress.done}/${uploadProgress.total}…`
-                : `${pendingAssets.length} photo${pendingAssets.length !== 1 ? "s" : ""} selected`}
-            </Text>
-            <View style={styles.pendingBtns}>
-              {!uploading && (
-                <TouchableOpacity
-                  style={styles.pendingCancel}
-                  onPress={() => setPendingAssets([])}
-                >
-                  <Text style={[styles.pendingCancelText, { color: colors.mutedForeground }]}>Discard</Text>
-                </TouchableOpacity>
-              )}
+      {/* ──────────── FOLDER LIST VIEW ──────────── */}
+      {openFolder === null && (
+        <>
+          {/* Toolbar */}
+          <View style={[styles.toolbar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.screenTitle, { color: colors.foreground }]}>Photo Albums</Text>
+              <Text style={[styles.screenSub, { color: colors.mutedForeground }]}>
+                {(allPhotos as PhotoItem[]).length} total photos
+              </Text>
+            </View>
+            {isAdmin && (
               <TouchableOpacity
-                style={[styles.pendingUploadBtn, { backgroundColor: colors.primary }, uploading && { opacity: 0.7 }]}
-                onPress={uploadAll}
-                disabled={uploading}
+                style={[styles.toolbarBtn, { borderColor: colors.border }]}
+                onPress={() => downloadZip(null)}
+                disabled={isDownloading || (allPhotos as PhotoItem[]).length === 0}
               >
-                {uploading
-                  ? <ActivityIndicator size="small" color="#FFF" />
-                  : <><Feather name="upload" size={14} color="#FFF" /><Text style={styles.pendingUploadText}>Upload All</Text></>}
+                {isDownloading
+                  ? <ActivityIndicator size="small" color={colors.primary} />
+                  : <>
+                    <Feather name="download" size={14} color={colors.primary} />
+                    <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>All</Text>
+                  </>}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: colors.primary }]}
+              onPress={startCategoryPicker}
+              activeOpacity={0.85}
+            >
+              <Feather name="upload" size={18} color="#FFF" />
+              <Text style={styles.addBtnText}>Upload</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Upload progress banner */}
+          {uploading && (
+            <View style={[styles.progressBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.progressText, { color: colors.primary }]}>
+                Uploading {uploadProgress.done} of {uploadProgress.total} photos…
+              </Text>
+            </View>
+          )}
+
+          {/* Folder grid */}
+          {isLoading ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <FlatList
+              data={CATEGORIES}
+              keyExtractor={c => c.key}
+              numColumns={2}
+              contentContainerStyle={styles.folderGrid}
+              columnWrapperStyle={{ gap: 12 }}
+              renderItem={({ item: cat }) => {
+                const count = photosByCategory[cat.key].length;
+                const thumb = photosByCategory[cat.key][0];
+                return (
+                  <TouchableOpacity
+                    style={[styles.folderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    activeOpacity={0.8}
+                    onPress={() => setOpenFolder(cat.key)}
+                  >
+                    <View style={[styles.folderThumb, { backgroundColor: cat.color + "18" }]}>
+                      {thumb ? (
+                        <Image source={{ uri: thumb.uri }} style={styles.folderThumbImg} resizeMode="cover" />
+                      ) : (
+                        <Text style={styles.folderEmoji}>📁</Text>
+                      )}
+                    </View>
+                    <View style={styles.folderInfo}>
+                      <Text style={[styles.folderLabel, { color: colors.foreground }]}>{cat.label}</Text>
+                      <Text style={[styles.folderCount, { color: colors.mutedForeground }]}>
+                        {count} photo{count !== 1 ? "s" : ""}
+                      </Text>
+                    </View>
+                    <View style={[styles.folderBadge, { backgroundColor: cat.color }]}>
+                      <Text style={styles.folderBadgeText}>{count}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          )}
+        </>
+      )}
+
+      {/* ──────────── FOLDER DETAIL VIEW ──────────── */}
+      {openFolder !== null && (
+        <>
+          {/* Folder header */}
+          <View style={[styles.folderHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => setOpenFolder(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Feather name="arrow-left" size={22} color={colors.foreground} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.folderHeaderTitle, { color: colors.foreground }]}>
+                📁 {currentCat?.label} Photos
+              </Text>
+              <Text style={[styles.folderHeaderCount, { color: colors.mutedForeground }]}>
+                {folderPhotos.length} photo{folderPhotos.length !== 1 ? "s" : ""}
+              </Text>
+            </View>
+            {isAdmin && (
+              <TouchableOpacity
+                style={[styles.toolbarBtn, { borderColor: colors.border }]}
+                onPress={() => downloadZip(openFolder)}
+                disabled={isDownloading || folderPhotos.length === 0}
+              >
+                {isDownloading
+                  ? <ActivityIndicator size="small" color={colors.primary} />
+                  : <>
+                    <Feather name="download" size={14} color={colors.primary} />
+                    <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>ZIP</Text>
+                  </>}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: colors.primary }]}
+              onPress={startCategoryPicker}
+              activeOpacity={0.85}
+            >
+              <Feather name="plus" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Upload progress banner */}
+          {uploading && (
+            <View style={[styles.progressBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.progressText, { color: colors.primary }]}>
+                Uploading {uploadProgress.done} of {uploadProgress.total} photos…
+              </Text>
+            </View>
+          )}
+
+          {/* Photo grid */}
+          {folderPhotos.length === 0 ? (
+            <View style={styles.center}>
+              <Text style={styles.emptyEmoji}>📁</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                No {currentCat?.label} Photos Yet
+              </Text>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                Tap + to upload photos into this folder
+              </Text>
+              <TouchableOpacity
+                style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+                onPress={startCategoryPicker}
+              >
+                <Feather name="upload" size={16} color="#FFF" />
+                <Text style={styles.emptyBtnText}>Upload Photos</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          ) : (
+            <FlatList
+              data={folderPhotos}
+              keyExtractor={item => String(item.id)}
+              numColumns={COLS}
+              contentContainerStyle={styles.grid}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setViewerPhoto(item)}
+                  style={[styles.thumb, { width: PHOTO_SIZE, height: PHOTO_SIZE }]}
+                >
+                  <Image source={{ uri: item.uri }} style={styles.thumbImg} resizeMode="cover" />
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </>
       )}
 
-      {/* Grid */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : displayed.length === 0 ? (
-        <View style={styles.center}>
-          <Feather name="image" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            {filter === "all" ? "No Photos Yet" : filter === "job" ? "No Job Photos" : "No Report Photos"}
-          </Text>
-          <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-            {filter === "all" ? "Tap + to add photos to this job" : `No photos in this category`}
-          </Text>
-          {filter === "all" && (
-            <TouchableOpacity
-              style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-              onPress={() => setSheetOpen(true)}
-            >
-              <Feather name="camera" size={16} color="#FFF" />
-              <Text style={styles.emptyBtnText}>Add Photos</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : (
-        <FlatList
-          data={displayed}
-          keyExtractor={item => item.key}
-          numColumns={COLS}
-          contentContainerStyle={styles.grid}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => handlePhotoPress(item)}
-              style={[styles.thumb, { width: PHOTO_SIZE, height: PHOTO_SIZE }]}
-            >
-              <Image source={{ uri: item.uri }} style={styles.thumbImg} resizeMode="cover" />
-              <View style={[styles.sourceLabel, { backgroundColor: item.source === "job" ? colors.primary + "CC" : "#FF6F00CC" }]}>
-                <Text style={styles.sourceLabelText} numberOfLines={1}>
-                  {item.source === "job" ? "Job" : item.sourceLabel.replace("Report: ", "")}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
-      )}
-
-      {/* Action Sheet */}
-      <Modal visible={sheetOpen} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setSheetOpen(false)}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setSheetOpen(false)} />
+      {/* ──────────── CATEGORY PICKER MODAL ──────────── */}
+      <Modal
+        visible={categoryPickerOpen}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setCategoryPickerOpen(false)}
+      >
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setCategoryPickerOpen(false)} />
         <View style={[styles.sheet, { backgroundColor: colors.card }]}>
           <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Add Photos</Text>
-          {Platform.OS !== "web" && (
-            <TouchableOpacity style={[styles.sheetBtn, { borderBottomColor: colors.border }]} onPress={takePhoto}>
-              <View style={[styles.sheetIcon, { backgroundColor: colors.primary + "20" }]}>
-                <Feather name="camera" size={20} color={colors.primary} />
+          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Which folder?</Text>
+          <Text style={[styles.sheetSub, { color: colors.mutedForeground }]}>
+            Select a category, then choose photos from your gallery.
+          </Text>
+
+          {CATEGORIES.map(cat => (
+            <TouchableOpacity
+              key={cat.key}
+              style={[styles.catBtn, { borderColor: colors.border }]}
+              onPress={() => pickFromGallery(cat.key)}
+            >
+              <View style={[styles.catIcon, { backgroundColor: cat.color + "20" }]}>
+                <Text style={styles.catEmoji}>📁</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.sheetBtnLabel, { color: colors.foreground }]}>Take Photo</Text>
-                <Text style={[styles.sheetBtnSub, { color: colors.mutedForeground }]}>Use camera to take one photo</Text>
+                <Text style={[styles.catLabel, { color: colors.foreground }]}>{cat.label} Photos</Text>
+                <Text style={[styles.catCount, { color: colors.mutedForeground }]}>
+                  {photosByCategory[cat.key].length} photo{photosByCategory[cat.key].length !== 1 ? "s" : ""} already uploaded
+                </Text>
               </View>
-              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ))}
+
+          {Platform.OS !== "web" && (
+            <TouchableOpacity
+              style={[styles.cameraRow, { borderColor: colors.border }]}
+              onPress={() => {
+                Alert.alert(
+                  "Take Photo — Select Folder",
+                  "Which folder should this photo go into?",
+                  [
+                    ...CATEGORIES.map(c => ({ text: c.label, onPress: () => takePhoto(c.key) })),
+                    { text: "Cancel", style: "cancel" as const, onPress: () => { setCategoryPickerOpen(false); } },
+                  ],
+                );
+                setCategoryPickerOpen(false);
+              }}
+            >
+              <Feather name="camera" size={18} color={colors.mutedForeground} />
+              <Text style={[styles.cameraRowText, { color: colors.mutedForeground }]}>Take a Photo Instead</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={[styles.sheetBtn, { borderBottomColor: colors.border }]} onPress={pickFromGallery}>
-            <View style={[styles.sheetIcon, { backgroundColor: "#FF6F0020" }]}>
-              <Feather name="image" size={20} color="#FF6F00" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.sheetBtnLabel, { color: colors.foreground }]}>Choose from Gallery</Text>
-              <Text style={[styles.sheetBtnSub, { color: colors.mutedForeground }]}>Select multiple photos at once</Text>
-            </View>
-            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: colors.muted }]} onPress={() => setSheetOpen(false)}>
+
+          <TouchableOpacity
+            style={[styles.cancelBtn, { backgroundColor: colors.muted }]}
+            onPress={() => setCategoryPickerOpen(false)}
+          >
             <Text style={[styles.cancelText, { color: colors.foreground }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </Modal>
 
-      {/* Full-screen Viewer */}
-      <Modal visible={!!viewerPhoto} transparent={false} animationType="fade" statusBarTranslucent onRequestClose={() => setViewerPhoto(null)}>
+      {/* ──────────── FULL-SCREEN VIEWER ──────────── */}
+      <Modal
+        visible={!!viewerPhoto}
+        transparent={false}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setViewerPhoto(null)}
+      >
         <View style={styles.viewer}>
           <StatusBar hidden />
           {viewerPhoto && (
@@ -516,23 +535,25 @@ export default function JobPhotosScreen() {
             </TouchableOpacity>
             <View style={{ flex: 1, alignItems: "center" }}>
               {viewerPhoto && (
-                <Text style={styles.viewerLabel}>{viewerPhoto.sourceLabel}</Text>
+                <Text style={styles.viewerLabel}>
+                  {CATEGORIES.find(c => c.key === viewerPhoto.category)?.label ?? "Photo"}
+                </Text>
               )}
             </View>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
                 style={styles.viewerBtn}
-                onPress={() => viewerPhoto && downloadPhoto(viewerPhoto)}
+                onPress={() => viewerPhoto && downloadSinglePhoto(viewerPhoto)}
                 disabled={isDownloading}
               >
                 {isDownloading
                   ? <ActivityIndicator size="small" color="#FFF" />
                   : <Feather name="download" size={20} color="#FFF" />}
               </TouchableOpacity>
-              {viewerPhoto?.source === "job" && viewerPhoto.jobPhotoId && (
+              {isAdmin && viewerPhoto && (
                 <TouchableOpacity
                   style={[styles.viewerBtn, { backgroundColor: "rgba(244,67,54,0.8)" }]}
-                  onPress={() => viewerPhoto.jobPhotoId && handleDeleteJobPhoto(viewerPhoto.jobPhotoId)}
+                  onPress={() => handleDeletePhoto(viewerPhoto.id)}
                 >
                   <Feather name="trash-2" size={20} color="#FFF" />
                 </TouchableOpacity>
@@ -547,86 +568,125 @@ export default function JobPhotosScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+
   toolbar: {
-    flexDirection: "row", alignItems: "center", gap: 8,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1,
+  },
+  screenTitle: { fontSize: 16, fontWeight: "700" },
+  screenSub: { fontSize: 12, marginTop: 1 },
+
+  folderHeader: {
+    flexDirection: "row", alignItems: "center", gap: 10,
     paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1,
   },
-  toolbarLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  backBtn: { padding: 4 },
+  folderHeaderTitle: { fontSize: 16, fontWeight: "700" },
+  folderHeaderCount: { fontSize: 12, marginTop: 1 },
+
   toolbarBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
-  toolbarBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  addBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
-  filterRow: {
-    flexDirection: "row", borderBottomWidth: 1,
-  },
-  filterTab: {
-    flex: 1, paddingVertical: 10, alignItems: "center",
-  },
-  filterTabText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  pendingPanel: {
-    padding: 12, borderBottomWidth: 1,
-  },
-  pendingThumb: { position: "relative", width: 60, height: 60 },
-  pendingImg: { width: 60, height: 60, borderRadius: 8 },
-  pendingRemove: {
-    position: "absolute", top: -6, right: -6,
-    backgroundColor: "#E53935", borderRadius: 10,
-    width: 18, height: 18, alignItems: "center", justifyContent: "center",
-  },
-  pendingActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
-  pendingCount: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  pendingBtns: { flexDirection: "row", gap: 8 },
-  pendingCancel: { paddingHorizontal: 12, paddingVertical: 6 },
-  pendingCancelText: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  pendingUploadBtn: {
+  toolbarBtnText: { fontSize: 12, fontWeight: "600" },
+
+  addBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
   },
-  pendingUploadText: { color: "#FFF", fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 32 },
-  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  addBtnText: { color: "#FFF", fontSize: 14, fontWeight: "700" },
+
+  progressBanner: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1, borderTopWidth: 1,
+  },
+  progressText: { fontSize: 13, fontWeight: "600" },
+
+  folderGrid: {
+    padding: 16, gap: 12,
+  },
+  folderCard: {
+    flex: 1, borderRadius: 14, borderWidth: 1,
+    overflow: "hidden",
+  },
+  folderThumb: {
+    height: 110, alignItems: "center", justifyContent: "center",
+  },
+  folderThumbImg: { width: "100%", height: "100%" },
+  folderEmoji: { fontSize: 42 },
+  folderInfo: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 },
+  folderLabel: { fontSize: 15, fontWeight: "700" },
+  folderCount: { fontSize: 12, marginTop: 2 },
+  folderBadge: {
+    position: "absolute", top: 8, right: 8,
+    borderRadius: 12, minWidth: 24, height: 24,
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 6,
+  },
+  folderBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
+
+  grid: { padding: GAP },
+  thumb: { margin: GAP / 2, borderRadius: 4, overflow: "hidden" },
+  thumbImg: { width: "100%", height: "100%" },
+
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
+  emptyEmoji: { fontSize: 56, marginBottom: 4 },
+  emptyTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
+  emptySub: { fontSize: 14, textAlign: "center", lineHeight: 20 },
   emptyBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12,
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 8,
   },
-  emptyBtnText: { color: "#FFF", fontFamily: "Inter_600SemiBold" },
-  grid: { padding: GAP },
-  thumb: { margin: GAP / 2, borderRadius: 6, overflow: "hidden" },
-  thumbImg: { width: "100%", height: "100%" },
-  sourceLabel: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 4, paddingVertical: 3,
-  },
-  sourceLabelText: { color: "#FFF", fontSize: 9, fontFamily: "Inter_600SemiBold" },
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
+  emptyBtnText: { color: "#FFF", fontWeight: "700", fontSize: 15 },
+
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingTop: 12, paddingBottom: 40, paddingHorizontal: 16,
-    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 20,
+    paddingBottom: 36, paddingHorizontal: 16, paddingTop: 12,
+    gap: 4,
   },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-  sheetTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 16 },
-  sheetBtn: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    paddingVertical: 14, borderBottomWidth: 1,
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    alignSelf: "center", marginBottom: 12,
   },
-  sheetIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  sheetBtnLabel: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  sheetBtnSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  cancelBtn: { marginTop: 16, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
-  cancelText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  sheetTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4 },
+  sheetSub: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
+
+  catBtn: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 8,
+  },
+  catIcon: {
+    width: 44, height: 44, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
+  },
+  catEmoji: { fontSize: 22 },
+  catLabel: { fontSize: 15, fontWeight: "700" },
+  catCount: { fontSize: 12, marginTop: 2 },
+
+  cameraRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    borderTopWidth: 1, paddingTop: 14, marginTop: 4, paddingHorizontal: 4,
+  },
+  cameraRowText: { fontSize: 14 },
+
+  cancelBtn: {
+    borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8,
+  },
+  cancelText: { fontSize: 16, fontWeight: "600" },
+
   viewer: { flex: 1, backgroundColor: "#000" },
   viewerImg: { flex: 1 },
   viewerBar: {
     position: "absolute", top: 0, left: 0, right: 0,
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingTop: Platform.OS === "android" ? 44 : 12, gap: 10,
+    paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  viewerBtn: { backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 20, padding: 10 },
-  viewerLabel: { color: "#FFF", fontSize: 12, fontFamily: "Inter_500Medium" },
+  viewerBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center", justifyContent: "center",
+  },
+  viewerLabel: { color: "#FFF", fontSize: 14, fontWeight: "600" },
 });

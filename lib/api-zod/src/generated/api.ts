@@ -463,11 +463,16 @@ export const ListJobPhotosParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const ListJobPhotosQueryParams = zod.object({
+  "category": zod.enum(['before', 'during', 'after', 'other']).optional()
+})
+
 export const ListJobPhotosResponseItem = zod.object({
   "id": zod.number(),
   "jobId": zod.number(),
   "uri": zod.string(),
   "caption": zod.string().nullish(),
+  "category": zod.enum(['before', 'during', 'after', 'other']),
   "uploadedById": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -483,7 +488,8 @@ export const AddJobPhotoParams = zod.object({
 
 export const AddJobPhotoBody = zod.object({
   "uri": zod.string(),
-  "caption": zod.string().optional()
+  "caption": zod.string().optional(),
+  "category": zod.enum(['before', 'during', 'after', 'other']).optional()
 })
 
 export const AddJobPhotoResponse = zod.object({
@@ -491,6 +497,7 @@ export const AddJobPhotoResponse = zod.object({
   "jobId": zod.number(),
   "uri": zod.string(),
   "caption": zod.string().nullish(),
+  "category": zod.enum(['before', 'during', 'after', 'other']),
   "uploadedById": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -505,6 +512,20 @@ export const DeleteJobPhotoParams = zod.object({
 })
 
 export const DeleteJobPhotoResponse = zod.void()
+
+
+/**
+ * @summary Download photos as ZIP (optionally filtered by category)
+ */
+export const DownloadJobPhotosZipParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DownloadJobPhotosZipQueryParams = zod.object({
+  "category": zod.enum(['before', 'during', 'after', 'other']).optional().describe('Filter by category. Omit to download all photos.')
+})
+
+export const DownloadJobPhotosZipResponse = zod.unknown()
 
 
 /**

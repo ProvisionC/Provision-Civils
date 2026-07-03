@@ -27,6 +27,7 @@ import type {
   DailyReport,
   DailyReportInput,
   DashboardStats,
+  DownloadJobPhotosZipParams,
   Employee,
   EmployeeBanking,
   EmployeeBankingInput,
@@ -57,6 +58,7 @@ import type {
   LeaveRecord,
   LeaveStatusUpdate,
   ListClientsParams,
+  ListJobPhotosParams,
   ListJobsParams,
   ListLabourEntriesParams,
   ListLeaveParams,
@@ -1139,20 +1141,29 @@ export const useDeleteJob = <TError = ErrorType<void>,
       return useMutation(getDeleteJobMutationOptions(options));
     }
 
-export const getListJobPhotosUrl = (id: number,) => {
+export const getListJobPhotosUrl = (id: number,
+    params?: ListJobPhotosParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/jobs/${id}/photos`
+  return stringifiedParams.length > 0 ? `/api/jobs/${id}/photos?${stringifiedParams}` : `/api/jobs/${id}/photos`
 }
 
 /**
  * @summary List photos for a job
  */
-export const listJobPhotos = async (id: number, options?: RequestInit): Promise<JobPhoto[]> => {
+export const listJobPhotos = async (id: number,
+    params?: ListJobPhotosParams, options?: RequestInit): Promise<JobPhoto[]> => {
 
-  return customFetch<JobPhoto[]>(getListJobPhotosUrl(id),
+  return customFetch<JobPhoto[]>(getListJobPhotosUrl(id,params),
   {
     ...options,
     method: 'GET'
@@ -1165,23 +1176,25 @@ export const listJobPhotos = async (id: number, options?: RequestInit): Promise<
 
 
 
-export const getListJobPhotosQueryKey = (id: number,) => {
+export const getListJobPhotosQueryKey = (id: number,
+    params?: ListJobPhotosParams,) => {
     return [
-    `/api/jobs/${id}/photos`
+    `/api/jobs/${id}/photos`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListJobPhotosQueryOptions = <TData = Awaited<ReturnType<typeof listJobPhotos>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJobPhotos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListJobPhotosQueryOptions = <TData = Awaited<ReturnType<typeof listJobPhotos>>, TError = ErrorType<unknown>>(id: number,
+    params?: ListJobPhotosParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJobPhotos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListJobPhotosQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getListJobPhotosQueryKey(id,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJobPhotos>>> = ({ signal }) => listJobPhotos(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJobPhotos>>> = ({ signal }) => listJobPhotos(id,params, { signal, ...requestOptions });
 
 
 
@@ -1199,11 +1212,12 @@ export type ListJobPhotosQueryError = ErrorType<unknown>
  */
 
 export function useListJobPhotos<TData = Awaited<ReturnType<typeof listJobPhotos>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJobPhotos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number,
+    params?: ListJobPhotosParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJobPhotos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListJobPhotosQueryOptions(id,options)
+  const queryOptions = getListJobPhotosQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1358,6 +1372,95 @@ export const useDeleteJobPhoto = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteJobPhotoMutationOptions(options));
     }
+
+export const getDownloadJobPhotosZipUrl = (id: number,
+    params?: DownloadJobPhotosZipParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/jobs/${id}/photos/zip?${stringifiedParams}` : `/api/jobs/${id}/photos/zip`
+}
+
+/**
+ * @summary Download photos as ZIP (optionally filtered by category)
+ */
+export const downloadJobPhotosZip = async (id: number,
+    params?: DownloadJobPhotosZipParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadJobPhotosZipUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadJobPhotosZipQueryKey = (id: number,
+    params?: DownloadJobPhotosZipParams,) => {
+    return [
+    `/api/jobs/${id}/photos/zip`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadJobPhotosZipQueryOptions = <TData = Awaited<ReturnType<typeof downloadJobPhotosZip>>, TError = ErrorType<void>>(id: number,
+    params?: DownloadJobPhotosZipParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadJobPhotosZip>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadJobPhotosZipQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadJobPhotosZip>>> = ({ signal }) => downloadJobPhotosZip(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadJobPhotosZip>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadJobPhotosZipQueryResult = NonNullable<Awaited<ReturnType<typeof downloadJobPhotosZip>>>
+export type DownloadJobPhotosZipQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download photos as ZIP (optionally filtered by category)
+ */
+
+export function useDownloadJobPhotosZip<TData = Awaited<ReturnType<typeof downloadJobPhotosZip>>, TError = ErrorType<void>>(
+ id: number,
+    params?: DownloadJobPhotosZipParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadJobPhotosZip>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadJobPhotosZipQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUpdateJobMaterialsUrl = (id: number,) => {
 

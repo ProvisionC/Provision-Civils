@@ -127,7 +127,7 @@ router.get(
         res.status(404).json({ error: "Job not found" });
         return;
       }
-      const [reports, materials, photos] = await Promise.all([
+      const [reports, materials] = await Promise.all([
         db
           .select()
           .from(dailyReportsTable)
@@ -138,11 +138,6 @@ router.get(
           .from(jobMaterialsTable)
           .where(eq(jobMaterialsTable.jobId, id))
           .orderBy(jobMaterialsTable.id),
-        db
-          .select()
-          .from(jobPhotosTable)
-          .where(eq(jobPhotosTable.jobId, id))
-          .orderBy(jobPhotosTable.createdAt),
       ]);
 
       const userIds = [
@@ -150,7 +145,7 @@ router.get(
       ];
       const userMap = await buildUserMap(userIds);
 
-      generateCompletionPDF(job, reports, materials, photos, userMap, res);
+      generateCompletionPDF(job, reports, materials, [], userMap, res);
     } catch (err) {
       req.log?.error({ err }, "PDF completion pack generation failed");
       if (!res.headersSent) {

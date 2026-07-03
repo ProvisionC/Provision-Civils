@@ -53,7 +53,7 @@ export default function JobDetailScreen() {
     query: { queryKey: getGetJobQueryKey(jobId) },
   });
 
-  const { data: photos } = useListJobPhotos(jobId, {
+  const { data: photos } = useListJobPhotos(jobId, undefined, {
     query: { queryKey: getListJobPhotosQueryKey(jobId) },
   });
 

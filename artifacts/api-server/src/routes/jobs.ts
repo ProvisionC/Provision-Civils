@@ -2,8 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, jobsTable, usersTable, jobWorkersTable, jobMaterialsTable, jobEquipmentTable, jobPhotosTable, gpsLogsTable, dailyReportsTable, expensesTable, invoicesTable, notificationsTable } from "@workspace/db";
 import { eq, and, ilike, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const archiverLib = require("archiver") as typeof import("archiver");
+import { ZipArchive } from "archiver";
 
 const router: IRouter = Router();
 
@@ -343,10 +342,15 @@ router.delete("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.get("/jobs/:id/photos", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  const photos = await db.select().from(jobPhotosTable).where(eq(jobPhotosTable.jobId, id));
+  const { category } = req.query as { category?: string };
+  const where = category
+    ? and(eq(jobPhotosTable.jobId, id), eq(jobPhotosTable.category, category))
+    : eq(jobPhotosTable.jobId, id);
+  const photos = await db.select().from(jobPhotosTable).where(where).orderBy(jobPhotosTable.createdAt);
   res.json(photos.map(p => ({
     id: p.id, jobId: p.jobId, uri: p.uri,
-    caption: p.caption ?? null, uploadedById: p.uploadedById ?? null,
+    caption: p.caption ?? null, category: p.category ?? "other",
+    uploadedById: p.uploadedById ?? null,
     createdAt: p.createdAt.toISOString(),
   })));
 });
@@ -354,17 +358,20 @@ router.get("/jobs/:id/photos", requireAuth, async (req, res): Promise<void> => {
 router.post("/jobs/:id/photos", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const auth = (req as typeof req & { auth: { userId: number } }).auth;
-  const { uri, caption } = req.body as { uri: string; caption?: string };
+  const { uri, caption, category } = req.body as { uri: string; caption?: string; category?: string };
   if (!uri) {
     res.status(400).json({ error: "Photo URI required" });
     return;
   }
+  const validCategories = ["before", "during", "after", "other"];
+  const safeCategory = category && validCategories.includes(category) ? category : "other";
   const [photo] = await db.insert(jobPhotosTable).values({
-    jobId: id, uri, caption, uploadedById: auth.userId,
+    jobId: id, uri, caption, category: safeCategory, uploadedById: auth.userId,
   }).returning();
   res.status(201).json({
     id: photo.id, jobId: photo.jobId, uri: photo.uri,
-    caption: photo.caption ?? null, uploadedById: photo.uploadedById ?? null,
+    caption: photo.caption ?? null, category: photo.category ?? "other",
+    uploadedById: photo.uploadedById ?? null,
     createdAt: photo.createdAt.toISOString(),
   });
 });
@@ -403,14 +410,18 @@ router.put("/jobs/:id/materials", requireAuth, async (req, res): Promise<void> =
 
 router.get("/jobs/:id/photos/zip", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
+  const { category } = req.query as { category?: string };
+  const validCategories = ["before", "during", "after", "other"];
+  const filterCategory = category && validCategories.includes(category) ? category : null;
+
   try {
     const [jobRow] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!jobRow) { res.status(404).json({ error: "Job not found" }); return; }
 
-    const [jobPhotos, reports] = await Promise.all([
-      db.select().from(jobPhotosTable).where(eq(jobPhotosTable.jobId, id)),
-      db.select().from(dailyReportsTable).where(eq(dailyReportsTable.jobId, id)).orderBy(dailyReportsTable.date),
-    ]);
+    const photosWhere = filterCategory
+      ? and(eq(jobPhotosTable.jobId, id), eq(jobPhotosTable.category, filterCategory))
+      : eq(jobPhotosTable.jobId, id);
+    const jobPhotos = await db.select().from(jobPhotosTable).where(photosWhere).orderBy(jobPhotosTable.createdAt);
 
     function b64Buf(uri: string): Buffer | null {
       if (!uri?.startsWith("data:")) return null;
@@ -419,34 +430,42 @@ router.get("/jobs/:id/photos/zip", requireAuth, async (req, res): Promise<void> 
       try { return Buffer.from(uri.slice(idx + 1), "base64"); } catch { return null; }
     }
 
-    const projectName = jobRow.projectName ?? jobRow.clientName ?? "Project";
-    const safeProject = projectName.replace(/[/\\:*?"<>|]/g, "-").trim() || "Project";
-    const folderRoot = `${jobRow.jobNumber ?? "JOB"} - ${safeProject}`;
+    const CATEGORY_LABELS: Record<string, string> = {
+      before: "Before Photos",
+      during: "During Photos",
+      after: "After Photos",
+      other: "Other Photos",
+    };
 
     const allPhotos: { buf: Buffer; name: string }[] = [];
-    jobPhotos.forEach((p, i) => {
+    const countByCategory: Record<string, number> = {};
+
+    jobPhotos.forEach((p) => {
+      const cat = p.category ?? "other";
+      const folderName = CATEGORY_LABELS[cat] ?? "Other Photos";
       const buf = b64Buf(p.uri);
-      if (buf) allPhotos.push({ buf, name: `${folderRoot}/General Photos/photo-${String(i + 1).padStart(3, "0")}.jpg` });
-    });
-    reports.forEach(r => {
-      const uris: string[] = (r as any).photoUris ?? [];
-      uris.forEach((uri, i) => {
-        const buf = b64Buf(uri);
-        if (buf) allPhotos.push({ buf, name: `${folderRoot}/Daily Reports/report-${r.date}-${String(i + 1).padStart(2, "0")}.jpg` });
-      });
+      if (buf) {
+        countByCategory[cat] = (countByCategory[cat] ?? 0) + 1;
+        const seq = String(countByCategory[cat]).padStart(3, "0");
+        allPhotos.push({ buf, name: `${folderName}/photo-${seq}.jpg` });
+      }
     });
 
     if (allPhotos.length === 0) {
-      res.status(404).json({ error: "No photos found for this job" });
+      res.status(404).json({ error: "No photos found for this category" });
       return;
     }
 
     const jobNumber = jobRow.jobNumber ?? "JOB";
+    const catLabel = filterCategory ? CATEGORY_LABELS[filterCategory] ?? "Photos" : "All Photos";
+    const safeLabel = catLabel.replace(/[/\\:*?"<>|]/g, "-");
+    const filename = `${jobNumber}-${safeLabel}.zip`;
+
     res.setHeader("Content-Type", "application/zip");
-    res.setHeader("Content-Disposition", `attachment; filename="${jobNumber}-Photos.zip"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Cache-Control", "no-cache");
 
-    const archive = archiverLib("zip", { zlib: { level: 6 } });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
     archive.on("error", (err: Error) => { req.log?.error({ err }, "ZIP error"); });
     archive.pipe(res);
     for (const { buf, name } of allPhotos) {

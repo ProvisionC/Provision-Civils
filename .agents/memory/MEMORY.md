@@ -8,3 +8,4 @@
 - [Orval Zod index conflict](orval-zod-index.md) — Orval generates both `api.ts` (Zod consts) and `types/` dir (TS types) with overlapping names; fix by keeping only `export * from "./generated/api"` in index.ts.
 - [Express 5 params type](express5-params.md) — req.params.id is `string | string[]` in Express 5; use a parseId helper (Array.isArray check) not raw parseInt.
 - [EAS build SDK version alignment](eas-sdk-version-alignment.md) — expo-updates and expo-speech-recognition both align major version to Expo SDK (56.x = SDK 56); check bundledNativeModules.json for correct versions.
+- [Archiver v8 breaking API change](archiver-v8-api.md) — archiver v8 dropped the `archiver("zip",opts)` function; use `new ZipArchive(opts)` imported as `import { ZipArchive } from "archiver"`.
