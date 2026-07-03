@@ -150,7 +150,9 @@ export function PhotoUploadProvider({ children }: { children: React.ReactNode })
       doUpload(item)
         .then(() => {
           dispatch({ type: "SET_STATUS", id: item.id, status: "done" });
-          qc.invalidateQueries({ queryKey: getListJobPhotosQueryKey(item.jobId) });
+          // refetchQueries forces an immediate network request regardless of
+          // staleTime, so photos appear the moment each upload finishes.
+          void qc.refetchQueries({ queryKey: getListJobPhotosQueryKey(item.jobId) });
         })
         .catch(() => {
           const newFail = item.failCount + 1;

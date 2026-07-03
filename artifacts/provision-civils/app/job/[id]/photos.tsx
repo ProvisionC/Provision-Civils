@@ -58,7 +58,7 @@ export default function JobPhotosScreen() {
   const [viewerPhoto, setViewerPhoto] = useState<PhotoItem | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const { data: allPhotos = [], isLoading } = useListJobPhotos(jobId, undefined, {
+  const { data: allPhotos = [], isLoading, isFetching } = useListJobPhotos(jobId, undefined, {
     query: { queryKey: getListJobPhotosQueryKey(jobId) },
   });
 
@@ -89,7 +89,7 @@ export default function JobPhotosScreen() {
   const deletePhoto = useDeleteJobPhoto({
     mutation: {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListJobPhotosQueryKey(jobId) });
+        void qc.refetchQueries({ queryKey: getListJobPhotosQueryKey(jobId) });
         setViewerPhoto(null);
       },
     },
@@ -416,27 +416,38 @@ export default function JobPhotosScreen() {
 
           {folderPhotos.length === 0 ? (
             <View style={styles.center}>
-              <Text style={styles.emptyEmoji}>📁</Text>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                No {currentCat?.label} Photos Yet
-              </Text>
-              {isUploading ? (
-                <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                  Photos are uploading — they'll appear here when done.
-                </Text>
+              {isFetching ? (
+                <>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.emptySub, { color: colors.mutedForeground, marginTop: 12 }]}>
+                    Loading photos…
+                  </Text>
+                </>
               ) : (
-                <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                  Tap + to upload photos into this folder
-                </Text>
-              )}
-              {!isUploading && (
-                <TouchableOpacity
-                  style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-                  onPress={startCategoryPicker}
-                >
-                  <Feather name="upload" size={16} color="#FFF" />
-                  <Text style={styles.emptyBtnText}>Upload Photos</Text>
-                </TouchableOpacity>
+                <>
+                  <Text style={styles.emptyEmoji}>📁</Text>
+                  <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                    No {currentCat?.label} Photos Yet
+                  </Text>
+                  {isUploading ? (
+                    <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                      Photos are uploading — they'll appear here when done.
+                    </Text>
+                  ) : (
+                    <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                      Tap + to upload photos into this folder
+                    </Text>
+                  )}
+                  {!isUploading && (
+                    <TouchableOpacity
+                      style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+                      onPress={startCategoryPicker}
+                    >
+                      <Feather name="upload" size={16} color="#FFF" />
+                      <Text style={styles.emptyBtnText}>Upload Photos</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
               )}
             </View>
           ) : (
