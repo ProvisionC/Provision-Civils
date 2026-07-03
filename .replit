@@ -29,7 +29,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd /home/runner/workspace/artifacts/provision-civils && eas build:view 98bd520a-4c78-4b81-9465-71b1ba078dc8 --json 2>&1"
+args = "cd /home/runner/workspace/artifacts/provision-civils && eas build:view 87de2407-59c8-4ed3-bf01-29e6e5083243 --json 2>&1"
 
 [agent]
 stack = "PNPM_WORKSPACE"
