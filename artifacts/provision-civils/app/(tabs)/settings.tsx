@@ -174,6 +174,20 @@ export default function SettingsScreen() {
         )}
       </View>
 
+      {/* ── Admin Tools ── */}
+      {(user?.role === "admin" || user?.role === "project_manager") && (
+        <>
+          <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>ADMIN</Text>
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <SettingRow
+              icon="users"
+              label="Manage Teams"
+              onPress={() => router.push("/teams" as any)}
+            />
+          </View>
+        </>
+      )}
+
       {/* ── About ── */}
       <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>ABOUT</Text>
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>

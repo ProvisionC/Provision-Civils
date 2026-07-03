@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, notificationsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
@@ -14,11 +14,22 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
   const { userId } = (req as typeof req & { auth: { userId: number } }).auth;
   const notes = await db.select().from(notificationsTable)
     .where(eq(notificationsTable.userId, userId))
-    .orderBy(notificationsTable.createdAt);
+    .orderBy(desc(notificationsTable.createdAt));
   res.json(notes.map(n => ({
     id: n.id, userId: n.userId, message: n.message, type: n.type,
-    read: n.read, jobId: n.jobId ?? null, createdAt: n.createdAt.toISOString(),
+    read: n.read, jobId: n.jobId ?? null,
+    referenceType: n.referenceType ?? null,
+    referenceId: n.referenceId ?? null,
+    metadata: n.metadata ? JSON.parse(n.metadata) : null,
+    createdAt: n.createdAt.toISOString(),
   })));
+});
+
+router.get("/notifications/unread-count", requireAuth, async (req, res): Promise<void> => {
+  const { userId } = (req as typeof req & { auth: { userId: number } }).auth;
+  const notes = await db.select().from(notificationsTable)
+    .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.read, false)));
+  res.json({ count: notes.length });
 });
 
 router.put("/notifications/:id/read", requireAuth, async (req, res): Promise<void> => {
@@ -34,8 +45,20 @@ router.put("/notifications/:id/read", requireAuth, async (req, res): Promise<voi
   }
   res.json({
     id: note.id, userId: note.userId, message: note.message, type: note.type,
-    read: note.read, jobId: note.jobId ?? null, createdAt: note.createdAt.toISOString(),
+    read: note.read, jobId: note.jobId ?? null,
+    referenceType: note.referenceType ?? null,
+    referenceId: note.referenceId ?? null,
+    metadata: note.metadata ? JSON.parse(note.metadata) : null,
+    createdAt: note.createdAt.toISOString(),
   });
+});
+
+router.put("/notifications/read-all", requireAuth, async (req, res): Promise<void> => {
+  const { userId } = (req as typeof req & { auth: { userId: number } }).auth;
+  await db.update(notificationsTable)
+    .set({ read: true })
+    .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.read, false)));
+  res.json({ ok: true });
 });
 
 export default router;

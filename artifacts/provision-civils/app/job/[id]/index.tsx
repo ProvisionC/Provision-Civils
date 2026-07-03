@@ -352,6 +352,25 @@ export default function JobDetailScreen() {
               <Text style={[styles.actionLabel, { color: colors.foreground }]}>Invoice</Text>
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={async () => {
+              try {
+                const { getOrCreateJobChat } = await import("@workspace/api-client-react");
+                const res = await getOrCreateJobChat(Number(jobId)) as any;
+                router.push(`/messages/${res.id}` as any);
+              } catch (e: any) {
+                const { Alert } = await import("react-native");
+                Alert.alert("Error", "Could not open job chat");
+              }
+            }}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: "#2563EB18" }]}>
+              <Feather name="message-circle" size={20} color="#2563EB" />
+            </View>
+            <Text style={[styles.actionLabel, { color: colors.foreground }]}>Chat</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Admin Invoice row */}

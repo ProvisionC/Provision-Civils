@@ -1067,25 +1067,144 @@ export interface JobCosting {
   profitLoss: number;
 }
 
-export type NotificationType = typeof NotificationType[keyof typeof NotificationType];
-
-
-export const NotificationType = {
-  job_assigned: 'job_assigned',
-  job_updated: 'job_updated',
-  job_completed: 'job_completed',
-  invoice_created: 'invoice_created',
-} as const;
-
 export interface Notification {
   id: number;
   userId: number;
   message: string;
-  type: NotificationType;
+  type: string;
   read: boolean;
   /** @nullable */
   jobId?: number | null;
+  /** @nullable */
+  referenceType?: string | null;
+  /** @nullable */
+  referenceId?: number | null;
+  metadata?: unknown | null;
   createdAt: string;
+}
+
+export interface TeamMember {
+  id?: number;
+  userId: number;
+  name: string;
+  role: string;
+}
+
+export interface Team {
+  id: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  createdBy?: number | null;
+  createdAt: string;
+  members?: TeamMember[];
+}
+
+export interface TeamInput {
+  name: string;
+  description?: string;
+  memberIds?: number[];
+}
+
+export type ConversationType = typeof ConversationType[keyof typeof ConversationType];
+
+
+export const ConversationType = {
+  direct: 'direct',
+  job_chat: 'job_chat',
+  team_chat: 'team_chat',
+} as const;
+
+export type ConversationMembersItem = {
+  userId?: number;
+  name?: string;
+};
+
+export interface Conversation {
+  id: number;
+  type: ConversationType;
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  jobId?: number | null;
+  /** @nullable */
+  teamId?: number | null;
+  createdAt: string;
+  members?: ConversationMembersItem[];
+  lastMessage?: unknown | null;
+  unreadCount?: number;
+}
+
+export type ConversationInputType = typeof ConversationInputType[keyof typeof ConversationInputType];
+
+
+export const ConversationInputType = {
+  direct: 'direct',
+  job_chat: 'job_chat',
+  team_chat: 'team_chat',
+} as const;
+
+export interface ConversationInput {
+  type: ConversationInputType;
+  name?: string;
+  jobId?: number;
+  teamId?: number;
+  memberIds?: number[];
+}
+
+export type ChatMessageType = typeof ChatMessageType[keyof typeof ChatMessageType];
+
+
+export const ChatMessageType = {
+  text: 'text',
+  image: 'image',
+  document: 'document',
+  location: 'location',
+} as const;
+
+export type ChatMessageReadByItem = {
+  userId?: number;
+  readAt?: string;
+};
+
+export interface ChatMessage {
+  id: number;
+  conversationId: number;
+  /** @nullable */
+  senderId?: number | null;
+  senderName?: string;
+  type: ChatMessageType;
+  content: string;
+  /** @nullable */
+  fileName?: string | null;
+  /** @nullable */
+  fileMime?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  createdAt: string;
+  readBy?: ChatMessageReadByItem[];
+}
+
+export type MessageInputType = typeof MessageInputType[keyof typeof MessageInputType];
+
+
+export const MessageInputType = {
+  text: 'text',
+  image: 'image',
+  document: 'document',
+  location: 'location',
+} as const;
+
+export interface MessageInput {
+  type?: MessageInputType;
+  content: string;
+  fileName?: string;
+  fileMime?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export type ListClientsParams = {
@@ -1154,5 +1273,39 @@ startDate?: string;
 endDate?: string;
 employeeId?: number;
 jobId?: number;
+};
+
+export type MarkAllNotificationsRead200 = {
+  ok?: boolean;
+};
+
+export type GetNotificationUnreadCount200 = {
+  count?: number;
+};
+
+export type AddTeamMemberBody = {
+  userId: number;
+};
+
+export type ListMessagesParams = {
+limit?: number;
+before?: number;
+};
+
+export type GetMessageUnreadCount200 = {
+  count?: number;
+};
+
+export type RegisterPushTokenBodyPlatform = typeof RegisterPushTokenBodyPlatform[keyof typeof RegisterPushTokenBodyPlatform];
+
+
+export const RegisterPushTokenBodyPlatform = {
+  ios: 'ios',
+  android: 'android',
+} as const;
+
+export type RegisterPushTokenBody = {
+  token: string;
+  platform?: RegisterPushTokenBodyPlatform;
 };
 

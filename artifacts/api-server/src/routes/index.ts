@@ -15,6 +15,8 @@ import leaveRouter from "./leave.js";
 import payrollRouter from "./payroll.js";
 import costingRouter from "./costing.js";
 import versionRouter from "./version.js";
+import teamsRouter from "./teams.js";
+import messagesRouter from "./messages.js";
 
 const router: IRouter = Router();
 
@@ -34,5 +36,7 @@ router.use(labourRouter);
 router.use(leaveRouter);
 router.use(payrollRouter);
 router.use(costingRouter);
+router.use(teamsRouter);
+router.use(messagesRouter);
 
 export default router;

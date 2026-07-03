@@ -9,3 +9,6 @@
 - [Express 5 params type](express5-params.md) — req.params.id is `string | string[]` in Express 5; use a parseId helper (Array.isArray check) not raw parseInt.
 - [EAS build SDK version alignment](eas-sdk-version-alignment.md) — expo-updates and expo-speech-recognition both align major version to Expo SDK (56.x = SDK 56); check bundledNativeModules.json for correct versions.
 - [Archiver v8 breaking API change](archiver-v8-api.md) — archiver v8 dropped the `archiver("zip",opts)` function; use `new ZipArchive(opts)` imported as `import { ZipArchive } from "archiver"`.
+- [Orval useQuery requires queryKey](orval-querykey-required.md) — Orval-generated hooks require queryKey in query options; always pass the generated getXxxQueryKey() helper to avoid TS2741.
+- [expo-document-picker SDK version](expo-document-picker-version.md) — use expo-document-picker@~14.0.8 for Expo SDK 54; v57 is incompatible and triggers a Metro warning.
+- [Orval void mutation bodies](orval-void-mutation.md) — mutations generated from endpoints with no request body have type void; call mutate() not mutate({}) or TS rejects it.

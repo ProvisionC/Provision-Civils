@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useColors } from "@/hooks/useColors";
-import { useListNotifications, getListNotificationsQueryKey } from "@workspace/api-client-react";
+import { useListNotifications, getListNotificationsQueryKey, useGetMessageUnreadCount, getGetMessageUnreadCountQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function TabLayout() {
@@ -21,9 +21,14 @@ export default function TabLayout() {
   const canViewPayroll = isAdmin;
 
   const { data: notifications } = useListNotifications({
-    query: { queryKey: getListNotificationsQueryKey(), enabled: !!token },
+    query: { queryKey: getListNotificationsQueryKey(), enabled: !!token, refetchInterval: 30000 },
   });
   const unreadCount = notifications?.filter(n => !n.read).length ?? 0;
+
+  const { data: msgUnread } = useGetMessageUnreadCount({
+    query: { queryKey: getGetMessageUnreadCountQueryKey(), enabled: !!token, refetchInterval: 5000 },
+  });
+  const msgUnreadCount = (msgUnread as { count?: number } | undefined)?.count ?? 0;
 
   return (
     <Tabs
@@ -82,6 +87,14 @@ export default function TabLayout() {
         options={{
           title: "Team",
           tabBarIcon: ({ color }) => <Feather name="user-check" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: "Messages",
+          tabBarIcon: ({ color }) => <Feather name="message-circle" size={22} color={color} />,
+          tabBarBadge: msgUnreadCount > 0 ? msgUnreadCount : undefined,
         }}
       />
       <Tabs.Screen

@@ -1524,9 +1524,12 @@ export const ListNotificationsResponseItem = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "message": zod.string(),
-  "type": zod.enum(['job_assigned', 'job_updated', 'job_completed', 'invoice_created']),
+  "type": zod.string(),
   "read": zod.boolean(),
   "jobId": zod.number().nullish(),
+  "referenceType": zod.string().nullish(),
+  "referenceId": zod.number().nullish(),
+  "metadata": zod.unknown().nullish(),
   "createdAt": zod.string()
 })
 export const ListNotificationsResponse = zod.array(ListNotificationsResponseItem)
@@ -1543,10 +1546,320 @@ export const MarkNotificationReadResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "message": zod.string(),
-  "type": zod.enum(['job_assigned', 'job_updated', 'job_completed', 'invoice_created']),
+  "type": zod.string(),
   "read": zod.boolean(),
   "jobId": zod.number().nullish(),
+  "referenceType": zod.string().nullish(),
+  "referenceId": zod.number().nullish(),
+  "metadata": zod.unknown().nullish(),
   "createdAt": zod.string()
 })
+
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const MarkAllNotificationsReadResponse = zod.object({
+  "ok": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get count of unread notifications
+ */
+export const GetNotificationUnreadCountResponse = zod.object({
+  "count": zod.number().optional()
+})
+
+
+/**
+ * @summary List all teams
+ */
+export const ListTeamsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "createdBy": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string()
+})).optional()
+})
+export const ListTeamsResponse = zod.array(ListTeamsResponseItem)
+
+
+/**
+ * @summary Create a team
+ */
+export const CreateTeamBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "memberIds": zod.array(zod.number()).optional()
+})
+
+export const CreateTeamResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "createdBy": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string()
+})).optional()
+})
+
+
+/**
+ * @summary Update a team
+ */
+export const UpdateTeamParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateTeamBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "memberIds": zod.array(zod.number()).optional()
+})
+
+export const UpdateTeamResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "createdBy": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string()
+})).optional()
+})
+
+
+/**
+ * @summary Delete a team
+ */
+export const DeleteTeamParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteTeamResponse = zod.void()
+
+
+/**
+ * @summary List team members
+ */
+export const ListTeamMembersParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListTeamMembersResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string()
+})
+export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem)
+
+
+/**
+ * @summary Add a member to a team
+ */
+export const AddTeamMemberParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddTeamMemberBody = zod.object({
+  "userId": zod.number()
+})
+
+export const AddTeamMemberResponse = zod.void()
+
+
+/**
+ * @summary Remove a member from a team
+ */
+export const RemoveTeamMemberParams = zod.object({
+  "id": zod.coerce.number(),
+  "userId": zod.coerce.number()
+})
+
+export const RemoveTeamMemberResponse = zod.void()
+
+
+/**
+ * @summary List conversations for current user
+ */
+export const ListConversationsResponseItem = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['direct', 'job_chat', 'team_chat']),
+  "name": zod.string().nullish(),
+  "jobId": zod.number().nullish(),
+  "teamId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "name": zod.string().optional()
+})).optional(),
+  "lastMessage": zod.unknown().nullish(),
+  "unreadCount": zod.number().optional()
+})
+export const ListConversationsResponse = zod.array(ListConversationsResponseItem)
+
+
+/**
+ * @summary Create a conversation
+ */
+export const CreateConversationBody = zod.object({
+  "type": zod.enum(['direct', 'job_chat', 'team_chat']),
+  "name": zod.string().optional(),
+  "jobId": zod.number().optional(),
+  "teamId": zod.number().optional(),
+  "memberIds": zod.array(zod.number()).optional()
+})
+
+export const CreateConversationResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['direct', 'job_chat', 'team_chat']),
+  "name": zod.string().nullish(),
+  "jobId": zod.number().nullish(),
+  "teamId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "name": zod.string().optional()
+})).optional(),
+  "lastMessage": zod.unknown().nullish(),
+  "unreadCount": zod.number().optional()
+})
+
+
+/**
+ * @summary Get or create job chat conversation
+ */
+export const GetOrCreateJobChatParams = zod.object({
+  "jobId": zod.coerce.number()
+})
+
+export const GetOrCreateJobChatResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['direct', 'job_chat', 'team_chat']),
+  "name": zod.string().nullish(),
+  "jobId": zod.number().nullish(),
+  "teamId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "name": zod.string().optional()
+})).optional(),
+  "lastMessage": zod.unknown().nullish(),
+  "unreadCount": zod.number().optional()
+})
+
+
+/**
+ * @summary List messages in a conversation
+ */
+export const ListMessagesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const listMessagesQueryLimitDefault = 50;
+
+export const ListMessagesQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listMessagesQueryLimitDefault),
+  "before": zod.coerce.number().optional()
+})
+
+export const ListMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "senderId": zod.number().nullish(),
+  "senderName": zod.string().optional(),
+  "type": zod.enum(['text', 'image', 'document', 'location']),
+  "content": zod.string(),
+  "fileName": zod.string().nullish(),
+  "fileMime": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "readBy": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "readAt": zod.string().optional()
+})).optional()
+})
+export const ListMessagesResponse = zod.array(ListMessagesResponseItem)
+
+
+/**
+ * @summary Send a message
+ */
+export const SendMessageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendMessageBody = zod.object({
+  "type": zod.enum(['text', 'image', 'document', 'location']).optional(),
+  "content": zod.string(),
+  "fileName": zod.string().optional(),
+  "fileMime": zod.string().optional(),
+  "latitude": zod.number().optional(),
+  "longitude": zod.number().optional()
+})
+
+export const SendMessageResponse = zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "senderId": zod.number().nullish(),
+  "senderName": zod.string().optional(),
+  "type": zod.enum(['text', 'image', 'document', 'location']),
+  "content": zod.string(),
+  "fileName": zod.string().nullish(),
+  "fileMime": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "readBy": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "readAt": zod.string().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Delete a message
+ */
+export const DeleteMessageParams = zod.object({
+  "convId": zod.coerce.number(),
+  "msgId": zod.coerce.number()
+})
+
+export const DeleteMessageResponse = zod.void()
+
+
+/**
+ * @summary Get total unread message count
+ */
+export const GetMessageUnreadCountResponse = zod.object({
+  "count": zod.number().optional()
+})
+
+
+/**
+ * @summary Register push notification token
+ */
+export const RegisterPushTokenBody = zod.object({
+  "token": zod.string(),
+  "platform": zod.enum(['ios', 'android']).optional()
+})
+
+export const RegisterPushTokenResponse = zod.unknown()
 
 

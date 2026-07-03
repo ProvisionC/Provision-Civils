@@ -29,6 +29,10 @@ tags:
     description: Employee leave management
   - name: payroll
     description: Payroll summaries
+  - name: teams
+    description: Team management
+  - name: messages
+    description: Messaging centre
 
 paths:
   /healthz:
@@ -1108,6 +1112,334 @@ paths:
                 $ref: "#/components/schemas/Notification"
         "404":
           description: Not found
+
+  /notifications/read-all:
+    put:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  /notifications/unread-count:
+    get:
+      operationId: getNotificationUnreadCount
+      tags: [notifications]
+      summary: Get count of unread notifications
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List all teams
+      responses:
+        "200":
+          description: Teams list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+  /teams/{id}:
+    put:
+      operationId: updateTeam
+      tags: [teams]
+      summary: Update a team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+    delete:
+      operationId: deleteTeam
+      tags: [teams]
+      summary: Delete a team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /teams/{id}/members:
+    get:
+      operationId: listTeamMembers
+      tags: [teams]
+      summary: List team members
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+    post:
+      operationId: addTeamMember
+      tags: [teams]
+      summary: Add a member to a team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: integer
+      responses:
+        "201":
+          description: Added
+
+  /teams/{id}/members/{userId}:
+    delete:
+      operationId: removeTeamMember
+      tags: [teams]
+      summary: Remove a member from a team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [messages]
+      summary: List conversations for current user
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Conversation"
+    post:
+      operationId: createConversation
+      tags: [messages]
+      summary: Create a conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/job/{jobId}:
+    post:
+      operationId: getOrCreateJobChat
+      tags: [messages]
+      summary: Get or create job chat conversation
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: before
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+
+  /conversations/{convId}/messages/{msgId}:
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message
+      parameters:
+        - name: convId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: msgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /messages/unread-count:
+    get:
+      operationId: getMessageUnreadCount
+      tags: [messages]
+      summary: Get total unread message count
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /push-tokens:
+    post:
+      operationId: registerPushToken
+      tags: [messages]
+      summary: Register push notification token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [ios, android]
+      responses:
+        "200":
+          description: Token registered
 
 components:
   schemas:
@@ -2263,10 +2595,164 @@ components:
           type: string
         type:
           type: string
-          enum: [job_assigned, job_updated, job_completed, invoice_created]
         read:
           type: boolean
         jobId:
           type: ["integer", "null"]
+        referenceType:
+          type: ["string", "null"]
+        referenceId:
+          type: ["integer", "null"]
+        metadata:
+          nullable: true
         createdAt:
           type: string
+
+    Team:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        createdBy:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"
+
+    TeamInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        memberIds:
+          type: array
+          items:
+            type: integer
+
+    TeamMember:
+      type: object
+      required: [userId, name, role]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+
+    Conversation:
+      type: object
+      required: [id, type, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [direct, job_chat, team_chat]
+        name:
+          type: ["string", "null"]
+        jobId:
+          type: ["integer", "null"]
+        teamId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: integer
+              name:
+                type: string
+        lastMessage:
+          nullable: true
+        unreadCount:
+          type: integer
+
+    ConversationInput:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [direct, job_chat, team_chat]
+        name:
+          type: string
+        jobId:
+          type: integer
+        teamId:
+          type: integer
+        memberIds:
+          type: array
+          items:
+            type: integer
+
+    ChatMessage:
+      type: object
+      required: [id, conversationId, type, content, createdAt]
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        senderId:
+          type: ["integer", "null"]
+        senderName:
+          type: string
+        type:
+          type: string
+          enum: [text, image, document, location]
+        content:
+          type: string
+        fileName:
+          type: ["string", "null"]
+        fileMime:
+          type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+        readBy:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: integer
+              readAt:
+                type: string
+
+    MessageInput:
+      type: object
+      required: [content]
+      properties:
+        type:
+          type: string
+          enum: [text, image, document, location]
+        content:
+          type: string
+        fileName:
+          type: string
+        fileMime:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
