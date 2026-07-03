@@ -21,3 +21,4 @@ export * from "./conversation_members";
 export * from "./messages";
 export * from "./message_reads";
 export * from "./push_tokens";
+export * from "./announcements";

@@ -1703,6 +1703,8 @@ export const ListConversationsResponseItem = zod.object({
   "name": zod.string().nullish(),
   "jobId": zod.number().nullish(),
   "teamId": zod.number().nullish(),
+  "isLocked": zod.boolean().optional(),
+  "isArchived": zod.boolean().optional(),
   "createdAt": zod.string(),
   "members": zod.array(zod.object({
   "userId": zod.number().optional(),
@@ -1731,6 +1733,8 @@ export const CreateConversationResponse = zod.object({
   "name": zod.string().nullish(),
   "jobId": zod.number().nullish(),
   "teamId": zod.number().nullish(),
+  "isLocked": zod.boolean().optional(),
+  "isArchived": zod.boolean().optional(),
   "createdAt": zod.string(),
   "members": zod.array(zod.object({
   "userId": zod.number().optional(),
@@ -1754,6 +1758,8 @@ export const GetOrCreateJobChatResponse = zod.object({
   "name": zod.string().nullish(),
   "jobId": zod.number().nullish(),
   "teamId": zod.number().nullish(),
+  "isLocked": zod.boolean().optional(),
+  "isArchived": zod.boolean().optional(),
   "createdAt": zod.string(),
   "members": zod.array(zod.object({
   "userId": zod.number().optional(),
@@ -1783,15 +1789,24 @@ export const ListMessagesResponseItem = zod.object({
   "conversationId": zod.number(),
   "senderId": zod.number().nullish(),
   "senderName": zod.string().optional(),
-  "type": zod.enum(['text', 'image', 'document', 'location']),
+  "type": zod.enum(['text', 'image', 'document', 'location', 'voice', 'video']),
   "content": zod.string(),
   "fileName": zod.string().nullish(),
   "fileMime": zod.string().nullish(),
   "latitude": zod.number().nullish(),
   "longitude": zod.number().nullish(),
+  "replyToId": zod.number().nullish(),
+  "replyTo": zod.unknown().nullish(),
+  "pinnedAt": zod.string().nullish(),
+  "pinnedBy": zod.number().nullish(),
+  "editedAt": zod.string().nullish(),
+  "mentions": zod.array(zod.number()).optional(),
+  "voiceDuration": zod.number().nullish(),
+  "reactions": zod.record(zod.string(), zod.array(zod.number())).optional(),
   "createdAt": zod.string(),
   "readBy": zod.array(zod.object({
   "userId": zod.number().optional(),
+  "userName": zod.string().optional(),
   "readAt": zod.string().optional()
 })).optional()
 })
@@ -1806,12 +1821,15 @@ export const SendMessageParams = zod.object({
 })
 
 export const SendMessageBody = zod.object({
-  "type": zod.enum(['text', 'image', 'document', 'location']).optional(),
+  "type": zod.enum(['text', 'image', 'document', 'location', 'voice', 'video']).optional(),
   "content": zod.string(),
   "fileName": zod.string().optional(),
   "fileMime": zod.string().optional(),
   "latitude": zod.number().optional(),
-  "longitude": zod.number().optional()
+  "longitude": zod.number().optional(),
+  "replyToId": zod.number().optional(),
+  "mentions": zod.array(zod.number()).optional(),
+  "voiceDuration": zod.number().optional()
 })
 
 export const SendMessageResponse = zod.object({
@@ -1819,15 +1837,64 @@ export const SendMessageResponse = zod.object({
   "conversationId": zod.number(),
   "senderId": zod.number().nullish(),
   "senderName": zod.string().optional(),
-  "type": zod.enum(['text', 'image', 'document', 'location']),
+  "type": zod.enum(['text', 'image', 'document', 'location', 'voice', 'video']),
   "content": zod.string(),
   "fileName": zod.string().nullish(),
   "fileMime": zod.string().nullish(),
   "latitude": zod.number().nullish(),
   "longitude": zod.number().nullish(),
+  "replyToId": zod.number().nullish(),
+  "replyTo": zod.unknown().nullish(),
+  "pinnedAt": zod.string().nullish(),
+  "pinnedBy": zod.number().nullish(),
+  "editedAt": zod.string().nullish(),
+  "mentions": zod.array(zod.number()).optional(),
+  "voiceDuration": zod.number().nullish(),
+  "reactions": zod.record(zod.string(), zod.array(zod.number())).optional(),
   "createdAt": zod.string(),
   "readBy": zod.array(zod.object({
   "userId": zod.number().optional(),
+  "userName": zod.string().optional(),
+  "readAt": zod.string().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Edit a message (own within 10 min, admin anytime)
+ */
+export const EditMessageParams = zod.object({
+  "convId": zod.coerce.number(),
+  "msgId": zod.coerce.number()
+})
+
+export const EditMessageBody = zod.object({
+  "content": zod.string()
+})
+
+export const EditMessageResponse = zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "senderId": zod.number().nullish(),
+  "senderName": zod.string().optional(),
+  "type": zod.enum(['text', 'image', 'document', 'location', 'voice', 'video']),
+  "content": zod.string(),
+  "fileName": zod.string().nullish(),
+  "fileMime": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "replyToId": zod.number().nullish(),
+  "replyTo": zod.unknown().nullish(),
+  "pinnedAt": zod.string().nullish(),
+  "pinnedBy": zod.number().nullish(),
+  "editedAt": zod.string().nullish(),
+  "mentions": zod.array(zod.number()).optional(),
+  "voiceDuration": zod.number().nullish(),
+  "reactions": zod.record(zod.string(), zod.array(zod.number())).optional(),
+  "createdAt": zod.string(),
+  "readBy": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "userName": zod.string().optional(),
   "readAt": zod.string().optional()
 })).optional()
 })
@@ -1842,6 +1909,236 @@ export const DeleteMessageParams = zod.object({
 })
 
 export const DeleteMessageResponse = zod.void()
+
+
+/**
+ * @summary Toggle an emoji reaction on a message
+ */
+export const ToggleReactionParams = zod.object({
+  "convId": zod.coerce.number(),
+  "msgId": zod.coerce.number()
+})
+
+export const ToggleReactionBody = zod.object({
+  "emoji": zod.string()
+})
+
+export const ToggleReactionResponse = zod.record(zod.string(), zod.array(zod.number()))
+
+
+/**
+ * @summary Pin or unpin a message (admin only)
+ */
+export const PinMessageParams = zod.object({
+  "convId": zod.coerce.number(),
+  "msgId": zod.coerce.number()
+})
+
+export const PinMessageResponse = zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "senderId": zod.number().nullish(),
+  "senderName": zod.string().optional(),
+  "type": zod.enum(['text', 'image', 'document', 'location', 'voice', 'video']),
+  "content": zod.string(),
+  "fileName": zod.string().nullish(),
+  "fileMime": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "replyToId": zod.number().nullish(),
+  "replyTo": zod.unknown().nullish(),
+  "pinnedAt": zod.string().nullish(),
+  "pinnedBy": zod.number().nullish(),
+  "editedAt": zod.string().nullish(),
+  "mentions": zod.array(zod.number()).optional(),
+  "voiceDuration": zod.number().nullish(),
+  "reactions": zod.record(zod.string(), zod.array(zod.number())).optional(),
+  "createdAt": zod.string(),
+  "readBy": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "userName": zod.string().optional(),
+  "readAt": zod.string().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Get pinned messages in a conversation
+ */
+export const GetPinnedMessagesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPinnedMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "senderId": zod.number().nullish(),
+  "senderName": zod.string().optional(),
+  "type": zod.enum(['text', 'image', 'document', 'location', 'voice', 'video']),
+  "content": zod.string(),
+  "fileName": zod.string().nullish(),
+  "fileMime": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "replyToId": zod.number().nullish(),
+  "replyTo": zod.unknown().nullish(),
+  "pinnedAt": zod.string().nullish(),
+  "pinnedBy": zod.number().nullish(),
+  "editedAt": zod.string().nullish(),
+  "mentions": zod.array(zod.number()).optional(),
+  "voiceDuration": zod.number().nullish(),
+  "reactions": zod.record(zod.string(), zod.array(zod.number())).optional(),
+  "createdAt": zod.string(),
+  "readBy": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "userName": zod.string().optional(),
+  "readAt": zod.string().optional()
+})).optional()
+})
+export const GetPinnedMessagesResponse = zod.array(GetPinnedMessagesResponseItem)
+
+
+/**
+ * @summary Lock or unlock a conversation (admin only)
+ */
+export const LockConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const LockConversationResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['direct', 'job_chat', 'team_chat']),
+  "name": zod.string().nullish(),
+  "jobId": zod.number().nullish(),
+  "teamId": zod.number().nullish(),
+  "isLocked": zod.boolean().optional(),
+  "isArchived": zod.boolean().optional(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "name": zod.string().optional()
+})).optional(),
+  "lastMessage": zod.unknown().nullish(),
+  "unreadCount": zod.number().optional()
+})
+
+
+/**
+ * @summary Archive or unarchive a conversation (admin only)
+ */
+export const ArchiveConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ArchiveConversationResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['direct', 'job_chat', 'team_chat']),
+  "name": zod.string().nullish(),
+  "jobId": zod.number().nullish(),
+  "teamId": zod.number().nullish(),
+  "isLocked": zod.boolean().optional(),
+  "isArchived": zod.boolean().optional(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "userId": zod.number().optional(),
+  "name": zod.string().optional()
+})).optional(),
+  "lastMessage": zod.unknown().nullish(),
+  "unreadCount": zod.number().optional()
+})
+
+
+/**
+ * @summary Search messages
+ */
+export const SearchMessagesQueryParams = zod.object({
+  "keyword": zod.coerce.string().optional(),
+  "senderId": zod.coerce.number().optional(),
+  "jobId": zod.coerce.number().optional(),
+  "teamId": zod.coerce.number().optional(),
+  "fileName": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional(),
+  "type": zod.enum(['text', 'image', 'document', 'voice', 'video', 'location']).optional()
+})
+
+export const SearchMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "conversationName": zod.string().optional(),
+  "conversationType": zod.string().optional(),
+  "senderId": zod.number().nullish(),
+  "senderName": zod.string().optional(),
+  "type": zod.string(),
+  "content": zod.string(),
+  "fileName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const SearchMessagesResponse = zod.array(SearchMessagesResponseItem)
+
+
+/**
+ * @summary List announcements
+ */
+export const ListAnnouncementsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['general', 'toolbox_talk', 'safety_notice', 'site_closed', 'weather_warning', 'new_procedure', 'emergency']),
+  "content": zod.string(),
+  "priority": zod.enum(['normal', 'high', 'emergency']),
+  "createdBy": zod.number().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "expiresAt": zod.string().nullish()
+})
+export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
+
+
+/**
+ * @summary Create an announcement (admin only)
+ */
+export const CreateAnnouncementBody = zod.object({
+  "title": zod.string(),
+  "category": zod.enum(['general', 'toolbox_talk', 'safety_notice', 'site_closed', 'weather_warning', 'new_procedure', 'emergency']).optional(),
+  "content": zod.string(),
+  "priority": zod.enum(['normal', 'high', 'emergency']).optional(),
+  "expiresAt": zod.string().optional()
+})
+
+export const CreateAnnouncementResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['general', 'toolbox_talk', 'safety_notice', 'site_closed', 'weather_warning', 'new_procedure', 'emergency']),
+  "content": zod.string(),
+  "priority": zod.enum(['normal', 'high', 'emergency']),
+  "createdBy": zod.number().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "expiresAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary Delete an announcement (admin only)
+ */
+export const DeleteAnnouncementParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAnnouncementResponse = zod.void()
+
+
+/**
+ * @summary Send emergency broadcast to all users (admin only)
+ */
+export const SendEmergencyBroadcastBody = zod.object({
+  "title": zod.string(),
+  "message": zod.string()
+})
+
+export const SendEmergencyBroadcastResponse = zod.object({
+  "sent": zod.number().optional()
+})
 
 
 /**

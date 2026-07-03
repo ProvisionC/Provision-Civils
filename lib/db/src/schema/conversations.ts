@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -12,6 +12,8 @@ export const conversationsTable = pgTable("conversations", {
   jobId: integer("job_id").references(() => jobsTable.id, { onDelete: "cascade" }),
   teamId: integer("team_id").references(() => teamsTable.id, { onDelete: "cascade" }),
   createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  isLocked: boolean("is_locked").notNull().default(false),
+  isArchived: boolean("is_archived").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

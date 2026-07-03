@@ -1130,6 +1130,8 @@ export interface Conversation {
   jobId?: number | null;
   /** @nullable */
   teamId?: number | null;
+  isLocked?: boolean;
+  isArchived?: boolean;
   createdAt: string;
   members?: ConversationMembersItem[];
   lastMessage?: unknown | null;
@@ -1161,10 +1163,15 @@ export const ChatMessageType = {
   image: 'image',
   document: 'document',
   location: 'location',
+  voice: 'voice',
+  video: 'video',
 } as const;
+
+export type ChatMessageReactions = {[key: string]: number[]};
 
 export type ChatMessageReadByItem = {
   userId?: number;
+  userName?: string;
   readAt?: string;
 };
 
@@ -1184,6 +1191,19 @@ export interface ChatMessage {
   latitude?: number | null;
   /** @nullable */
   longitude?: number | null;
+  /** @nullable */
+  replyToId?: number | null;
+  replyTo?: unknown | null;
+  /** @nullable */
+  pinnedAt?: string | null;
+  /** @nullable */
+  pinnedBy?: number | null;
+  /** @nullable */
+  editedAt?: string | null;
+  mentions?: number[];
+  /** @nullable */
+  voiceDuration?: number | null;
+  reactions?: ChatMessageReactions;
   createdAt: string;
   readBy?: ChatMessageReadByItem[];
 }
@@ -1196,6 +1216,8 @@ export const MessageInputType = {
   image: 'image',
   document: 'document',
   location: 'location',
+  voice: 'voice',
+  video: 'video',
 } as const;
 
 export interface MessageInput {
@@ -1205,6 +1227,91 @@ export interface MessageInput {
   fileMime?: string;
   latitude?: number;
   longitude?: number;
+  replyToId?: number;
+  mentions?: number[];
+  voiceDuration?: number;
+}
+
+export type AnnouncementCategory = typeof AnnouncementCategory[keyof typeof AnnouncementCategory];
+
+
+export const AnnouncementCategory = {
+  general: 'general',
+  toolbox_talk: 'toolbox_talk',
+  safety_notice: 'safety_notice',
+  site_closed: 'site_closed',
+  weather_warning: 'weather_warning',
+  new_procedure: 'new_procedure',
+  emergency: 'emergency',
+} as const;
+
+export type AnnouncementPriority = typeof AnnouncementPriority[keyof typeof AnnouncementPriority];
+
+
+export const AnnouncementPriority = {
+  normal: 'normal',
+  high: 'high',
+  emergency: 'emergency',
+} as const;
+
+export interface Announcement {
+  id: number;
+  title: string;
+  category: AnnouncementCategory;
+  content: string;
+  priority: AnnouncementPriority;
+  /** @nullable */
+  createdBy?: number | null;
+  /** @nullable */
+  createdByName?: string | null;
+  createdAt: string;
+  /** @nullable */
+  expiresAt?: string | null;
+}
+
+export type AnnouncementInputCategory = typeof AnnouncementInputCategory[keyof typeof AnnouncementInputCategory];
+
+
+export const AnnouncementInputCategory = {
+  general: 'general',
+  toolbox_talk: 'toolbox_talk',
+  safety_notice: 'safety_notice',
+  site_closed: 'site_closed',
+  weather_warning: 'weather_warning',
+  new_procedure: 'new_procedure',
+  emergency: 'emergency',
+} as const;
+
+export type AnnouncementInputPriority = typeof AnnouncementInputPriority[keyof typeof AnnouncementInputPriority];
+
+
+export const AnnouncementInputPriority = {
+  normal: 'normal',
+  high: 'high',
+  emergency: 'emergency',
+} as const;
+
+export interface AnnouncementInput {
+  title: string;
+  category?: AnnouncementInputCategory;
+  content: string;
+  priority?: AnnouncementInputPriority;
+  expiresAt?: string;
+}
+
+export interface MessageSearchResult {
+  id: number;
+  conversationId: number;
+  conversationName?: string;
+  conversationType?: string;
+  /** @nullable */
+  senderId?: number | null;
+  senderName?: string;
+  type: string;
+  content: string;
+  /** @nullable */
+  fileName?: string | null;
+  createdAt: string;
 }
 
 export type ListClientsParams = {
@@ -1290,6 +1397,48 @@ export type AddTeamMemberBody = {
 export type ListMessagesParams = {
 limit?: number;
 before?: number;
+};
+
+export type EditMessageBody = {
+  content: string;
+};
+
+export type ToggleReactionBody = {
+  emoji: string;
+};
+
+export type ToggleReaction200 = {[key: string]: number[]};
+
+export type SearchMessagesParams = {
+keyword?: string;
+senderId?: number;
+jobId?: number;
+teamId?: number;
+fileName?: string;
+dateFrom?: string;
+dateTo?: string;
+type?: SearchMessagesType;
+};
+
+export type SearchMessagesType = typeof SearchMessagesType[keyof typeof SearchMessagesType];
+
+
+export const SearchMessagesType = {
+  text: 'text',
+  image: 'image',
+  document: 'document',
+  voice: 'voice',
+  video: 'video',
+  location: 'location',
+} as const;
+
+export type SendEmergencyBroadcastBody = {
+  title: string;
+  message: string;
+};
+
+export type SendEmergencyBroadcast200 = {
+  sent?: number;
 };
 
 export type GetMessageUnreadCount200 = {

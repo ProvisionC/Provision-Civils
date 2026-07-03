@@ -1384,6 +1384,35 @@ paths:
                 $ref: "#/components/schemas/ChatMessage"
 
   /conversations/{convId}/messages/{msgId}:
+    put:
+      operationId: editMessage
+      tags: [messages]
+      summary: Edit a message (own within 10 min, admin anytime)
+      parameters:
+        - name: convId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: msgId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
     delete:
       operationId: deleteMessage
       tags: [messages]
@@ -1402,6 +1431,231 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /conversations/{convId}/messages/{msgId}/react:
+    post:
+      operationId: toggleReaction
+      tags: [messages]
+      summary: Toggle an emoji reaction on a message
+      parameters:
+        - name: convId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: msgId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emoji]
+              properties:
+                emoji: { type: string }
+      responses:
+        "200":
+          description: Reactions updated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: integer }
+
+  /conversations/{convId}/messages/{msgId}/pin:
+    post:
+      operationId: pinMessage
+      tags: [messages]
+      summary: Pin or unpin a message (admin only)
+      parameters:
+        - name: convId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: msgId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Pin toggled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+
+  /conversations/{id}/pinned:
+    get:
+      operationId: getPinnedMessages
+      tags: [messages]
+      summary: Get pinned messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Pinned messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+
+  /conversations/{id}/lock:
+    put:
+      operationId: lockConversation
+      tags: [messages]
+      summary: Lock or unlock a conversation (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Lock toggled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}/archive:
+    put:
+      operationId: archiveConversation
+      tags: [messages]
+      summary: Archive or unarchive a conversation (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Archive toggled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /messages/search:
+    get:
+      operationId: searchMessages
+      tags: [messages]
+      summary: Search messages
+      parameters:
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: senderId
+          in: query
+          schema: { type: integer }
+        - name: jobId
+          in: query
+          schema: { type: integer }
+        - name: teamId
+          in: query
+          schema: { type: integer }
+        - name: fileName
+          in: query
+          schema: { type: string }
+        - name: dateFrom
+          in: query
+          schema: { type: string, format: date }
+        - name: dateTo
+          in: query
+          schema: { type: string, format: date }
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [text, image, document, voice, video, location]
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MessageSearchResult"
+
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [messages]
+      summary: List announcements
+      responses:
+        "200":
+          description: Announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+    post:
+      operationId: createAnnouncement
+      tags: [messages]
+      summary: Create an announcement (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+
+  /announcements/{id}:
+    delete:
+      operationId: deleteAnnouncement
+      tags: [messages]
+      summary: Delete an announcement (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  /emergency-broadcast:
+    post:
+      operationId: sendEmergencyBroadcast
+      tags: [messages]
+      summary: Send emergency broadcast to all users (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, message]
+              properties:
+                title: { type: string }
+                message: { type: string }
+      responses:
+        "200":
+          description: Broadcast sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent: { type: integer }
 
   /messages/unread-count:
     get:
@@ -2668,6 +2922,10 @@ components:
           type: ["integer", "null"]
         teamId:
           type: ["integer", "null"]
+        isLocked:
+          type: boolean
+        isArchived:
+          type: boolean
         createdAt:
           type: string
         members:
@@ -2716,7 +2974,7 @@ components:
           type: string
         type:
           type: string
-          enum: [text, image, document, location]
+          enum: [text, image, document, location, voice, video]
         content:
           type: string
         fileName:
@@ -2727,6 +2985,28 @@ components:
           type: ["number", "null"]
         longitude:
           type: ["number", "null"]
+        replyToId:
+          type: ["integer", "null"]
+        replyTo:
+          nullable: true
+        pinnedAt:
+          type: ["string", "null"]
+        pinnedBy:
+          type: ["integer", "null"]
+        editedAt:
+          type: ["string", "null"]
+        mentions:
+          type: array
+          items:
+            type: integer
+        voiceDuration:
+          type: ["integer", "null"]
+        reactions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: integer
         createdAt:
           type: string
         readBy:
@@ -2736,6 +3016,8 @@ components:
             properties:
               userId:
                 type: integer
+              userName:
+                type: string
               readAt:
                 type: string
 
@@ -2745,7 +3027,7 @@ components:
       properties:
         type:
           type: string
-          enum: [text, image, document, location]
+          enum: [text, image, document, location, voice, video]
         content:
           type: string
         fileName:
@@ -2756,3 +3038,78 @@ components:
           type: number
         longitude:
           type: number
+        replyToId:
+          type: integer
+        mentions:
+          type: array
+          items:
+            type: integer
+        voiceDuration:
+          type: integer
+
+    Announcement:
+      type: object
+      required: [id, title, category, content, priority, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+          enum: [general, toolbox_talk, safety_notice, site_closed, weather_warning, new_procedure, emergency]
+        content:
+          type: string
+        priority:
+          type: string
+          enum: [normal, high, emergency]
+        createdBy:
+          type: ["integer", "null"]
+        createdByName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        expiresAt:
+          type: ["string", "null"]
+
+    AnnouncementInput:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+          enum: [general, toolbox_talk, safety_notice, site_closed, weather_warning, new_procedure, emergency]
+        content:
+          type: string
+        priority:
+          type: string
+          enum: [normal, high, emergency]
+        expiresAt:
+          type: string
+
+    MessageSearchResult:
+      type: object
+      required: [id, conversationId, type, content, createdAt]
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        conversationName:
+          type: string
+        conversationType:
+          type: string
+        senderId:
+          type: ["integer", "null"]
+        senderName:
+          type: string
+        type:
+          type: string
+        content:
+          type: string
+        fileName:
+          type: ["string", "null"]
+        createdAt:
+          type: string

@@ -17,6 +17,7 @@ import costingRouter from "./costing.js";
 import versionRouter from "./version.js";
 import teamsRouter from "./teams.js";
 import messagesRouter from "./messages.js";
+import announcementsRouter from "./announcements.js";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(payrollRouter);
 router.use(costingRouter);
 router.use(teamsRouter);
 router.use(messagesRouter);
+router.use(announcementsRouter);
 
 export default router;
