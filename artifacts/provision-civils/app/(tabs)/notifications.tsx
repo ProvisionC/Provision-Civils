@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from "react";
 import {
   View, Text, StyleSheet, SectionList, TouchableOpacity,
-  Platform, RefreshControl, Animated,
+  Platform, RefreshControl, Animated, Alert,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -125,7 +126,11 @@ export default function NotificationsScreen() {
   });
   const markAll = useMarkAllNotificationsRead({
     mutation: {
-      onSuccess: () => qc.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
+      onSuccess: () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        qc.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      },
+      onError: () => Alert.alert("Error", "Failed to mark all as read"),
     },
   });
 

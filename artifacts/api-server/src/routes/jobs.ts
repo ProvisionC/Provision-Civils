@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, jobsTable, usersTable, jobWorkersTable, jobMaterialsTable, jobEquipmentTable, jobPhotosTable, gpsLogsTable, dailyReportsTable, expensesTable, invoicesTable, notificationsTable } from "@workspace/db";
-import { eq, and, ilike, inArray, sql } from "drizzle-orm";
+import { eq, and, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 import { ZipArchive } from "archiver";
 
@@ -73,8 +73,8 @@ function formatJob(job: typeof jobsTable.$inferSelect) {
 async function generateJobNumber(): Promise<string> {
   const now = new Date();
   const year = now.getFullYear();
-  const [result] = await db.select({ count: sql<number>`count(*)` }).from(jobsTable);
-  const seq = (Number(result?.count ?? 0) + 1).toString().padStart(4, "0");
+  const [result] = await db.select({ maxId: sql<number>`COALESCE(MAX(id), 0)` }).from(jobsTable);
+  const seq = (Number(result?.maxId ?? 0) + 1).toString().padStart(4, "0");
   return `JOB-${year}-${seq}`;
 }
 
@@ -93,10 +93,10 @@ async function notifyWorkers(workerIds: number[], message: string, type: string,
 router.get("/jobs", requireAuth, async (req, res): Promise<void> => {
   const { status, search } = req.query as { status?: string; search?: string };
 
-  let query = db.select().from(jobsTable).orderBy(jobsTable.createdAt);
   const jobs = await db.select().from(jobsTable)
     .where(
       and(
+        isNull(jobsTable.deletedAt),
         status ? eq(jobsTable.status, status as typeof jobsTable.$inferSelect["status"]) : undefined,
         search ? ilike(jobsTable.clientName, `%${search}%`) : undefined,
       )

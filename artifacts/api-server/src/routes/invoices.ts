@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, invoicesTable, jobsTable, notificationsTable, jobWorkersTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, isNull } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 import { sql } from "drizzle-orm";
 
@@ -52,11 +52,13 @@ function formatInvoice(inv: typeof invoicesTable.$inferSelect, job?: typeof jobs
 }
 
 router.get("/invoices", requireAuth, async (_req, res): Promise<void> => {
-  const invoices = await db.select().from(invoicesTable).orderBy(invoicesTable.createdAt);
-  const jobIds = invoices.map(i => i.jobId);
-  const jobs = jobIds.length > 0 ? await db.select().from(jobsTable).where(inArray(jobsTable.id, jobIds)) : [];
-  const jobMap = new Map(jobs.map(j => [j.id, j]));
-  res.json(invoices.map(inv => formatInvoice(inv, jobMap.get(inv.jobId))));
+  const rows = await db
+    .select({ inv: invoicesTable, job: jobsTable })
+    .from(invoicesTable)
+    .leftJoin(jobsTable, eq(invoicesTable.jobId, jobsTable.id))
+    .where(isNull(invoicesTable.deletedAt))
+    .orderBy(invoicesTable.createdAt);
+  res.json(rows.map(r => formatInvoice(r.inv, r.job ?? undefined)));
 });
 
 router.post("/invoices", requireAuth, async (req, res): Promise<void> => {

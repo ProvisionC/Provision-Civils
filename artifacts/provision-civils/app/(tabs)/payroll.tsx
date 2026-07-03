@@ -257,8 +257,10 @@ export default function PayrollScreen() {
                       <Text style={[s.payStatValue, { color: colors.foreground }]}>{row.totalHours.toFixed(1)} h</Text>
                     </View>
                     <View style={s.payStat}>
-                      <Text style={[s.payStatLabel, { color: colors.mutedForeground }]}>Rate</Text>
-                      <Text style={[s.payStatValue, { color: colors.foreground }]}>R25/hr</Text>
+                      <Text style={[s.payStatLabel, { color: colors.mutedForeground }]}>Eff. Rate</Text>
+                      <Text style={[s.payStatValue, { color: colors.foreground }]}>
+                        {row.totalHours > 0 ? `R${(row.hourlyAmount / row.totalHours).toFixed(2)}/hr` : "—"}
+                      </Text>
                     </View>
                     <View style={s.payStat}>
                       <Text style={[s.payStatLabel, { color: colors.mutedForeground }]}>Hourly Pay</Text>

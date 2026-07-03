@@ -75,7 +75,11 @@ export default function ExpensesScreen() {
 
   const deleteExpense = useDeleteJobExpense({
     mutation: {
-      onSuccess: () => qc.invalidateQueries({ queryKey: getListJobExpensesQueryKey(jobId) }),
+      onSuccess: () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        qc.invalidateQueries({ queryKey: getListJobExpensesQueryKey(jobId) });
+      },
+      onError: () => Alert.alert("Error", "Failed to delete expense"),
     },
   });
 

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable, employeeBankingTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
@@ -38,7 +38,9 @@ function formatUser(u: typeof usersTable.$inferSelect) {
 }
 
 router.get("/employees", requireAuth, async (_req, res): Promise<void> => {
-  const users = await db.select().from(usersTable).orderBy(usersTable.name);
+  const users = await db.select().from(usersTable)
+    .where(isNull(usersTable.deletedAt))
+    .orderBy(usersTable.name);
   res.json(users.map(formatUser));
 });
 

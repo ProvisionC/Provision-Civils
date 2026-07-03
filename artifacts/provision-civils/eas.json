@@ -21,7 +21,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "flutter-asset-manager-marco123nagelna.replit.app"
+        "EXPO_PUBLIC_DOMAIN": "158ce7b7-e673-41b0-a506-83549a90038d-00-14bbcydpv1bnz.worf.replit.dev"
       }
     },
     "production": {
@@ -29,7 +29,16 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "flutter-asset-manager-marco123nagelna.replit.app"
+        "EXPO_PUBLIC_DOMAIN": "158ce7b7-e673-41b0-a506-83549a90038d-00-14bbcydpv1bnz.worf.replit.dev"
+      }
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "158ce7b7-e673-41b0-a506-83549a90038d-00-14bbcydpv1bnz.worf.replit.dev"
       }
     }
   }

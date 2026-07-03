@@ -42,7 +42,10 @@ export default function JobLabourScreen() {
 
   const deleteEntry = useDeleteLabourEntry({
     mutation: {
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["labour-entries", "job", jobId] }),
+      onSuccess: () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        qc.invalidateQueries({ queryKey: ["labour-entries", "job", jobId] });
+      },
       onError: () => Alert.alert("Error", "Failed to delete entry"),
     },
   });

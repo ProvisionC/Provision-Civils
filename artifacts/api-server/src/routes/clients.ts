@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, clientsTable } from "@workspace/db";
-import { eq, ilike } from "drizzle-orm";
+import { eq, and, ilike, isNull } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
@@ -27,9 +27,12 @@ function formatClient(c: typeof clientsTable.$inferSelect) {
 
 router.get("/clients", requireAuth, async (req, res): Promise<void> => {
   const { search } = req.query as { search?: string };
-  const rows = search
-    ? await db.select().from(clientsTable).where(ilike(clientsTable.companyName, `%${search}%`)).orderBy(clientsTable.companyName)
-    : await db.select().from(clientsTable).orderBy(clientsTable.companyName);
+  const rows = await db.select().from(clientsTable)
+    .where(and(
+      isNull(clientsTable.deletedAt),
+      search ? ilike(clientsTable.companyName, `%${search}%`) : undefined,
+    ))
+    .orderBy(clientsTable.companyName);
   res.json(rows.map(formatClient));
 });
 
