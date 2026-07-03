@@ -229,7 +229,7 @@ export default function ChatScreen() {
   const flatRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const botPad = Platform.OS === "ios" ? insets.bottom : 0;
+  const botPad = insets.bottom;
 
   const { data: convos } = useListConversations({ query: { queryKey: getListConversationsQueryKey(), staleTime: 60000 } });
   const convo = (convos as any[] | undefined)?.find((c: any) => c.id === convId);
@@ -430,8 +430,8 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={0}
+      behavior="padding"
+      keyboardVerticalOffset={topPad}
     >
       {/* HEADER */}
       <View style={[styles.chatHeader, { paddingTop: topPad + 8, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
