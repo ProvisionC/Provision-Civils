@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
   Alert, ActivityIndicator, Dimensions, Modal, Platform,
@@ -13,8 +13,9 @@ import { isAvailableAsync as isSharingAvailable, shareAsync } from "expo-sharing
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { usePhotoUpload } from "@/context/PhotoUploadContext";
 import {
-  useListJobPhotos, useAddJobPhoto, useDeleteJobPhoto,
+  useListJobPhotos, useDeleteJobPhoto,
   getListJobPhotosQueryKey,
   getBaseUrl,
 } from "@workspace/api-client-react";
@@ -50,18 +51,26 @@ export default function JobPhotosScreen() {
   const { user, token } = useAuth();
   const isAdmin = user?.role === "admin";
 
+  const { enqueue, getJobStats, retryFailed, clearCompleted } = usePhotoUpload();
+
   const [openFolder, setOpenFolder] = useState<PhotoCategory | null>(null);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [viewerPhoto, setViewerPhoto] = useState<PhotoItem | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0, failed: 0 });
-  const uploadCategoryRef = useRef<PhotoCategory>("other");
-
   const { data: allPhotos = [], isLoading } = useListJobPhotos(jobId, undefined, {
     query: { queryKey: getListJobPhotosQueryKey(jobId) },
   });
+
+  const stats = getJobStats(jobId);
+
+  // Auto-clear done items 4 s after all uploads finish
+  useEffect(() => {
+    if (!stats.active && stats.done > 0) {
+      const t = setTimeout(() => clearCompleted(jobId), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [stats.active, stats.done, jobId, clearCompleted]);
 
   const photosByCategory = useMemo(() => {
     const map: Record<PhotoCategory, PhotoItem[]> = {
@@ -77,14 +86,6 @@ export default function JobPhotosScreen() {
 
   const folderPhotos = openFolder ? photosByCategory[openFolder] : [];
 
-  const addPhoto = useAddJobPhoto({
-    mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListJobPhotosQueryKey(jobId) });
-      },
-    },
-  });
-
   const deletePhoto = useDeleteJobPhoto({
     mutation: {
       onSuccess: () => {
@@ -94,13 +95,9 @@ export default function JobPhotosScreen() {
     },
   });
 
-  const startCategoryPicker = useCallback(() => {
-    setCategoryPickerOpen(true);
-  }, []);
-
+  // ── Picking ───────────────────────────────────────────────────────────────
   const pickFromGallery = useCallback(async (category: PhotoCategory) => {
     setCategoryPickerOpen(false);
-    uploadCategoryRef.current = category;
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
@@ -110,84 +107,40 @@ export default function JobPhotosScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        quality: 0.85,
-        base64: true,
+        // No quality or base64 here — picker returns instantly with local URIs.
+        // Compression is handled per-photo in the upload queue (expo-image-manipulator).
         exif: false,
       });
       if (result.canceled || result.assets.length === 0) return;
-      await uploadAssets(result.assets, category);
+
+      enqueue(result.assets.map(a => ({ localUri: a.uri, jobId, category })));
+      if (openFolder !== category) setOpenFolder(category);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
       Alert.alert("Error", "Could not open gallery.");
     }
-  }, []);
+  }, [enqueue, jobId, openFolder]);
 
   const takePhoto = useCallback(async (category: PhotoCategory) => {
     setCategoryPickerOpen(false);
-    uploadCategoryRef.current = category;
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Required", "Allow camera access to take photos.");
         return;
       }
-      const result = await ImagePicker.launchCameraAsync({
-        quality: 0.85,
-        base64: true,
-        exif: false,
-      });
+      const result = await ImagePicker.launchCameraAsync({ exif: false });
       if (result.canceled || result.assets.length === 0) return;
-      await uploadAssets(result.assets, category);
+
+      enqueue([{ localUri: result.assets[0].uri, jobId, category }]);
+      if (openFolder !== category) setOpenFolder(category);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
       Alert.alert("Error", "Could not open camera.");
     }
-  }, []);
+  }, [enqueue, jobId, openFolder]);
 
-  const uploadAssets = useCallback(async (
-    assets: ImagePicker.ImagePickerAsset[],
-    category: PhotoCategory,
-  ) => {
-    setUploading(true);
-    setUploadProgress({ done: 0, total: assets.length, failed: 0 });
-    if (openFolder !== category) setOpenFolder(category);
-
-    let failed = 0;
-    for (let i = 0; i < assets.length; i++) {
-      const asset = assets[i];
-      if (!asset.base64) {
-        failed++;
-        setUploadProgress({ done: i + 1, total: assets.length, failed });
-        continue;
-      }
-      const mime = asset.mimeType ?? "image/jpeg";
-      const uri = `data:${mime};base64,${asset.base64}`;
-      await new Promise<void>(resolve => {
-        addPhoto.mutate(
-          { id: jobId, data: { uri, category } },
-          {
-            onSettled: (_data, err) => {
-              if (err) failed++;
-              setUploadProgress(prev => ({ ...prev, done: i + 1, failed }));
-              resolve();
-            },
-          },
-        );
-      });
-    }
-
-    setUploading(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    const succeeded = assets.length - failed;
-    if (failed === 0) {
-      Alert.alert("Upload Complete", `${succeeded} photo${succeeded !== 1 ? "s" : ""} uploaded successfully.`);
-    } else {
-      Alert.alert(
-        "Upload Finished",
-        `${succeeded} uploaded, ${failed} failed. You can try again for the failed photos.`,
-      );
-    }
-  }, [jobId, addPhoto, openFolder]);
-
+  // ── Download helpers ──────────────────────────────────────────────────────
   const downloadZip = useCallback(async (category: PhotoCategory | null) => {
     if (isDownloading) return;
     const totalCount = category
@@ -269,16 +222,75 @@ export default function JobPhotosScreen() {
     ]);
   }, [jobId, deletePhoto]);
 
-  const openFolder$ = openFolder;
-  const currentCat = CATEGORIES.find(c => c.key === openFolder$);
+  const startCategoryPicker = useCallback(() => setCategoryPickerOpen(true), []);
+  const currentCat = CATEGORIES.find(c => c.key === openFolder);
 
+  // ── Progress bar helpers ──────────────────────────────────────────────────
+  const progressTotal = stats.total;
+  const progressDone  = stats.done + stats.failed;
+  const progressPct   = progressTotal > 0 ? progressDone / progressTotal : 0;
+  const isUploading   = stats.active;
+  const hasCompleted  = !stats.active && stats.done > 0 && stats.total > 0;
+  const hasFailed     = stats.failed > 0;
+
+  const UploadProgressBanner = () => {
+    if (!isUploading && !hasCompleted && !hasFailed) return null;
+    return (
+      <View style={[styles.progressWrap, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        {/* Status row */}
+        <View style={styles.progressRow}>
+          {isUploading ? (
+            <>
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.progressLabel, { color: colors.foreground }]}>
+                Uploading {stats.done + stats.uploading} of {stats.total} photos
+              </Text>
+            </>
+          ) : hasCompleted ? (
+            <>
+              <Feather name="check-circle" size={16} color="#43A047" style={{ marginRight: 6 }} />
+              <Text style={[styles.progressLabel, { color: "#43A047" }]}>
+                {stats.done} photo{stats.done !== 1 ? "s" : ""} uploaded
+              </Text>
+            </>
+          ) : null}
+
+          {hasFailed && (
+            <TouchableOpacity
+              style={[styles.retryBtn, { backgroundColor: "#EF444420", borderColor: "#EF4444" }]}
+              onPress={() => { retryFailed(jobId); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+            >
+              <Feather name="refresh-cw" size={12} color="#EF4444" />
+              <Text style={styles.retryBtnText}>Retry {stats.failed} Failed</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Progress bar */}
+        {(isUploading || hasCompleted) && (
+          <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor: hasFailed ? "#FB8C00" : colors.primary,
+                  width: `${Math.round(progressPct * 100)}%`,
+                },
+              ]}
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
 
       {/* ──────────── FOLDER LIST VIEW ──────────── */}
       {openFolder === null && (
         <>
-          {/* Toolbar */}
           <View style={[styles.toolbar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.screenTitle, { color: colors.foreground }]}>Photo Albums</Text>
@@ -310,17 +322,8 @@ export default function JobPhotosScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Upload progress banner */}
-          {uploading && (
-            <View style={[styles.progressBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.progressText, { color: colors.primary }]}>
-                Uploading {uploadProgress.done} of {uploadProgress.total} photos…
-              </Text>
-            </View>
-          )}
+          <UploadProgressBanner />
 
-          {/* Folder grid */}
           {isLoading ? (
             <View style={styles.center}>
               <ActivityIndicator size="large" color={colors.primary} />
@@ -335,6 +338,8 @@ export default function JobPhotosScreen() {
               renderItem={({ item: cat }) => {
                 const count = photosByCategory[cat.key].length;
                 const thumb = photosByCategory[cat.key][0];
+                const catStats = getJobStats(jobId);
+                const catUploading = (isUploading && openFolder === null);
                 return (
                   <TouchableOpacity
                     style={[styles.folderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -368,9 +373,12 @@ export default function JobPhotosScreen() {
       {/* ──────────── FOLDER DETAIL VIEW ──────────── */}
       {openFolder !== null && (
         <>
-          {/* Folder header */}
           <View style={[styles.folderHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => setOpenFolder(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => setOpenFolder(null)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Feather name="arrow-left" size={22} color={colors.foreground} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
@@ -404,33 +412,32 @@ export default function JobPhotosScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Upload progress banner */}
-          {uploading && (
-            <View style={[styles.progressBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.progressText, { color: colors.primary }]}>
-                Uploading {uploadProgress.done} of {uploadProgress.total} photos…
-              </Text>
-            </View>
-          )}
+          <UploadProgressBanner />
 
-          {/* Photo grid */}
           {folderPhotos.length === 0 ? (
             <View style={styles.center}>
               <Text style={styles.emptyEmoji}>📁</Text>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 No {currentCat?.label} Photos Yet
               </Text>
-              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                Tap + to upload photos into this folder
-              </Text>
-              <TouchableOpacity
-                style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-                onPress={startCategoryPicker}
-              >
-                <Feather name="upload" size={16} color="#FFF" />
-                <Text style={styles.emptyBtnText}>Upload Photos</Text>
-              </TouchableOpacity>
+              {isUploading ? (
+                <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                  Photos are uploading — they'll appear here when done.
+                </Text>
+              ) : (
+                <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                  Tap + to upload photos into this folder
+                </Text>
+              )}
+              {!isUploading && (
+                <TouchableOpacity
+                  style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+                  onPress={startCategoryPicker}
+                >
+                  <Feather name="upload" size={16} color="#FFF" />
+                  <Text style={styles.emptyBtnText}>Upload Photos</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <FlatList
@@ -460,12 +467,16 @@ export default function JobPhotosScreen() {
         statusBarTranslucent
         onRequestClose={() => setCategoryPickerOpen(false)}
       >
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setCategoryPickerOpen(false)} />
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={() => setCategoryPickerOpen(false)}
+        />
         <View style={[styles.sheet, { backgroundColor: colors.card }]}>
           <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
           <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Which folder?</Text>
           <Text style={[styles.sheetSub, { color: colors.mutedForeground }]}>
-            Select a category, then choose photos from your gallery.
+            Select a category, then choose photos. Uploads start immediately.
           </Text>
 
           {CATEGORIES.map(cat => (
@@ -596,19 +607,28 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#FFF", fontSize: 14, fontWeight: "700" },
 
-  progressBanner: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: 1, borderTopWidth: 1,
+  progressWrap: {
+    paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, gap: 8,
   },
-  progressText: { fontSize: 13, fontWeight: "600" },
+  progressRow: {
+    flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap",
+  },
+  progressLabel: { fontSize: 13, fontWeight: "600", flex: 1 },
+  progressTrack: {
+    height: 4, borderRadius: 2, overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%", borderRadius: 2,
+  },
+  retryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  retryBtnText: { fontSize: 12, fontWeight: "600", color: "#EF4444" },
 
-  folderGrid: {
-    padding: 16, gap: 12,
-  },
+  folderGrid: { padding: 16, gap: 12 },
   folderCard: {
-    flex: 1, borderRadius: 14, borderWidth: 1,
-    overflow: "hidden",
+    flex: 1, borderRadius: 14, borderWidth: 1, overflow: "hidden",
   },
   folderThumb: {
     height: 110, alignItems: "center", justifyContent: "center",
@@ -642,12 +662,10 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingBottom: 36, paddingHorizontal: 16, paddingTop: 12,
-    gap: 4,
+    paddingBottom: 36, paddingHorizontal: 16, paddingTop: 12, gap: 4,
   },
   sheetHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    alignSelf: "center", marginBottom: 12,
+    width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 12,
   },
   sheetTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4 },
   sheetSub: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
@@ -657,8 +675,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 8,
   },
   catIcon: {
-    width: 44, height: 44, borderRadius: 10,
-    alignItems: "center", justifyContent: "center",
+    width: 44, height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center",
   },
   catEmoji: { fontSize: 22 },
   catLabel: { fontSize: 15, fontWeight: "700" },
@@ -670,9 +687,7 @@ const styles = StyleSheet.create({
   },
   cameraRowText: { fontSize: 14 },
 
-  cancelBtn: {
-    borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8,
-  },
+  cancelBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 },
   cancelText: { fontSize: 16, fontWeight: "600" },
 
   viewer: { flex: 1, backgroundColor: "#000" },

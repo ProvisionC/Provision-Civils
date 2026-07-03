@@ -16,6 +16,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CrashReporter } from "@/components/CrashReporter";
 import { AuthProvider } from "@/context/AuthContext";
+import { PhotoUploadProvider } from "@/context/PhotoUploadContext";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { UpdateModal } from "@/components/UpdateModal";
 import { useAppUpdate } from "@/hooks/useAppUpdate";
@@ -98,11 +99,13 @@ export default function RootLayout() {
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
+              <PhotoUploadProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <KeyboardProvider>
+                    <RootLayoutNav />
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
+              </PhotoUploadProvider>
             </AuthProvider>
           </QueryClientProvider>
         </ErrorBoundary>
