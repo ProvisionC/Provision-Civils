@@ -15,11 +15,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import { customFetch, getListJobPhotosQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "./AuthContext";
 
-const CONCURRENCY = 4;
-const MAX_FAILURES = 3;
-const QUEUE_KEY = "photo_upload_queue_v2";
-const MAX_WIDTH = 1920;
-const COMPRESS = 0.72;
+// ─── Tuning ──────────────────────────────────────────────────────────────────
+// Lower concurrency (3) prevents OOM on mid-range Huawei devices running 4
+// parallel ImageManipulator operations simultaneously.
+const CONCURRENCY   = 3;
+const MAX_FAILURES  = 3;
+const QUEUE_KEY     = "photo_upload_queue_v2";
+// Resize only reduces; we keep 1920 as the ceiling. Photos already ≤1920px
+// wide are compressed-only (no upscaling) because the resize action is
+// gated on actual dimension below.
+const MAX_WIDTH     = 1920;
+const COMPRESS      = 0.70;
+// 30-second fetch timeout per photo — prevents indefinitely stalled uploads
+// (common on patchy mobile networks).
+const UPLOAD_TIMEOUT_MS = 30_000;
 
 type PhotoCategory = "before" | "during" | "after" | "other";
 
@@ -94,15 +103,18 @@ export function PhotoUploadProvider({ children }: { children: React.ReactNode })
   const [queue, dispatch] = useReducer(queueReducer, []);
   const [isOnline, setIsOnline] = useState(true);
   const processingRef = useRef(new Set<string>());
+  const backoffTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const qc = useQueryClient();
   const { token, isLoading: isAuthLoading } = useAuth();
 
+  // ── Persistence ────────────────────────────────────────────────────────────
   useEffect(() => {
     AsyncStorage.getItem(QUEUE_KEY)
       .then(raw => {
         if (!raw) return;
         const items: UploadItem[] = JSON.parse(raw);
         const cleaned = items
+          // "uploading" at load time means app was killed mid-upload → retry
           .map(i => (i.status === "uploading" ? { ...i, status: "pending" as const } : i))
           .filter(i => i.status !== "done");
         if (cleaned.length > 0) dispatch({ type: "LOAD", items: cleaned });
@@ -115,11 +127,13 @@ export function PhotoUploadProvider({ children }: { children: React.ReactNode })
     AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(toSave)).catch(() => {});
   }, [queue]);
 
+  // ── Network ────────────────────────────────────────────────────────────────
   useEffect(() => {
     NetInfo.fetch().then(s => setIsOnline(s.isConnected ?? true));
     return NetInfo.addEventListener(s => setIsOnline(s.isConnected ?? true));
   }, []);
 
+  // ── Upload processor ───────────────────────────────────────────────────────
   useEffect(() => {
     if (isAuthLoading || !token || !isOnline) return;
 
@@ -140,12 +154,18 @@ export function PhotoUploadProvider({ children }: { children: React.ReactNode })
         })
         .catch(() => {
           const newFail = item.failCount + 1;
-          dispatch({
-            type: "SET_STATUS",
-            id: item.id,
-            status: newFail >= MAX_FAILURES ? "failed" : "pending",
-            failCount: newFail,
-          });
+          if (newFail >= MAX_FAILURES) {
+            dispatch({ type: "SET_STATUS", id: item.id, status: "failed", failCount: newFail });
+          } else {
+            // Exponential backoff: 4 s, 8 s, 16 s (capped at 30 s).
+            // During the delay the item shows as "uploading" (cosmetically fine).
+            const delayMs = Math.min(30_000, 4_000 * Math.pow(2, newFail - 1));
+            const t = setTimeout(() => {
+              backoffTimers.current.delete(item.id);
+              dispatch({ type: "SET_STATUS", id: item.id, status: "pending", failCount: newFail });
+            }, delayMs);
+            backoffTimers.current.set(item.id, t);
+          }
         })
         .finally(() => {
           processingRef.current.delete(item.id);
@@ -153,6 +173,7 @@ export function PhotoUploadProvider({ children }: { children: React.ReactNode })
     });
   }, [queue, token, isAuthLoading, isOnline, qc]);
 
+  // ── Public API ─────────────────────────────────────────────────────────────
   const enqueue = useCallback(
     (items: Array<{ localUri: string; jobId: number; category: PhotoCategory }>) => {
       const now = Date.now();
@@ -175,18 +196,25 @@ export function PhotoUploadProvider({ children }: { children: React.ReactNode })
   const getJobStats = useCallback(
     (jobId: number): JobUploadStats => {
       const items = queue.filter(i => i.jobId === jobId);
-      const pending  = items.filter(i => i.status === "pending").length;
+      const pending   = items.filter(i => i.status === "pending").length;
       const uploading = items.filter(i => i.status === "uploading").length;
-      const done     = items.filter(i => i.status === "done").length;
-      const failed   = items.filter(i => i.status === "failed").length;
+      const done      = items.filter(i => i.status === "done").length;
+      const failed    = items.filter(i => i.status === "failed").length;
       return { pending, uploading, done, failed, total: items.length, active: pending + uploading > 0 };
     },
     [queue],
   );
 
   const retryFailed = useCallback((jobId?: number) => {
+    // Clear any pending backoff timers for these items before restarting
+    queue
+      .filter(i => i.status === "failed" && (!jobId || i.jobId === jobId))
+      .forEach(i => {
+        const t = backoffTimers.current.get(i.id);
+        if (t) { clearTimeout(t); backoffTimers.current.delete(i.id); }
+      });
     dispatch({ type: "RETRY_FAILED", jobId });
-  }, []);
+  }, [queue]);
 
   const clearCompleted = useCallback((jobId?: number) => {
     dispatch({ type: "CLEAR_DONE", jobId });
@@ -205,19 +233,39 @@ export function usePhotoUpload() {
   return ctx;
 }
 
+// ─── Upload worker ────────────────────────────────────────────────────────────
 async function doUpload(item: UploadItem): Promise<void> {
-  const compressed = await ImageManipulator.manipulateAsync(
-    item.localUri,
-    [{ resize: { width: MAX_WIDTH } }],
-    { compress: COMPRESS, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  const base64 = await readAsStringAsync(compressed.uri, { encoding: EncodingType.Base64 });
-  await customFetch(`/api/jobs/${item.jobId}/photos`, {
-    method: "POST",
-    body: JSON.stringify({
-      uri: `data:image/jpeg;base64,${base64}`,
-      category: item.category,
-    }),
-    responseType: "json",
-  });
+  // AbortController gives the fetch a hard 30-second deadline.
+  // This prevents uploads from stalling indefinitely on poor mobile networks.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
+  try {
+    // Compress and resize. We always apply compression; resize only runs when
+    // the image is wider than MAX_WIDTH (expo-image-manipulator upscales if
+    // you specify a width larger than the source — we check beforehand).
+    const info = await ImageManipulator.manipulateAsync(item.localUri, []);
+    const actions: ImageManipulator.Action[] =
+      info.width > MAX_WIDTH ? [{ resize: { width: MAX_WIDTH } }] : [];
+
+    const compressed = await ImageManipulator.manipulateAsync(
+      item.localUri,
+      actions,
+      { compress: COMPRESS, format: ImageManipulator.SaveFormat.JPEG },
+    );
+
+    const base64 = await readAsStringAsync(compressed.uri, { encoding: EncodingType.Base64 });
+
+    await customFetch(`/api/jobs/${item.jobId}/photos`, {
+      method: "POST",
+      body: JSON.stringify({
+        uri: `data:image/jpeg;base64,${base64}`,
+        category: item.category,
+      }),
+      responseType: "json",
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }

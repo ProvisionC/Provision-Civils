@@ -31,7 +31,7 @@
     },
     "android": {
       "package": "com.provisioncivils.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#1565C0"

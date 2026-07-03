@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import * as ExpoFS from "expo-file-system";
+import { readAsStringAsync, EncodingType } from "expo-file-system/legacy";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -254,6 +254,14 @@ export default function ChatScreen() {
 
   const msgs = useMemo(() => (messages ?? []) as Msg[], [messages]);
 
+  // Optimistic messages: added immediately on send, removed once the server
+  // refetch confirms delivery (see `send` below).
+  const [pendingMsgs, setPendingMsgs] = useState<Msg[]>([]);
+
+  // Merge server messages with locally-pending ones.
+  // Pending messages use negative temp IDs so they never collide with server IDs.
+  const allMsgs = useMemo(() => [...msgs, ...pendingMsgs], [msgs, pendingMsgs]);
+
   const convoName = useMemo(() => {
     if (!convo) return "Chat";
     if (convo.type === "direct") return convo.members?.find((m: any) => m.userId !== myId)?.name ?? "Direct Message";
@@ -261,8 +269,8 @@ export default function ChatScreen() {
   }, [convo, myId]);
 
   useEffect(() => {
-    if (msgs.length) setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
-  }, [msgs.length]);
+    if (allMsgs.length) setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
+  }, [allMsgs.length]);
 
   // @mention detection
   const handleTextChange = (val: string) => {
@@ -307,6 +315,33 @@ export default function ChatScreen() {
       voiceDuration: opts?.voiceDuration,
     };
 
+    // ── Optimistic update ────────────────────────────────────────────────────
+    // Create a temp message with a negative ID so it appears instantly.
+    const tempId = -Date.now();
+    const optimistic: Msg = {
+      id: tempId,
+      conversationId: convId,
+      senderId: myId,
+      senderName: user?.name ?? "Me",
+      type: (opts?.type ?? "text") as Msg["type"],
+      content: msgText,
+      fileName: opts?.fileName ?? null,
+      fileMime: opts?.fileMime ?? null,
+      latitude: null, longitude: null,
+      replyToId: replyTo?.id ?? null,
+      replyTo: replyTo
+        ? { id: replyTo.id, content: replyTo.content, type: replyTo.type as string, senderName: replyTo.senderName }
+        : null,
+      pinnedAt: null, pinnedBy: null, editedAt: null,
+      mentions: [...mentions],
+      voiceDuration: opts?.voiceDuration ?? null,
+      reactions: {},
+      createdAt: new Date().toISOString(),
+      readBy: [],
+    };
+    setPendingMsgs(prev => [...prev, optimistic]);
+    // ────────────────────────────────────────────────────────────────────────
+
     setSending(true);
     setReplyTo(null); setMentions([]);
     setText("");
@@ -317,18 +352,24 @@ export default function ChatScreen() {
         return;
       }
       await sendMsg.mutateAsync({ id: convId, data: payload });
-      invalidate();
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 200);
+      // Refetch immediately so the server-confirmed message replaces the
+      // optimistic one in the same render cycle.
+      await qc.refetchQueries({ queryKey: getListMessagesQueryKey(convId) });
+      qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       await enqueue(convId, payload);
     } finally {
       setSending(false);
+      // Remove the optimistic message. By this point the refetch has either
+      // succeeded (real msg is in cache) or failed (next poll will catch it).
+      setPendingMsgs(prev => prev.filter(m => m.id !== tempId));
     }
-  }, [text, editingMsg, replyTo, mentions, isOnline, convId]);
+  }, [text, editingMsg, replyTo, mentions, isOnline, convId, myId, user]);
 
   const onVoiceRecorded = useCallback(async (uri: string, durationMs: number) => {
     setShowVoice(false);
-    const base64 = await (ExpoFS as any).readAsStringAsync(uri, { encoding: "base64" });
+    const base64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
     await send({ type: "voice", content: `data:audio/m4a;base64,${base64}`, fileMime: "audio/m4a", voiceDuration: durationMs });
   }, [send]);
 
@@ -347,7 +388,7 @@ export default function ChatScreen() {
     const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      const base64 = await (ExpoFS as any).readAsStringAsync(asset.uri, { encoding: "base64" });
+      const base64 = await readAsStringAsync(asset.uri, { encoding: EncodingType.Base64 });
       await send({ type: "document", content: `data:${asset.mimeType ?? "application/octet-stream"};base64,${base64}`, fileName: asset.name, fileMime: asset.mimeType ?? "application/octet-stream" });
     }
   };
@@ -507,7 +548,7 @@ export default function ChatScreen() {
       {/* MESSAGES */}
       <FlatList
         ref={flatRef}
-        data={msgs}
+        data={allMsgs}
         keyExtractor={m => String(m.id)}
         contentContainerStyle={[styles.msgList, { paddingBottom: 8 }]}
         onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
