@@ -1,11 +1,3 @@
-app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "online",
-    app: "Provision Civils API",
-    version: "1.0.0",
-    time: new Date().toISOString()
-  });
-});
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
