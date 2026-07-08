@@ -5,8 +5,17 @@ import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
 
-const API_DOMAIN = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-setBaseUrl(`https://${API_DOMAIN}`);
+// Local development API
+const API_DOMAIN =
+  process.env.EXPO_PUBLIC_DOMAIN ?? "192.168.101.108:8080";
+
+const API_URL = API_DOMAIN.startsWith("http")
+  ? API_DOMAIN
+  : API_DOMAIN.includes(":")
+    ? `http://${API_DOMAIN}`
+    : `https://${API_DOMAIN}`;
+
+setBaseUrl(API_URL);
 
 const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const BIOMETRIC_KEY = "biometric_enabled";
