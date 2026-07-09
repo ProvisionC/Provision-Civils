@@ -12,7 +12,7 @@
         "gradleCommand": ":app:assembleDebug"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "flutter-asset-manager-marco123nagelna.replit.app"
+        "EXPO_PUBLIC_DOMAIN": "https://provision-api-ckpk.onrender.com"
       }
     },
     "preview": {
@@ -21,7 +21,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "flutter-asset-manager-marco123nagelna.replit.app"
+        "EXPO_PUBLIC_DOMAIN": "https://provision-api-ckpk.onrender.com"
       }
     },
     "production": {
@@ -29,7 +29,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "flutter-asset-manager-marco123nagelna.replit.app"
+        "EXPO_PUBLIC_DOMAIN": "https://provision-api-ckpk.onrender.com"
       }
     },
     "production-apk": {
@@ -38,7 +38,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "flutter-asset-manager-marco123nagelna.replit.app"
+        "EXPO_PUBLIC_DOMAIN": "https://provision-api-ckpk.onrender.com"
       }
     }
   }
