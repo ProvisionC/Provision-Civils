@@ -9,28 +9,59 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
   const auth = (req as any).auth as { userId: number; role: string } | undefined;
   const today = new Date().toISOString().split("T")[0];
 
-  const [activeResult] = await db.select({ count: count() }).from(jobsTable)
-    .where(sql`${jobsTable.status} IN ('active', 'in_progress', 'pending')`);
+ const [activeResult] = await db
+  .select({ count: count() })
+  .from(jobsTable)
+  .where(
+    and(
+      isNull(jobsTable.deletedAt),
+      sql`${jobsTable.status} IN ('active', 'in_progress', 'pending')`
+    )
+  );
 
-  const [completedResult] = await db.select({ count: count() }).from(jobsTable)
-    .where(sql`${jobsTable.status} = 'completed'`);
+  const [completedResult] = await db
+  .select({ count: count() })
+  .from(jobsTable)
+  .where(
+    and(
+      isNull(jobsTable.deletedAt),
+      sql`${jobsTable.status} = 'completed'`
+    )
+  );
 
-  const [overdueResult] = await db.select({ count: count() }).from(jobsTable)
-    .where(and(
+  const [overdueResult] = await db
+  .select({ count: count() })
+  .from(jobsTable)
+  .where(
+    and(
+      isNull(jobsTable.deletedAt),
       sql`${jobsTable.dueDate} < ${today}`,
       sql`${jobsTable.status} NOT IN ('completed', 'cancelled')`
-    ));
+    )
+  );
 
-  const [dueTodayResult] = await db.select({ count: count() }).from(jobsTable)
-    .where(and(
+  const [dueTodayResult] = await db
+  .select({ count: count() })
+  .from(jobsTable)
+  .where(
+    and(
+      isNull(jobsTable.deletedAt),
       sql`${jobsTable.dueDate} = ${today}`,
       sql`${jobsTable.status} NOT IN ('completed', 'cancelled')`
-    ));
+    )
+  );
 
   const [employeesResult] = await db.select({ count: count() }).from(usersTable);
   const [invoicesResult] = await db.select({ count: count() }).from(invoicesTable);
-  const [wayleaveResult] = await db.select({ count: count() }).from(jobsTable)
-    .where(sql`${jobsTable.status} = 'waiting_for_wayleave'`);
+  const [wayleaveResult] = await db
+  .select({ count: count() })
+  .from(jobsTable)
+  .where(
+    and(
+      isNull(jobsTable.deletedAt),
+      sql`${jobsTable.status} = 'waiting_for_wayleave'`
+    )
+  );
 
   const stats: Record<string, number | null> = {
     activeJobs: Number(activeResult?.count ?? 0),
