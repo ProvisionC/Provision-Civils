@@ -27,9 +27,22 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const res = await loginApi({ email: email.trim().toLowerCase(), password });
-      await login(res.token, res.user as any);
-      router.replace("/(tabs)");
+      console.log("1 - Starting login");
+
+const res = await loginApi({
+  email: email.trim().toLowerCase(),
+  password,
+});
+
+console.log("2 - API returned");
+
+await login(res.token, res.user as any);
+
+console.log("3 - Session saved");
+
+router.replace("/(tabs)");
+
+console.log("4 - Navigated");
     } catch {
       Alert.alert("Login Failed", "Invalid email or password. Please try again.");
     } finally {

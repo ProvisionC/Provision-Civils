@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, jobsTable, usersTable, invoicesTable, expensesTable } from "@workspace/db";
-import { count, and, sql, sum } from "drizzle-orm";
+import { count, and, sql, sum, isNull } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
@@ -58,6 +58,9 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
     stats.totalInvoiced = invoicedVal;
     stats.estimatedProfit = invoicedVal - expensesVal;
   }
+
+console.log("Dashboard Stats:", stats);
+
 
   res.json(stats);
 });

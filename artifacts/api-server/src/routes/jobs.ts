@@ -326,8 +326,15 @@ router.delete("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   // Soft delete — move to recycle bin instead of permanent deletion
-  await db.update(jobsTable).set({ deletedAt: new Date() }).where(eq(jobsTable.id, id));
-  res.sendStatus(204);
+await db.update(jobsTable)
+  .set({ deletedAt: new Date() })
+  .where(eq(jobsTable.id, id));
+
+// Delete all expenses linked to this job
+await db.delete(expensesTable)
+  .where(eq(expensesTable.jobId, id));
+
+res.sendStatus(204);
 });
 
 router.get("/jobs/:id/photos", requireAuth, async (req, res): Promise<void> => {

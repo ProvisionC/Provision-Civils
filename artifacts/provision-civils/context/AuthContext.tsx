@@ -6,8 +6,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
 
 // Local development API
-const API_DOMAIN =
-  process.env.EXPO_PUBLIC_DOMAIN ?? "192.168.101.108:8080";
+const API_DOMAIN = "https://provision-api-ckpk.onrender.com";
 
 const API_URL = API_DOMAIN.startsWith("http")
   ? API_DOMAIN
@@ -17,7 +16,7 @@ const API_URL = API_DOMAIN.startsWith("http")
 
 setBaseUrl(API_URL);
 
-const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_TIMEOUT_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const BIOMETRIC_KEY = "biometric_enabled";
 const LAST_ACTIVE_KEY = "last_active_at";
 
@@ -123,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const clearSession = async () => {
+  console.log("CLEAR SESSION");
     await AsyncStorage.multiRemove(["auth_token", "auth_user", LAST_ACTIVE_KEY]);
     setToken(null);
     setUser(null);
@@ -130,17 +130,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const doLogout = useCallback(async () => {
-    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+  console.trace("DO LOGOUT");
+    if (inactivityTimer.current) clearInterval(inactivityTimer.current as any);
     await clearSession();
     try { router.replace("/(auth)/login"); } catch { /* may not be mounted */ }
   }, []);
 
   const resetInactivityTimer = useCallback(() => {
-    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-    inactivityTimer.current = setTimeout(() => {
-      doLogout();
-    }, INACTIVITY_TIMEOUT_MS);
-  }, [doLogout]);
+  if (inactivityTimer.current) clearInterval(inactivityTimer.current as any);
+
+  // Check every minute instead of waiting 30 days.
+  inactivityTimer.current = setInterval(async () => {
+    const lastActiveStr = await AsyncStorage.getItem(LAST_ACTIVE_KEY);
+
+    if (!lastActiveStr) return;
+
+    const lastActive = parseInt(lastActiveStr, 10);
+
+    if (Date.now() - lastActive > INACTIVITY_TIMEOUT_MS) {
+      await doLogout();
+    }
+  }, 60000) as any;
+}, [doLogout]);
 
   const recordActivity = useCallback(() => {
     AsyncStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString()).catch(() => {});
@@ -158,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    if (inactivityTimer.current) clearInterval(inactivityTimer.current as any);
     await clearSession();
   };
 
@@ -184,17 +195,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setBiometricEnabled(false);
   };
 
-  const loginWithBiometric = async (): Promise<boolean> => {
+const loginWithBiometric = async (): Promise<boolean> => {
     try {
       const storedToken = await AsyncStorage.getItem("auth_token");
       const storedUser = await AsyncStorage.getItem("auth_user");
       if (!storedToken || !storedUser) return false;
-
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Sign in to Provision Civils",
-        fallbackLabel: "Use Password",
-      });
-
+const result = await LocalAuthentication.authenticateAsync({
+  promptMessage: "Sign in to Provision Civils",
+  fallbackLabel: "Use Password",
+});
       if (result.success) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser) as AuthUser);
