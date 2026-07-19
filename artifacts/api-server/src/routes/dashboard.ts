@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, jobsTable, usersTable, invoicesTable, expensesTable } from "@workspace/db";
-import { count, and, sql, sum, isNull } from "drizzle-orm";
+import { count, and, sql, sum, isNull, eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
@@ -76,7 +76,18 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
   if (auth?.role === "admin") {
     const [contractValueResult] = await db.select({ total: sum(sql`CAST(${jobsTable.contractValue} AS NUMERIC)`) }).from(jobsTable)
       .where(sql`${jobsTable.contractValue} IS NOT NULL`);
-    const [expensesResult] = await db.select({ total: sum(sql`CAST(${expensesTable.amount} AS NUMERIC)`) }).from(expensesTable);
+    const [expensesResult] = await db
+  .select({
+    total: sum(sql`CAST(${expensesTable.amount} AS NUMERIC)`),
+  })
+  .from(expensesTable)
+  .innerJoin(
+    jobsTable,
+    eq(expensesTable.jobId, jobsTable.id)
+  )
+  .where(
+    isNull(jobsTable.deletedAt)
+  );
     const [invoicedResult] = await db.select({ total: sum(sql`CAST(${invoicesTable.total} AS NUMERIC)`) }).from(invoicesTable)
       .where(sql`${invoicesTable.status} IN ('sent', 'paid')`);
 
