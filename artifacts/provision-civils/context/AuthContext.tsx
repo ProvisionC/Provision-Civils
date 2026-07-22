@@ -3,9 +3,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, type AppStateStatus } from "react-native";
 import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 import * as LocalAuthentication from "expo-local-authentication";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 import { router } from "expo-router";
 
 // Local development API
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 const API_DOMAIN = "https://provision-api-ckpk.onrender.com";
 
 const API_URL = API_DOMAIN.startsWith("http")
@@ -158,15 +168,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (token) resetInactivityTimer();
   }, [token, resetInactivityTimer]);
 
-  const login = async (newToken: string, newUser: AuthUser) => {
-    await AsyncStorage.setItem("auth_token", newToken);
-    await AsyncStorage.setItem("auth_user", JSON.stringify(newUser));
-    await AsyncStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
-    setToken(newToken);
-    setUser(newUser);
-    setAuthTokenGetter(() => newToken);
-    resetInactivityTimer();
-  };
+async function registerPushNotification(token: string) {
+  try {
+    if (!Device.isDevice) {
+      console.log("Push notifications require a physical device");
+      return;
+    }
+
+    const permission = await Notifications.getPermissionsAsync();
+
+    let status = permission.status;
+
+    if (status !== "granted") {
+      const request = await Notifications.requestPermissionsAsync();
+      status = request.status;
+    }
+
+    if (status !== "granted") {
+      console.log("Notification permission denied");
+      return;
+    }
+
+    const expoToken = await Notifications.getExpoPushTokenAsync({
+  projectId: "a6093da0-719f-4eee-86e4-a87d0059c219",
+});
+
+    console.log("Expo Push Token:", expoToken.data);
+
+    await fetch(`${API_URL}/push-tokens`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+     body: JSON.stringify({
+     token: expoToken.data,
+      platform: "expo",
+}),
+    });
+
+    console.log("Push token registered");
+
+} catch (error) {
+  console.error("Push registration failed:", error);
+}
+}
+
+const login = async (newToken: string, newUser: AuthUser) => {
+  console.log("LOGIN START");
+
+  await AsyncStorage.setItem("auth_token", newToken);
+  await AsyncStorage.setItem("auth_user", JSON.stringify(newUser));
+  await AsyncStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+
+  setToken(newToken);
+  setUser(newUser);
+  setAuthTokenGetter(() => newToken);
+  resetInactivityTimer();
+
+  console.log("BEFORE REGISTER");
+
+  await registerPushNotification(newToken);
+
+  console.log("AFTER REGISTER");
+};
 
   const logout = async () => {
     if (inactivityTimer.current) clearInterval(inactivityTimer.current as any);
@@ -217,7 +282,20 @@ const result = await LocalAuthentication.authenticateAsync({
       return false;
     }
   };
+useEffect(() => {
+  const received = Notifications.addNotificationReceivedListener(notification => {
+    console.log("Notification received:", notification);
+  });
 
+  const response = Notifications.addNotificationResponseReceivedListener(response => {
+    console.log("Notification opened:", response);
+  });
+
+  return () => {
+    received.remove();
+    response.remove();
+  };
+}, []);
   return (
     <AuthContext.Provider value={{
       user, token, isLoading,

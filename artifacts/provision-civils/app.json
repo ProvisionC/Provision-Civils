@@ -51,18 +51,18 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      [
-        "expo-router",
-       
-      ],
-      "expo-font",
-      "expo-web-browser",
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Allow Provision Civils to record GPS location for daily reports."
-        }
-      ],
+  [
+    "expo-router"
+  ],
+  "expo-font",
+  "expo-web-browser",
+  "expo-updates",
+  [
+    "expo-location",
+    {
+      "locationWhenInUsePermission": "Allow Provision Civils to record GPS location for daily reports."
+    }
+  ],
       [
         "expo-image-picker",
         {
