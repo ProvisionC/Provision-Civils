@@ -16,14 +16,39 @@ function parseId(raw: string | string[]): number {
 
 type AuthReq = typeof import("express").request & { auth: { userId: number; role: string; name?: string } };
 
-async function sendPush(token: string, title: string, body: string, data?: Record<string, unknown>) {
+async function sendPush(
+  token: string,
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+) {
   try {
-    await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to: token, title, body, data: data ?? {}, sound: "default", priority: "high" }),
-    });
-  } catch { /* best effort */ }
+    const response = await fetch(
+      "https://exp.host/--/api/v2/push/send",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: token,
+          title,
+          body,
+          data: data ?? {},
+          sound: "default",
+          priority: "high",
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+console.log("Sending push to:", token);
+console.log("Expo Push Response:", JSON.stringify(result, null, 2));
+
+  } catch (error) {
+    console.error("Expo Push Error:", error);
+  }
 }
 
 async function notifyConversationMembers(
@@ -49,8 +74,14 @@ async function notifyConversationMembers(
     metadata: JSON.stringify({ conversationId, convoName }),
   }))).onConflictDoNothing();
 
-  const tokens = await db.select().from(pushTokensTable).where(inArray(pushTokensTable.userId, recipientIds));
-  await Promise.all(tokens.map(t => {
+  const tokens = await db.select()
+  .from(pushTokensTable)
+  .where(inArray(pushTokensTable.userId, recipientIds));
+
+console.log("TOKENS FOUND:", tokens.length);
+console.log("TOKENS:", JSON.stringify(tokens, null, 2));
+
+await Promise.all(tokens.map(t => {
     const isMentioned = mentionedIds?.includes(t.userId);
     return sendPush(t.token, isMentioned ? `@mention — ${convoName}` : convoName,
       `${senderName}: ${messageText.slice(0, 60)}`, { conversationId });
@@ -497,6 +528,7 @@ router.post("/push-tokens", requireAuth, async (req, res): Promise<void> => {
   const { userId } = (req as unknown as AuthReq).auth;
   const { token, platform } = req.body as { token: string; platform?: "ios" | "android" };
   if (!token) { res.status(400).json({ error: "token is required" }); return; }
+  console.log("REGISTERING PUSH TOKEN:", userId, token);
   await db.insert(pushTokensTable).values({ userId, token, platform: platform ?? null, updatedAt: new Date() })
     .onConflictDoUpdate({ target: pushTokensTable.userId, set: { token, platform: platform ?? null, updatedAt: new Date() } });
   res.sendStatus(200);
