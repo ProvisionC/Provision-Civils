@@ -215,8 +215,12 @@ const response = await fetch(`${API_URL}/push-tokens`, {
 
 console.log("API STATUS:", response.status);
 
-const text = await response.text();
-console.log("API RESPONSE:", text);
+const responseText = await response.text();
+console.log("API RESPONSE:", responseText);
+
+if (!response.ok) {
+  throw new Error(`Push registration failed: ${response.status} ${responseText}`);
+}
 
 console.log("Push token registered");
 
