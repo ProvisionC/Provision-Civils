@@ -189,25 +189,35 @@ async function registerPushNotification(token: string) {
       return;
     }
 
-    const expoToken = await Notifications.getExpoPushTokenAsync({
+    console.log("REGISTER PUSH START");
+
+console.log("GETTING EXPO TOKEN");
+const expoToken = await Notifications.getExpoPushTokenAsync({
   projectId: "a6093da0-719f-4eee-86e4-a87d0059c219",
 });
 
-    console.log("Expo Push Token:", expoToken.data);
+console.log("Expo Push Token:", expoToken.data);
 
-    await fetch(`${API_URL}/push-tokens`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-     body: JSON.stringify({
-     token: expoToken.data,
-      platform: "expo",
-}),
-    });
+console.log("SENDING TOKEN TO API");
 
-    console.log("Push token registered");
+const response = await fetch(`${API_URL}/push-tokens`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify({
+    token: expoToken.data,
+    platform: "expo",
+  }),
+});
+
+console.log("API STATUS:", response.status);
+
+const text = await response.text();
+console.log("API RESPONSE:", text);
+
+console.log("Push token registered");
 
 } catch (error) {
   console.error("Push registration failed:", error);
