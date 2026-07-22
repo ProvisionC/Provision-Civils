@@ -169,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, resetInactivityTimer]);
 
 async function registerPushNotification(token: string) {
+  console.log("REGISTER FUNCTION CALLED");
   try {
     if (!Device.isDevice) {
       console.log("Push notifications require a physical device");
