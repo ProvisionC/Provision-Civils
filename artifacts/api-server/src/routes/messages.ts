@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { Expo } from "expo-server-sdk";
 import {
   db, conversationsTable, conversationMembersTable, messagesTable,
   messageReadsTable, teamMembersTable, usersTable, jobWorkersTable,
@@ -8,6 +9,7 @@ import { eq, and, inArray, desc, sql, ne, like, gte, lte, or } from "drizzle-orm
 import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
+const expo = new Expo();
 
 function parseId(raw: string | string[]): number {
   const s = Array.isArray(raw) ? raw[0] : raw;
@@ -23,31 +25,30 @@ async function sendPush(
   data?: Record<string, unknown>
 ) {
   try {
-    const response = await fetch(
-      "https://exp.host/--/api/v2/push/send",
+    if (!Expo.isExpoPushToken(token)) {
+      console.error("[push] invalid expo push token", { tokenPrefix: token.slice(0, 12) });
+      return;
+    }
+
+    const tickets = await expo.sendPushNotificationsAsync([
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: token,
-          title,
-          body,
-          data: data ?? {},
-          sound: "default",
-          priority: "high",
-        }),
-      }
-    );
+        to: token,
+        title,
+        body,
+        data: data ?? {},
+        sound: "default",
+        priority: "high" as const,
+      },
+    ]);
 
-    const result = await response.json();
-
-console.log("Sending push to:", token);
-console.log("Expo Push Response:", JSON.stringify(result, null, 2));
-
+    const [ticket] = tickets;
+    if (ticket?.status === "ok") {
+      console.log("[push] delivery success", { title, body });
+    } else {
+      console.error("[push] delivery failed", { status: ticket?.status, message: ticket?.message });
+    }
   } catch (error) {
-    console.error("Expo Push Error:", error);
+    console.error("[push] delivery failed", error);
   }
 }
 
@@ -527,11 +528,22 @@ router.get("/messages/unread-count", requireAuth, async (req, res): Promise<void
 router.post("/push-tokens", requireAuth, async (req, res): Promise<void> => {
   const { userId } = (req as unknown as AuthReq).auth;
   const { token, platform } = req.body as { token: string; platform?: "ios" | "android" };
-  if (!token) { res.status(400).json({ error: "token is required" }); return; }
-  console.log("REGISTERING PUSH TOKEN:", userId, token);
-  await db.insert(pushTokensTable).values({ userId, token, platform: platform ?? null, updatedAt: new Date() })
-    .onConflictDoUpdate({ target: pushTokensTable.userId, set: { token, platform: platform ?? null, updatedAt: new Date() } });
-  res.sendStatus(200);
+  if (!token) {
+    console.error("[push] token registration failed: missing token", { userId });
+    res.status(400).json({ error: "token is required" });
+    return;
+  }
+
+  try {
+    await db.insert(pushTokensTable).values({ userId, token, platform: platform ?? null, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: pushTokensTable.userId, set: { token, platform: platform ?? null, updatedAt: new Date() } });
+
+    console.log("[push] token registration success", { userId, platform: platform ?? "unknown" });
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("[push] token registration failed", { userId, platform: platform ?? "unknown", error });
+    res.status(500).json({ error: "Failed to register push token" });
+  }
 });
 
 // ── CREATE JOB CHAT ──────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
@@ -100,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(JSON.parse(storedUser) as AuthUser);
           setAuthTokenGetter(() => storedToken);
           resetInactivityTimer();
+          await registerPushNotification(storedToken);
         }
       } catch {
       } finally {
@@ -168,65 +169,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (token) resetInactivityTimer();
   }, [token, resetInactivityTimer]);
 
-async function registerPushNotification(token: string) {
-  console.log("REGISTER FUNCTION CALLED");
+async function registerPushNotification(authToken: string) {
+  console.log("[push] registration start");
   try {
     if (!Device.isDevice) {
-      console.log("Push notifications require a physical device");
+      console.log("[push] registration skipped: physical device required");
       return;
     }
 
     const permission = await Notifications.getPermissionsAsync();
-
     let status = permission.status;
+    console.log("[push] notification permission status", { status });
 
     if (status !== "granted") {
       const request = await Notifications.requestPermissionsAsync();
       status = request.status;
+      console.log("[push] notification permission request result", { status });
     }
 
     if (status !== "granted") {
-      console.log("Notification permission denied");
+      console.error("[push] registration failed: permission not granted");
       return;
     }
 
-    console.log("REGISTER PUSH START");
+    console.log("[push] requesting expo push token");
+    const expoToken = await Notifications.getExpoPushTokenAsync({
+      projectId: "a6093da0-719f-4eee-86e4-a87d0059c219",
+    });
 
-console.log("GETTING EXPO TOKEN");
-const expoToken = await Notifications.getExpoPushTokenAsync({
-  projectId: "a6093da0-719f-4eee-86e4-a87d0059c219",
-});
+    if (!expoToken.data) {
+      throw new Error("Expo push token missing");
+    }
 
-console.log("Expo Push Token:", expoToken.data);
+    const platform = Platform.OS === "ios" ? "ios" : "android";
+    console.log("[push] expo token acquired", { platform, tokenPrefix: expoToken.data.slice(0, 12) });
 
-console.log("SENDING TOKEN TO API");
+    const response = await fetch(`${API_URL}/push-tokens`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        token: expoToken.data,
+        platform,
+      }),
+    });
 
-const response = await fetch(`${API_URL}/push-tokens`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify({
-    token: expoToken.data,
-    platform: "expo",
-  }),
-});
+    const responseText = await response.text();
+    console.log("[push] registration response", { status: response.status, body: responseText });
 
-console.log("API STATUS:", response.status);
+    if (!response.ok) {
+      throw new Error(`Push registration failed: ${response.status} ${responseText}`);
+    }
 
-const responseText = await response.text();
-console.log("API RESPONSE:", responseText);
-
-if (!response.ok) {
-  throw new Error(`Push registration failed: ${response.status} ${responseText}`);
-}
-
-console.log("Push token registered");
-
-} catch (error) {
-  console.error("Push registration failed:", error);
-}
+    console.log("[push] registration success", { platform });
+  } catch (error) {
+    console.error("[push] registration failed", error);
+  }
 }
 
 const login = async (newToken: string, newUser: AuthUser) => {

@@ -1,19 +1,40 @@
 import { Router, type IRouter } from "express";
+import { Expo } from "expo-server-sdk";
 import { db, announcementsTable, usersTable, pushTokensTable, notificationsTable } from "@workspace/db";
 import { eq, desc, and, sql, inArray, ne } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
+const expo = new Expo();
 type AuthReq = typeof import("express").request & { auth: { userId: number; role: string; name?: string } };
 
 async function sendPush(token: string, title: string, body: string, data?: Record<string, unknown>) {
   try {
-    await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to: token, title, body, data: data ?? {}, sound: "default", priority: "high" }),
-    });
-  } catch { /* best effort */ }
+    if (!Expo.isExpoPushToken(token)) {
+      console.error("[push] invalid expo push token", { tokenPrefix: token.slice(0, 12) });
+      return;
+    }
+
+    const tickets = await expo.sendPushNotificationsAsync([
+      {
+        to: token,
+        title,
+        body,
+        data: data ?? {},
+        sound: "default",
+        priority: "high" as const,
+      },
+    ]);
+
+    const [ticket] = tickets;
+    if (ticket?.status === "ok") {
+      console.log("[push] delivery success", { title, body });
+    } else {
+      console.error("[push] delivery failed", { status: ticket?.status, message: ticket?.message });
+    }
+  } catch (error) {
+    console.error("[push] delivery failed", error);
+  }
 }
 
 // ── LIST ANNOUNCEMENTS ──────────────────────────────────────────────────────────

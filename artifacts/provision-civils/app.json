@@ -57,22 +57,15 @@
   "expo-font",
   "expo-web-browser",
   "expo-updates",
+  "expo-notifications",
   [
     "expo-location",
     {
       "locationWhenInUsePermission": "Allow Provision Civils to record GPS location for daily reports."
     }
   ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Allow Provision Civils to access your photo library to attach site photos.",
-          "cameraPermission": "Allow Provision Civils to use your camera to capture site photos."
-        }
-      ],
-      [
-        "expo-speech-recognition",
-        {
+  ...
+]
           "microphonePermission": "Allow Provision Civils to use the microphone for voice-to-text on daily reports.",
           "speechRecognitionPermission": "Allow Provision Civils to recognise speech for Afrikaans voice notes."
         }
