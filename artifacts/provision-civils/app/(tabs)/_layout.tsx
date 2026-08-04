@@ -18,7 +18,7 @@ export default function TabLayout() {
   const isPM = user?.role === "project_manager";
   const isSupervisor = user?.role === "supervisor";
   const isWorker = user?.role === "worker";
-  const canViewPayroll = isAdmin;
+  const canViewPayroll = isAdmin || isPM || isSupervisor;
 
   const { data: notifications } = useListNotifications({
     query: { queryKey: getListNotificationsQueryKey(), enabled: !!token, refetchInterval: 30000 },
@@ -65,13 +65,31 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
+          tabBarItemStyle: isWorker ? { display: "none" } : {},
+        }}
+      />
+      <Tabs.Screen
+        name="work"
+        options={{
+          title: "Work",
+          tabBarIcon: ({ color }) => <Feather name="briefcase" size={22} color={color} />,
+          tabBarItemStyle: !isWorker ? { display: "none" } : {},
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} />,
+          tabBarItemStyle: !isWorker ? { display: "none" } : {},
         }}
       />
       <Tabs.Screen
         name="jobs"
         options={{
-          title: "Jobs",
+          title: isWorker ? "My Jobs" : "Jobs",
           tabBarIcon: ({ color }) => <Feather name="briefcase" size={22} color={color} />,
+          tabBarItemStyle: isWorker ? { display: "none" } : {},
         }}
       />
       <Tabs.Screen
@@ -87,6 +105,7 @@ export default function TabLayout() {
         options={{
           title: "Team",
           tabBarIcon: ({ color }) => <Feather name="user-check" size={22} color={color} />,
+          tabBarItemStyle: isWorker ? { display: "none" } : {},
         }}
       />
       <Tabs.Screen
@@ -102,7 +121,7 @@ export default function TabLayout() {
         options={{
           title: "Payroll",
           tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={22} color={color} />,
-          tabBarItemStyle: !canViewPayroll ? { display: "none" } : {},
+          tabBarItemStyle: !canViewPayroll || isWorker ? { display: "none" } : {},
         }}
       />
       <Tabs.Screen
@@ -126,6 +145,7 @@ export default function TabLayout() {
         options={{
           title: "Settings",
           tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} />,
+          tabBarItemStyle: isWorker ? { display: "none" } : {},
         }}
       />
     </Tabs>
