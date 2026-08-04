@@ -7,6 +7,6 @@ export const pushTokensTable = pgTable("push_tokens", {
   token: text("token").notNull(),
   platform: text("platform", { enum: ["ios", "android"] }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [unique().on(t.userId)]);
+}, (t) => [unique("user_token_idx").on(t.userId, t.token)]);
 
 export type PushToken = typeof pushTokensTable.$inferSelect;

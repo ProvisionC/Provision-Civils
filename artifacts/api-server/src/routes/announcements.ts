@@ -11,7 +11,8 @@ type AuthReq = typeof import("express").request & { auth: { userId: number; role
 async function sendPush(token: string, title: string, body: string, data?: Record<string, unknown>) {
   try {
     if (!Expo.isExpoPushToken(token)) {
-      console.error("[push] invalid expo push token", { tokenPrefix: (token as string).slice(0, 12) });
+      console.error("[push] invalid expo push token format", { tokenPrefix: (token as string).slice(0, 12) });
+      await db.delete(pushTokensTable).where(eq(pushTokensTable.token, token));
       return;
     }
 
@@ -28,12 +29,15 @@ async function sendPush(token: string, title: string, body: string, data?: Recor
 
     const [ticket] = tickets;
     if (ticket?.status === "ok") {
-      console.log("[push] delivery success", { title, body });
+      console.log("[push] delivery success", { title, tokenPrefix: token.slice(0, 12) });
+    } else if (ticket?.status === "error" && (ticket.details?.error === "DeviceNotRegistered" || ticket.details?.error === "InvalidCredentials")) {
+      console.warn("[push] device unregistered, removing token", { tokenPrefix: token.slice(0, 12) });
+      await db.delete(pushTokensTable).where(eq(pushTokensTable.token, token));
     } else {
       console.error("[push] delivery failed", { status: ticket?.status, message: ticket?.message });
     }
   } catch (error) {
-    console.error("[push] delivery failed", error);
+    console.error("[push] delivery error", error);
   }
 }
 

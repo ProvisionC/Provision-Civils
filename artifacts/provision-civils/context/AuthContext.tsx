@@ -170,40 +170,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, resetInactivityTimer]);
 
 async function registerPushNotification(authToken: string) {
-  console.log("[push] registration start");
+  console.log("[push] registration attempt started");
   try {
     if (!Device.isDevice) {
-      console.log("[push] registration skipped: physical device required");
+      console.warn("[push] registration skipped: physical device required");
       return;
     }
 
-    const permission = await Notifications.getPermissionsAsync();
-    let status = permission.status;
-    console.log("[push] notification permission status", { status });
-
-    if (status !== "granted") {
-      const request = await Notifications.requestPermissionsAsync();
-      status = request.status;
-      console.log("[push] notification permission request result", { status });
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
     }
 
-    if (status !== "granted") {
-      console.error("[push] registration failed: permission not granted");
+    if (finalStatus !== "granted") {
+      console.error("[push] registration failed: permission not granted", { status: finalStatus });
       return;
     }
 
-    console.log("[push] requesting expo push token");
     const expoToken = await Notifications.getExpoPushTokenAsync({
       projectId: "a6093da0-719f-4eee-86e4-a87d0059c219",
     });
 
-    if (!expoToken.data) {
-      throw new Error("Expo push token missing");
-    }
+    console.log("[push] token acquired", { tokenPrefix: expoToken.data.slice(0, 12) });
 
     const platform = Platform.OS === "ios" ? "ios" : "android";
-    console.log("[push] expo token acquired", { platform, tokenPrefix: expoToken.data.slice(0, 12) });
-
     const response = await fetch(`${API_URL}/push-tokens`, {
       method: "POST",
       headers: {
@@ -216,14 +209,12 @@ async function registerPushNotification(authToken: string) {
       }),
     });
 
-    const responseText = await response.text();
-    console.log("[push] registration response", { status: response.status, body: responseText });
-
     if (!response.ok) {
-      throw new Error(`Push registration failed: ${response.status} ${responseText}`);
+      const text = await response.text();
+      throw new Error(`Push registration failed (${response.status}): ${text}`);
     }
 
-    console.log("[push] registration success", { platform });
+    console.log("[push] registration successfully synced with server");
   } catch (error) {
     console.error("[push] registration failed", error);
   }
