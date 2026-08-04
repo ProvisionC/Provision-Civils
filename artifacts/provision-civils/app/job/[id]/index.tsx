@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, ActivityIndicator, Linking, Image,
-  Dimensions, Modal, StatusBar, Platform,
+  Dimensions, Modal, StatusBar, Platform, BackHandler,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -126,11 +126,29 @@ export default function JobDetailScreen() {
     );
   };
 
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      router.back();
+      return true;
+    });
+
+    return () => sub.remove();
+  }, []);
+
   const openMaps = () => {
+    const address = job?.siteAddress?.trim();
+    if (address) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+      Linking.openURL(url).catch(() =>
+        Alert.alert("Cannot Open Maps", "Could not open maps app on this device.")
+      );
+      return;
+    }
+
     if (!job?.gpsLat || !job?.gpsLng) {
       Alert.alert(
-        "No GPS Coordinates",
-        "This job does not have GPS coordinates recorded yet. Add them by editing the job.",
+        "No Location",
+        "This job does not have a site address or GPS coordinates recorded yet. Add them by editing the job.",
         [{ text: "OK" }]
       );
       return;
@@ -213,6 +231,15 @@ export default function JobDetailScreen() {
                 {detail.startDate ? new Date(detail.startDate + "T00:00:00").toLocaleDateString("en-ZA") : "—"}
                 {" → "}
                 {detail.dueDate ? new Date(detail.dueDate + "T00:00:00").toLocaleDateString("en-ZA") : "—"}
+              </Text>
+            </View>
+          )}
+
+          {(detail as any).kickOffMeetingDate && (
+            <View style={styles.infoRow}>
+              <Feather name="calendar" size={13} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>
+                Kick-off: {new Date((detail as any).kickOffMeetingDate + "T00:00:00").toLocaleDateString("en-ZA")}
               </Text>
             </View>
           )}
