@@ -26,7 +26,7 @@ async function sendPush(
 ) {
   try {
     if (!Expo.isExpoPushToken(token)) {
-      console.error("[push] invalid expo push token", { tokenPrefix: token.slice(0, 12) });
+      console.error("[push] invalid expo push token", { tokenPrefix: (token as string).slice(0, 12) });
       return;
     }
 

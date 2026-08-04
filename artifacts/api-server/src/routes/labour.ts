@@ -64,7 +64,12 @@ function formatEntry(e: typeof labourEntriesTable.$inferSelect & { employee?: ty
     notes: e.notes ?? null,
     createdById: e.createdById,
     createdAt: e.createdAt.toISOString(),
-    employee: e.employee ? { id: e.employee.id, name: e.employee.name } : undefined,
+    employee: e.employee ? {
+      id: e.employee.id,
+      name: e.employee.name,
+      clockNumber: e.employee.clockNumber ?? null,
+      employeeNumber: e.employee.employeeNumber ?? null,
+    } : undefined,
   };
 }
 

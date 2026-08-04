@@ -37,6 +37,7 @@ function formatJob(job: typeof jobsTable.$inferSelect) {
     clientOrderNumber?: string | null;
     contractValue?: string | null;
     startDate?: string | null;
+    kickOffMeetingDate?: string | null;
     wayleaveRequired?: boolean;
     wayleaveDocument?: string | null;
   };
@@ -63,6 +64,7 @@ function formatJob(job: typeof jobsTable.$inferSelect) {
     supervisorId: job.supervisorId ?? null,
     startDate: j.startDate ?? null,
     dueDate: job.dueDate ?? null,
+    kickOffMeetingDate: j.kickOffMeetingDate ?? null,
     wayleaveRequired: j.wayleaveRequired ?? false,
     wayleaveDocument: j.wayleaveDocument ?? null,
     createdAt: job.createdAt.toISOString(),
@@ -127,6 +129,7 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
     supervisorId?: number;
     startDate?: string;
     dueDate?: string;
+    kickOffMeetingDate?: string;
     status?: string;
     wayleaveRequired?: boolean;
     workerIds?: number[];
@@ -161,6 +164,7 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
     supervisorId: jobData.supervisorId,
     startDate: jobData.startDate,
     dueDate: jobData.dueDate,
+    kickOffMeetingDate: jobData.kickOffMeetingDate,
     status: (jobData.status as typeof jobsTable.$inferSelect["status"]) ?? "active",
     wayleaveRequired: jobData.wayleaveRequired ?? false,
   } as any).returning();
@@ -244,6 +248,7 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     supervisorId?: number;
     startDate?: string;
     dueDate?: string;
+    kickOffMeetingDate?: string;
     wayleaveRequired?: boolean;
     wayleaveDocument?: string;
     workerIds?: number[];
@@ -278,6 +283,7 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     ...(jobData.supervisorId !== undefined && { supervisorId: jobData.supervisorId }),
     ...(jobData.startDate !== undefined && { startDate: jobData.startDate }),
     ...(jobData.dueDate !== undefined && { dueDate: jobData.dueDate }),
+    ...(jobData.kickOffMeetingDate !== undefined && { kickOffMeetingDate: jobData.kickOffMeetingDate }),
     ...(jobData.wayleaveRequired !== undefined && { wayleaveRequired: jobData.wayleaveRequired }),
     ...(jobData.wayleaveDocument !== undefined && { wayleaveDocument: jobData.wayleaveDocument }),
   } as any).where(eq(jobsTable.id, id)).returning();

@@ -11,7 +11,7 @@ type AuthReq = typeof import("express").request & { auth: { userId: number; role
 async function sendPush(token: string, title: string, body: string, data?: Record<string, unknown>) {
   try {
     if (!Expo.isExpoPushToken(token)) {
-      console.error("[push] invalid expo push token", { tokenPrefix: token.slice(0, 12) });
+      console.error("[push] invalid expo push token", { tokenPrefix: (token as string).slice(0, 12) });
       return;
     }
 

@@ -1,5 +1,6 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { isWorkerAllowedRoute } from "../utils/workerAccess.js";
 
 const JWT_SECRET = process.env.SESSION_SECRET ?? "provision-civils-secret";
 
@@ -18,6 +19,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   try {
     const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
     (req as Request & { auth: AuthPayload }).auth = payload;
+
+    if (payload.role === "worker" && !isWorkerAllowedRoute(req.path)) {
+      res.status(403).json({ error: "Worker access denied" });
+      return;
+    }
+
     next();
   } catch {
     res.status(401).json({ error: "Invalid token" });

@@ -7,13 +7,29 @@ import { requireAuth, signToken } from "../middlewares/auth.js";
 const router: IRouter = Router();
 
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const { email, password } = req.body as { email: string; password: string };
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password required" });
+  const { email, password, clockNumber, phone } = req.body as {
+    email?: string; password?: string; clockNumber?: string; phone?: string;
+  };
+
+  if ((!email && !clockNumber) || !password) {
+    res.status(400).json({ error: "Credentials required" });
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase()));
+  let user;
+  if (clockNumber) {
+    [user] = await db.select().from(usersTable).where(eq(usersTable.clockNumber, clockNumber));
+    if (user && phone) {
+      const validPhone = user.phone?.replace(/\D/g, "") === phone.replace(/\D/g, "");
+      if (!validPhone) {
+        res.status(401).json({ error: "Invalid credentials" });
+        return;
+      }
+    }
+  } else {
+    [user] = await db.select().from(usersTable).where(eq(usersTable.email, email!.toLowerCase()));
+  }
+
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
