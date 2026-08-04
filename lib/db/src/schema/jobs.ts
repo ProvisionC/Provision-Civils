@@ -27,6 +27,7 @@ export const jobsTable = pgTable("jobs", {
   supervisorId: integer("supervisor_id"),
   startDate: date("start_date", { mode: "string" }),
   dueDate: date("due_date", { mode: "string" }),
+  kickOffMeetingDate: date("kick_off_meeting_date", { mode: "string" }),
   wayleaveRequired: boolean("wayleave_required").notNull().default(false),
   wayleaveDocument: text("wayleave_document"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

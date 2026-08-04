@@ -38,6 +38,7 @@ export default function CreateJobScreen() {
     labourHours: "",
     startDate: "",
     dueDate: "",
+    kickOffMeetingDate: "",
     poNumber: "",
     clientOrderNumber: "",
     contractValue: "",
@@ -101,6 +102,7 @@ export default function CreateJobScreen() {
         labourHours: form.labourHours ? Number(form.labourHours) : undefined,
         startDate: form.startDate || undefined,
         dueDate: form.dueDate || undefined,
+        kickOffMeetingDate: form.kickOffMeetingDate || undefined,
         poNumber: form.poNumber || undefined,
         clientOrderNumber: form.clientOrderNumber || undefined,
         contractValue: form.contractValue ? Number(form.contractValue) : undefined,
@@ -217,6 +219,7 @@ export default function CreateJobScreen() {
             <Field label="Expected Completion" value={form.dueDate} onChangeText={v => set("dueDate", v)} placeholder="YYYY-MM-DD" colors={colors} />
           </View>
         </View>
+        <Field label="Kick-Off Meeting Date" value={form.kickOffMeetingDate} onChangeText={v => set("kickOffMeetingDate", v)} placeholder="YYYY-MM-DD" colors={colors} />
 
         {/* Section: Commercial (admin only) */}
         {canSeeCost && (

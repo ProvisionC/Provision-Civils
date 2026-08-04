@@ -12,6 +12,8 @@ export interface HealthStatus {
 export interface LoginInput {
   email: string;
   password: string;
+  clockNumber?: string;
+  phone?: string;
 }
 
 export type UserRole = typeof UserRole[keyof typeof UserRole];
@@ -347,6 +349,8 @@ export interface JobDetail {
   wayleaveRequired?: boolean;
   /** @nullable */
   wayleaveDocument?: string | null;
+  /** @nullable */
+  kickOffMeetingDate?: string | null;
   createdAt: string;
   updatedAt?: string;
   workers: Employee[];
@@ -406,6 +410,7 @@ export interface JobInput {
   dueDate?: string;
   status?: JobInputStatus;
   wayleaveRequired?: boolean;
+  kickOffMeetingDate?: string;
   workerIds?: number[];
   materials?: JobMaterialInput[];
   equipment?: JobEquipmentInput[];
@@ -724,6 +729,8 @@ export const LabourEntryStatus = {
 export type LabourEntryEmployee = {
   id?: number;
   name?: string;
+  /** @nullable */
+  clockNumber?: string | null;
 };
 
 export interface LabourEntry {

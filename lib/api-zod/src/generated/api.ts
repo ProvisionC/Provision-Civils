@@ -21,7 +21,9 @@ export const HealthCheckResponse = zod.object({
  */
 export const LoginBody = zod.object({
   "email": zod.string(),
-  "password": zod.string()
+  "password": zod.string(),
+  "clockNumber": zod.string().optional(),
+  "phone": zod.string().optional()
 })
 
 export const LoginResponse = zod.object({
@@ -244,6 +246,7 @@ export const CreateJobBody = zod.object({
   "dueDate": zod.string().optional(),
   "status": zod.enum(['pending', 'in_progress', 'active', 'waiting_for_wayleave', 'waiting_for_materials', 'completed', 'cancelled']).optional(),
   "wayleaveRequired": zod.boolean().optional(),
+  "kickOffMeetingDate": zod.string().optional(),
   "workerIds": zod.array(zod.number()).optional(),
   "materials": zod.array(zod.object({
   "name": zod.string(),
@@ -323,6 +326,7 @@ export const GetJobResponse = zod.object({
   "dueDate": zod.string().nullish(),
   "wayleaveRequired": zod.boolean().optional(),
   "wayleaveDocument": zod.string().nullish(),
+  "kickOffMeetingDate": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional(),
   "workers": zod.array(zod.object({
@@ -976,7 +980,8 @@ export const ListLabourEntriesResponseItem = zod.object({
   "createdAt": zod.string(),
   "employee": zod.object({
   "id": zod.number().optional(),
-  "name": zod.string().optional()
+  "name": zod.string().optional(),
+  "clockNumber": zod.string().nullish()
 }).optional()
 })
 export const ListLabourEntriesResponse = zod.array(ListLabourEntriesResponseItem)
@@ -1027,7 +1032,8 @@ export const CreateLabourEntryResponse = zod.object({
   "createdAt": zod.string(),
   "employee": zod.object({
   "id": zod.number().optional(),
-  "name": zod.string().optional()
+  "name": zod.string().optional(),
+  "clockNumber": zod.string().nullish()
 }).optional()
 })
 
@@ -1079,7 +1085,8 @@ export const UpdateLabourEntryResponse = zod.object({
   "createdAt": zod.string(),
   "employee": zod.object({
   "id": zod.number().optional(),
-  "name": zod.string().optional()
+  "name": zod.string().optional(),
+  "clockNumber": zod.string().nullish()
 }).optional()
 })
 
@@ -1138,7 +1145,8 @@ export const BatchCreateLabourEntriesResponseItem = zod.object({
   "createdAt": zod.string(),
   "employee": zod.object({
   "id": zod.number().optional(),
-  "name": zod.string().optional()
+  "name": zod.string().optional(),
+  "clockNumber": zod.string().nullish()
 }).optional()
 })
 export const BatchCreateLabourEntriesResponse = zod.array(BatchCreateLabourEntriesResponseItem)
@@ -1300,7 +1308,8 @@ export const GetPayrollEntriesResponseItem = zod.object({
   "createdAt": zod.string(),
   "employee": zod.object({
   "id": zod.number().optional(),
-  "name": zod.string().optional()
+  "name": zod.string().optional(),
+  "clockNumber": zod.string().nullish()
 }).optional()
 })
 export const GetPayrollEntriesResponse = zod.array(GetPayrollEntriesResponseItem)

@@ -15,14 +15,17 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login, biometricAvailable, biometricEnabled, loginWithBiometric } = useAuth();
   const [email, setEmail] = useState("");
+  const [clockNumber, setClockNumber] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter email and password");
+    const isWorkerLogin = !!clockNumber.trim();
+    if (!password.trim() || (!email.trim() && !clockNumber.trim()) || (isWorkerLogin && !phone.trim())) {
+      Alert.alert("Error", isWorkerLogin ? "Please enter clock number, phone number, and password" : "Please enter email and password");
       return;
     }
     setLoading(true);
@@ -32,6 +35,8 @@ export default function LoginScreen() {
 const res = await loginApi({
   email: email.trim().toLowerCase(),
   password,
+  clockNumber: clockNumber.trim(),
+  phone: phone.trim(),
 });
 
 console.log("2 - API returned");
@@ -105,6 +110,38 @@ console.log("4 - Navigated");
             </View>
 
             <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.foreground }]}>Clock Number (workers)</Text>
+              <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}> 
+                <Feather name="user-check" size={16} color={colors.mutedForeground} />
+                <TextInput
+                  style={[styles.input, { color: colors.foreground }]}
+                  placeholder="Enter clock number"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={clockNumber}
+                  onChangeText={setClockNumber}
+                  autoCapitalize="none"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.foreground }]}>Phone Number (workers)</Text>
+              <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}> 
+                <Feather name="phone" size={16} color={colors.mutedForeground} />
+                <TextInput
+                  style={[styles.input, { color: colors.foreground }]}
+                  placeholder="Enter cell phone"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
               <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
               <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}>
                 <Feather name="lock" size={16} color={colors.mutedForeground} />
@@ -159,7 +196,7 @@ console.log("4 - Navigated");
         </View>
 
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Default: admin@provision.co.za / admin123
+          Workers can sign in using Clock Number + Cell Phone + Password.
         </Text>
       </View>
     </KeyboardAvoidingView>

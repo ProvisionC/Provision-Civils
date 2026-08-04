@@ -29,7 +29,11 @@ export function JobCard({ job, onPress }: JobCardProps) {
       </View>
 
       <Text style={[styles.clientName, { color: colors.foreground }]} numberOfLines={1}>
-        {job.clientName}
+        {job.projectName || job.clientName}
+      </Text>
+
+      <Text style={[styles.jobMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+        {job.jobNumber}
       </Text>
 
       {job.siteAddress ? (
@@ -79,6 +83,10 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
+  },
+  jobMeta: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
   },
   addressRow: {
     flexDirection: "row",

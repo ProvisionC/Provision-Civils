@@ -2009,6 +2009,10 @@ components:
           type: string
         password:
           type: string
+        clockNumber:
+          type: string
+        phone:
+          type: string
 
     AuthResponse:
       type: object
@@ -2259,6 +2263,8 @@ components:
           type: boolean
         wayleaveDocument:
           type: ["string", "null"]
+        kickOffMeetingDate:
+          type: ["string", "null"]
         createdAt:
           type: string
         updatedAt:
@@ -2323,6 +2329,8 @@ components:
           enum: [pending, in_progress, active, waiting_for_wayleave, waiting_for_materials, completed, cancelled]
         wayleaveRequired:
           type: boolean
+        kickOffMeetingDate:
+          type: string
         workerIds:
           type: array
           items:
@@ -2836,6 +2844,8 @@ components:
               type: integer
             name:
               type: string
+            clockNumber:
+              type: ["string", "null"]
 
     LabourEntryInput:
       type: object

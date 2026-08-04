@@ -166,10 +166,15 @@ export default function JobLabourScreen() {
                   <View key={entry.id} style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={s.cardRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={[s.empName, { color: colors.foreground }]}>
-                          {entry.employee?.name ?? `Employee #${entry.employeeId}`}
+                        <Text style={[s.empName, { color: colors.foreground }]}> 
+                          {entry.employee?.clockNumber ? `Clock ${entry.employee.clockNumber}` : `Employee #${entry.employeeId}`}
                         </Text>
-                        <Text style={[s.workType, { color: colors.mutedForeground }]}>
+                        {entry.employee?.name ? (
+                          <Text style={[s.workType, { color: colors.mutedForeground }]}>
+                            {entry.employee.name}
+                          </Text>
+                        ) : null}
+                        <Text style={[s.workType, { color: colors.mutedForeground }]}> 
                           {WORK_TYPE_LABELS[entry.workType] ?? entry.workType}
                         </Text>
                       </View>
