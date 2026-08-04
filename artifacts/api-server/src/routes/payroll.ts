@@ -21,6 +21,39 @@ function payrollFilter() {
   )`;
 }
 
+// ── GET /payroll/worker ──────────────────────────────────────────────────────
+router.get("/payroll/worker", requireAuth, async (req, res): Promise<void> => {
+  const r = req as AuthReq;
+  const { startDate, endDate } = req.query as Record<string, string | undefined>;
+  const userId = r.auth.userId;
+
+  const conds: any[] = [eq(labourEntriesTable.employeeId, userId), payrollFilter()];
+  if (startDate) conds.push(gte(labourEntriesTable.date, startDate));
+  if (endDate)   conds.push(lte(labourEntriesTable.date, endDate));
+
+  const entries = await db
+    .select({
+      entry: labourEntriesTable,
+      job: jobsTable,
+    })
+    .from(labourEntriesTable)
+    .leftJoin(jobsTable, eq(labourEntriesTable.jobId, jobsTable.id))
+    .where(and(...conds))
+    .orderBy(labourEntriesTable.date);
+
+  const summary = entries.reduce((acc, row) => {
+    acc.totalHours += Number(row.entry.hoursWorked ?? 0);
+    acc.totalMeters += Number(row.entry.metersCompleted ?? 0);
+    acc.totalEarnings += Number(row.entry.amountPayable ?? 0);
+    return acc;
+  }, { totalHours: 0, totalMeters: 0, totalEarnings: 0 });
+
+  res.json({
+    entries: entries.map(r => ({ ...r.entry, jobName: r.job?.projectName ?? r.job?.clientName })),
+    summary
+  });
+});
+
 // ── GET /payroll/summary ──────────────────────────────────────────────────────
 router.get("/payroll/summary", requireAuth, requireRole("admin"), async (req, res): Promise<void> => {
   const r = req as AuthReq;
