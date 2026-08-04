@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useWindowDimensions } from "react-native";
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, Alert, ActivityIndicator,
@@ -14,6 +15,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
+import { QRCard } from "@/components/QRCard";
 
 const ROLES = [
   { key: "worker", label: "Worker" },
@@ -45,6 +47,7 @@ export default function EditEmployeeScreen() {
   const empId = Number(id);
   const colors = useColors();
   const qc = useQueryClient();
+  const { width } = useWindowDimensions();
   const { user: authUser } = useAuth();
   const isAdmin = authUser?.role === "admin";
 
@@ -67,7 +70,7 @@ export default function EditEmployeeScreen() {
     bankName: "", accountHolder: "", accountNumber: "", branchCode: "", accountType: "cheque",
   });
 
-  const [activeTab, setActiveTab] = useState<"profile" | "payroll" | "banking">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "payroll" | "banking" | "qr">("profile");
 
   useEffect(() => {
     if (employee) {
@@ -174,7 +177,8 @@ export default function EditEmployeeScreen() {
     { key: "profile", label: "Profile" },
     { key: "payroll", label: "Payroll" },
     ...(isAdmin ? [{ key: "banking", label: "Banking" }] : []),
-  ] as { key: "profile" | "payroll" | "banking"; label: string }[];
+    { key: "qr", label: "QR Card" },
+  ] as { key: "profile" | "payroll" | "banking" | "qr"; label: string }[];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -287,6 +291,17 @@ export default function EditEmployeeScreen() {
               )}
             </TouchableOpacity>
           </>
+        )}
+
+        {activeTab === "qr" && (
+          <View style={{ alignItems: "center", paddingTop: 16 }}>
+            <QRCard name={employee.name} clockNumber={employee.clockNumber || "—"} />
+            <View style={{ marginTop: 16, paddingHorizontal: 20 }}>
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 12, textAlign: "center" }}>
+                This card is print-friendly and can be shared with the site team.
+              </Text>
+            </View>
+          </View>
         )}
 
         {activeTab === "banking" && isAdmin && (
