@@ -25,7 +25,8 @@ export default function EditJobScreen() {
   const [form, setForm] = useState({
     clientName: "", clientPhone: "", clientEmail: "",
     siteAddress: "", description: "", notes: "",
-    labourHours: "", dueDate: "", supervisorId: "",
+    labourHours: "", dueDate: "", kickOffMeetingDate: "", supervisorId: "",
+    gpsLat: "", gpsLng: "",
   });
   const [selectedWorkers, setSelectedWorkers] = useState<number[]>([]);
   const [materials, setMaterials] = useState<{ name: string; quantity: string; unit: string; cost: string }[]>([]);
@@ -42,7 +43,10 @@ export default function EditJobScreen() {
       notes: job.notes ?? "",
       labourHours: job.labourHours != null ? String(job.labourHours) : "",
       dueDate: job.dueDate ?? "",
+      kickOffMeetingDate: (job as any).kickOffMeetingDate ?? "",
       supervisorId: job.supervisorId != null ? String(job.supervisorId) : "",
+      gpsLat: (job as any).gpsLat != null ? String((job as any).gpsLat) : "",
+      gpsLng: (job as any).gpsLng != null ? String((job as any).gpsLng) : "",
     });
     const detail = job as any;
     if (detail.workers) setSelectedWorkers(detail.workers.map((w: any) => w.id));
@@ -78,7 +82,10 @@ export default function EditJobScreen() {
         notes: form.notes || undefined,
         labourHours: form.labourHours ? Number(form.labourHours) : undefined,
         dueDate: form.dueDate || undefined,
+        kickOffMeetingDate: form.kickOffMeetingDate || undefined,
         supervisorId: form.supervisorId ? Number(form.supervisorId) : undefined,
+        gpsLat: form.gpsLat ? Number(form.gpsLat) : undefined,
+        gpsLng: form.gpsLng ? Number(form.gpsLng) : undefined,
         workerIds: selectedWorkers,
         materials: materials.filter(m => m.name).map(m => ({ name: m.name, quantity: Number(m.quantity) || 0, unit: m.unit, cost: m.cost ? Number(m.cost) : undefined })),
         equipment: equipment.filter(e => e.name).map(e => ({ name: e.name, quantity: Number(e.quantity) || 0, cost: e.cost ? Number(e.cost) : undefined })),
@@ -98,10 +105,27 @@ export default function EditJobScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Job Details</Text>
         <Field label="Site Address" value={form.siteAddress} onChange={v => update("siteAddress", v)} colors={colors} />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Field label="GPS Latitude" value={form.gpsLat} onChange={v => update("gpsLat", v)} keyboard="numeric" colors={colors} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field label="GPS Longitude" value={form.gpsLng} onChange={v => update("gpsLng", v)} keyboard="numeric" colors={colors} />
+          </View>
+        </View>
+        <TouchableOpacity style={{ marginBottom: 15 }} onPress={() => {
+           const lat = form.gpsLat || '';
+           const lng = form.gpsLng || '';
+           const url = lat && lng ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(form.siteAddress)}`;
+           import('expo-linking').then(l => l.openURL(url));
+        }}>
+          <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>Open in Google Maps</Text>
+        </TouchableOpacity>
         <Field label="Description" value={form.description} onChange={v => update("description", v)} multi colors={colors} />
         <Field label="Notes" value={form.notes} onChange={v => update("notes", v)} multi colors={colors} />
         <Field label="Labour Hours" value={form.labourHours} onChange={v => update("labourHours", v)} keyboard="numeric" colors={colors} />
         <Field label="Due Date (YYYY-MM-DD)" value={form.dueDate} onChange={v => update("dueDate", v)} colors={colors} />
+        <Field label="Kick-Off Meeting Date" value={form.kickOffMeetingDate} onChange={v => update("kickOffMeetingDate", v)} colors={colors} />
       </View>
 
       {supervisors.length > 0 && (
