@@ -178,6 +178,7 @@ export function useSpeechToText(): SpeechToTextResult {
     async (onResult: (text: string) => void, lang = "af-ZA") => {
       console.log("[Voice] startListening — lang:", lang, "moduleAvailable:", moduleAvailable);
 
+      const normalizedLang = lang === "af" ? "af-ZA" : lang;
       const m = getNativeModule();
       if (!m) {
         Alert.alert(
@@ -189,7 +190,7 @@ export function useSpeechToText(): SpeechToTextResult {
       }
 
       onResultRef.current = onResult;
-      langRef.current = lang;
+      langRef.current = normalizedLang;
       retryingRef.current = false;
       bestRef.current = "";
 
@@ -219,8 +220,8 @@ export function useSpeechToText(): SpeechToTextResult {
           return;
         }
 
-        console.log("[Voice] calling m.start()");
-        m.start({ lang, interimResults: true, continuous: false, requiresOnDeviceRecognition: false });
+        console.log("[Voice] calling m.start() with lang:", normalizedLang);
+        m.start({ lang: normalizedLang, interimResults: true, continuous: false, requiresOnDeviceRecognition: false });
       } catch (err) {
         console.log("[Voice] startListening threw:", err);
         setIsListening(false);
