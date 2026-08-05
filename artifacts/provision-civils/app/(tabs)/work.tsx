@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { Feather } from "@expo/vector-icons";
 
@@ -17,11 +17,6 @@ async function fetchWorkerPayroll() {
     }, 1000);
   });
 }
-
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
-import { useColors } from "@/hooks/useColors";
-import { Feather } from "@expo/vector-icons";
 
 // ... (fetchWorkerPayroll mock)
 

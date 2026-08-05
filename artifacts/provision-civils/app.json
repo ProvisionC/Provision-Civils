@@ -51,21 +51,22 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-  [
-    "expo-router"
-  ],
-  "expo-font",
-  "expo-web-browser",
-  "expo-updates",
-  "expo-notifications",
-  [
-    "expo-location",
-    {
-      "locationWhenInUsePermission": "Allow Provision Civils to record GPS location for daily reports."
-    }
-  ],
-  ...
-]
+      [
+        "expo-router"
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-updates",
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Provision Civils to record GPS location for daily reports."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
           "microphonePermission": "Allow Provision Civils to use the microphone for voice-to-text on daily reports.",
           "speechRecognitionPermission": "Allow Provision Civils to recognise speech for Afrikaans voice notes."
         }
