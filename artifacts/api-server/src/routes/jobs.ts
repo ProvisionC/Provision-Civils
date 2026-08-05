@@ -12,17 +12,20 @@ function parseId(raw: string | string[]): number {
 }
 
 async function getJobWithRelations(jobId: number) {
-  const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, jobId));
+  const [jobRows, workerLinks, materials, equipment] = await Promise.all([
+    db.select().from(jobsTable).where(eq(jobsTable.id, jobId)),
+    db.select().from(jobWorkersTable).where(eq(jobWorkersTable.jobId, jobId)),
+    db.select().from(jobMaterialsTable).where(eq(jobMaterialsTable.jobId, jobId)).orderBy(jobMaterialsTable.id),
+    db.select().from(jobEquipmentTable).where(eq(jobEquipmentTable.jobId, jobId))
+  ]);
+  
+  const job = jobRows[0];
   if (!job) return null;
 
-  const workerLinks = await db.select().from(jobWorkersTable).where(eq(jobWorkersTable.jobId, jobId));
   const workerIds = workerLinks.map(w => w.workerId);
   const workers = workerIds.length > 0
     ? await db.select().from(usersTable).where(inArray(usersTable.id, workerIds))
     : [];
-
-  const materials = await db.select().from(jobMaterialsTable).where(eq(jobMaterialsTable.jobId, jobId)).orderBy(jobMaterialsTable.id);
-  const equipment = await db.select().from(jobEquipmentTable).where(eq(jobEquipmentTable.jobId, jobId));
 
   return { ...job, workers, materials, equipment };
 }

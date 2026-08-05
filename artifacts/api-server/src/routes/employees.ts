@@ -58,29 +58,40 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     return;
   }
   const passwordHash = await bcrypt.hash(password as string, 10);
-  const [user] = await db.insert(usersTable).values({
-    name: name as string,
-    email: (email as string).toLowerCase(),
-    passwordHash,
-    role: role as "admin" | "project_manager" | "supervisor" | "worker",
-    phone: phone as string | undefined,
-    employeeNumber: employeeNumber as string | undefined,
-    clockNumber: clockNumber as string | undefined,
-    idNumber: idNumber as string | undefined,
-    dateOfBirth: dateOfBirth as string | undefined,
-    homeAddress: homeAddress as string | undefined,
-    emergencyContactName: emergencyContactName as string | undefined,
-    emergencyContactNumber: emergencyContactNumber as string | undefined,
-    jobTitle: jobTitle as string | undefined,
-    department: department as string | undefined,
-    supervisorId: supervisorId ? Number(supervisorId) : undefined,
-    employmentStartDate: employmentStartDate as string | undefined,
-    employmentStatus: (employmentStatus as "active" | "suspended" | "resigned" | "dismissed") ?? "active",
-    payrollType: payrollType as "hourly" | "piece_work" | undefined,
-    hourlyRate: hourlyRate ? String(hourlyRate) : undefined,
-    meterRate: meterRate ? String(meterRate) : undefined,
-  }).returning();
-  res.status(201).json(formatUser(user));
+  try {
+    const [user] = await db.insert(usersTable).values({
+      name: name as string,
+      email: (email as string).toLowerCase(),
+      passwordHash,
+      role: role as "admin" | "project_manager" | "supervisor" | "worker",
+      phone: phone as string | undefined,
+      employeeNumber: employeeNumber as string | undefined,
+      clockNumber: clockNumber as string | undefined,
+      idNumber: idNumber as string | undefined,
+      dateOfBirth: dateOfBirth as string | undefined,
+      homeAddress: homeAddress as string | undefined,
+      emergencyContactName: emergencyContactName as string | undefined,
+      emergencyContactNumber: emergencyContactNumber as string | undefined,
+      jobTitle: jobTitle as string | undefined,
+      department: department as string | undefined,
+      supervisorId: supervisorId ? Number(supervisorId) : undefined,
+      employmentStartDate: employmentStartDate as string | undefined,
+      employmentStatus: (employmentStatus as "active" | "suspended" | "resigned" | "dismissed") ?? "active",
+      payrollType: payrollType as "hourly" | "piece_work" | undefined,
+      hourlyRate: hourlyRate ? String(hourlyRate) : undefined,
+      meterRate: meterRate ? String(meterRate) : undefined,
+    }).returning();
+    res.status(201).json(formatUser(user));
+  } catch (error: any) {
+    if (error.code === "23505") {
+      const detail = error.detail || "";
+      if (detail.includes("email")) { res.status(400).json({ error: "Email already in use" }); return; }
+      if (detail.includes("employee_number")) { res.status(400).json({ error: "Employee number already in use" }); return; }
+      if (detail.includes("clock_number")) { res.status(400).json({ error: "Clock number already in use" }); return; }
+    }
+    console.error("Failed to create employee:", error);
+    res.status(500).json({ error: "Failed to create employee" });
+  }
 });
 
 router.put("/employees/:id", requireAuth, requireRole("admin"), async (req, res): Promise<void> => {

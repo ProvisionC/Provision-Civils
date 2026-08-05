@@ -14,6 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Print from "expo-print";
 import { useAuth } from "@/context/AuthContext";
 import { QRCard } from "@/components/QRCard";
 
@@ -296,11 +297,17 @@ export default function EditEmployeeScreen() {
         {activeTab === "qr" && (
           <View style={{ alignItems: "center", paddingTop: 16 }}>
             <QRCard name={employee.name} clockNumber={employee.clockNumber || "—"} />
-            <View style={{ marginTop: 16, paddingHorizontal: 20 }}>
-              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 12, textAlign: "center" }}>
-                This card is print-friendly and can be shared with the site team.
-              </Text>
-            </View>
+            <TouchableOpacity 
+              style={{ marginTop: 20, backgroundColor: colors.primary, padding: 15, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10 }} 
+              onPress={async () => {
+                await Print.printAsync({
+                  html: `<html><body><h1>Provision Civils</h1><h2>${employee.name}</h2><p>Clock #: ${employee.clockNumber || '—'}</p></body></html>`
+                });
+              }}
+            >
+              <Feather name="printer" size={20} color="#FFF" />
+              <Text style={{ color: "#FFF", fontWeight: 'bold' }}>Print ID Card</Text>
+            </TouchableOpacity>
           </View>
         )}
 
