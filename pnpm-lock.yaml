@@ -7625,7 +7625,7 @@ snapshots:
   '@expo/config@12.0.13':
     dependencies:
       '@babel/code-frame': 7.10.4
-      '@expo/config-plugins': 54.0.4
+      '@expo/config-plugins': 54.0.5
       '@expo/config-types': 54.0.10
       '@expo/json-file': 10.2.0
       deepmerge: 4.3.1
@@ -7873,7 +7873,7 @@ snapshots:
   '@expo/prebuild-config@54.0.8(expo@54.0.36)(typescript@5.9.3)':
     dependencies:
       '@expo/config': 12.0.13
-      '@expo/config-plugins': 54.0.4
+      '@expo/config-plugins': 54.0.5
       '@expo/config-types': 54.0.10
       '@expo/image-utils': 0.8.14(typescript@5.9.3)
       '@expo/json-file': 10.2.0
