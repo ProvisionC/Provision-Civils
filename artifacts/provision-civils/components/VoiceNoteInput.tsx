@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
-import Voice from '@react-native-voice/voice';
+import { startSpeechRecognition, stopSpeechRecognition } from 'expo-speech-recognition';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 
@@ -8,18 +8,20 @@ export function VoiceNoteInput({ onResult }: { onResult: (text: string) => void 
   const [isRecording, setIsRecording] = useState(false);
   const colors = useColors();
 
-  useEffect(() => {
-    Voice.onSpeechResults = (e) => { if (e.value) onResult(e.value[0]); };
-    return () => { Voice.destroy().then(Voice.removeAllListeners); };
-  }, [onResult]);
-
   const toggleRecording = async () => {
     if (isRecording) {
-      await Voice.stop();
+      await stopSpeechRecognition();
       setIsRecording(false);
     } else {
       setIsRecording(true);
-      await Voice.start('af-ZA'); // Support Afrikaans
+      try {
+        const result = await startSpeechRecognition({ lang: 'af-ZA' });
+        onResult(result.results[0].transcript);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsRecording(false);
+      }
     }
   };
 

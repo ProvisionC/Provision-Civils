@@ -4,6 +4,9 @@
       "eas": {
         "projectId": "dd640cdd-90dc-487f-a997-c7d8136b4d78"
       }
+    },
+    "android": {
+      "package": "com.provisioncivils.app"
     }
   }
 }
