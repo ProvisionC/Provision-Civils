@@ -26,6 +26,7 @@ export const usersTable = pgTable("users", {
   payrollType: text("payroll_type", { enum: ["hourly", "piece_work"] }),
   hourlyRate: numeric("hourly_rate", { precision: 10, scale: 2 }),
   meterRate: numeric("meter_rate", { precision: 10, scale: 2 }),
+  photoUrl: text("photo_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
