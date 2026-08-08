@@ -11,9 +11,12 @@ const startedAt = Date.now();
 router.get("/system/status", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   let dbOnline = false;
   try {
-    await db.execute("SELECT 1" as unknown as Parameters<typeof db.execute>[0]);
+    // The previous implementation of db.execute('SELECT 1') might be failing or returning unexpected types.
+    // Try a simpler approach if available or just ensure it returns a result.
+    await db.select({ val: sql`1` }).from(jobsTable).limit(1);
     dbOnline = true;
-  } catch {
+  } catch (e) {
+    console.error("Health check DB error:", e);
     dbOnline = false;
   }
 
