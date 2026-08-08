@@ -63,7 +63,11 @@ export default function CreateJobScreen() {
         qc.invalidateQueries({ queryKey: getListJobsQueryKey() });
         router.replace(`/job/${job.id}` as any);
       },
-      onError: () => Alert.alert("Error", "Failed to create job. Please try again."),
+      onError: (err: any) => {
+        console.error("Job creation failed:", err);
+        const msg = err.response?.data?.error || "Failed to create job. Please try again.";
+        Alert.alert("Error", msg);
+      },
     },
   });
 

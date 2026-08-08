@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { db, jobsTable, usersTable, jobWorkersTable, jobMaterialsTable, jobEquipmentTable, jobPhotosTable, gpsLogsTable, dailyReportsTable, expensesTable, invoicesTable, notificationsTable } from "@workspace/db";
 import { eq, and, ilike, inArray, isNull, sql } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth.js";
+import { requireAuth, requireRole, type AuthPayload } from "../middlewares/auth.js";
 import { ZipArchive } from "archiver";
 
 const router: IRouter = Router();
@@ -95,23 +95,39 @@ async function notifyWorkers(workerIds: number[], message: string, type: string,
   }
 }
 
-router.get("/jobs", requireAuth, async (req, res): Promise<void> => {
-  const { status, search } = req.query as { status?: string; search?: string };
+async function isWorkerAssignedToJob(workerId: number, jobId: number): Promise<boolean> {
+  const link = await db.select().from(jobWorkersTable)
+    .where(and(eq(jobWorkersTable.jobId, jobId), eq(jobWorkersTable.workerId, workerId)))
+    .limit(1);
+  return link.length > 0;
+}
 
-  const jobs = await db.select().from(jobsTable)
-    .where(
+router.get("/jobs", requireAuth, async (req, res): Promise<void> => {
+  const auth = (req as Request & { auth: AuthPayload }).auth;
+  const { status, search } = req.query as { status?: string; search?: string };
+  
+  let query = db.select().from(jobsTable).where(isNull(jobsTable.deletedAt));
+  
+  if (auth.role === "worker") {
+    const assignedJobs = await db.select({ jobId: jobWorkersTable.jobId }).from(jobWorkersTable).where(eq(jobWorkersTable.workerId, auth.userId));
+    const jobIds = assignedJobs.map(j => j.jobId);
+    if (jobIds.length === 0) { res.json([]); return; }
+    query = db.select().from(jobsTable).where(and(isNull(jobsTable.deletedAt), inArray(jobsTable.id, jobIds)));
+  } else {
+    query = db.select().from(jobsTable).where(
       and(
         isNull(jobsTable.deletedAt),
         status ? eq(jobsTable.status, status as typeof jobsTable.$inferSelect["status"]) : undefined,
         search ? ilike(jobsTable.clientName, `%${search}%`) : undefined,
       )
-    )
-    .orderBy(jobsTable.createdAt);
-
+    );
+  }
+  
+  const jobs = await query.orderBy(jobsTable.createdAt);
   res.json(jobs.map(formatJob));
 });
 
-router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
+router.post("/jobs", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const { workerIds, materials, equipment, ...jobData } = req.body as {
     clientId?: number;
     clientName: string;
@@ -203,7 +219,16 @@ router.post("/jobs", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
+  const auth = (req as Request & { auth: AuthPayload }).auth;
   const id = parseId(req.params.id);
+  
+  if (auth.role === "worker") {
+    if (!(await isWorkerAssignedToJob(auth.userId, id))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+  }
+  
   const detail = await getJobWithRelations(id);
   if (!detail) {
     res.status(404).json({ error: "Job not found" });
@@ -228,7 +253,7 @@ router.get("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
-router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
+router.put("/jobs/:id", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const { workerIds, materials, equipment, ...jobData } = req.body as {
     clientId?: number;
@@ -327,7 +352,7 @@ router.put("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(formatJob(job));
 });
 
-router.delete("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/jobs/:id", requireAuth, requireRole("admin"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const [existing] = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.id, id));
   if (!existing) {
@@ -335,17 +360,18 @@ router.delete("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   // Soft delete — move to recycle bin instead of permanent deletion
-await db.update(jobsTable)
-  .set({ deletedAt: new Date() })
-  .where(eq(jobsTable.id, id));
+  await db.update(jobsTable)
+    .set({ deletedAt: new Date() })
+    .where(eq(jobsTable.id, id));
 
-// Delete all expenses linked to this job
-await db.delete(expensesTable)
-  .where(eq(expensesTable.jobId, id));
+  // Delete all expenses linked to this job
+  await db.delete(expensesTable)
+    .where(eq(expensesTable.jobId, id));
 
-res.sendStatus(204);
+  res.sendStatus(204);
 });
 
+// ... (existing photo, GPS, daily report handlers remain unchanged below) ...
 router.get("/jobs/:id/photos", requireAuth, async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const { category } = req.query as { category?: string };

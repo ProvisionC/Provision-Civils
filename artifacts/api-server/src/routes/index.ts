@@ -25,6 +25,7 @@ import systemRouter from "./system.js";
 import crashRouter from "./crash.js";
 import activityRouter from "./activity.js";
 import recycleRouter from "./recycle.js";
+import attendanceRouter from "./attendance.js";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use(systemRouter);
 router.use(crashRouter);
 router.use(activityRouter);
 router.use(recycleRouter);
+router.use(attendanceRouter);
 
 export default router;

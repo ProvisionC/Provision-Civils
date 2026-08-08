@@ -37,7 +37,19 @@ function formatUser(u: typeof usersTable.$inferSelect) {
   };
 }
 
-router.get("/employees", requireAuth, async (_req, res): Promise<void> => {
+router.get("/employees", requireAuth, async (req, res): Promise<void> => {
+  const auth = (req as Request & { auth: AuthPayload }).auth;
+
+  if (auth.role === "worker") {
+    const user = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
+    if (!user[0]) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json([formatUser(user[0])]);
+    return;
+  }
+
   const users = await db.select().from(usersTable)
     .where(isNull(usersTable.deletedAt))
     .orderBy(usersTable.name);

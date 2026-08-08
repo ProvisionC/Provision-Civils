@@ -4,11 +4,14 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import * as Location from 'expo-location';
 
 export default function AttendanceScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const colors = useColors();
+  const { token } = useAuth();
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -22,12 +25,36 @@ export default function AttendanceScannerScreen() {
     );
   }
 
+  const handleAttendance = async (clockNumber: string, type: 'IN' | 'OUT') => {
+    try {
+        let gps = undefined;
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+            const loc = await Location.getCurrentPositionAsync({});
+            gps = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        }
+
+        const response = await fetch(`https://provision-api-ckpk.onrender.com/attendance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ clockNumber, type, gps })
+        });
+        
+        if (!response.ok) throw new Error(await response.text());
+        Alert.alert('Success', `Employee clocked ${type} successfully`);
+    } catch (e: any) {
+        Alert.alert('Error', e.message || 'Attendance failed');
+    } finally {
+        setScanned(false);
+    }
+  };
+
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
-    Alert.alert('Scanned', `Clocking for: ${data}`, [
-        { text: 'Clock IN', onPress: () => { Alert.alert('Success', 'Clocked IN'); setScanned(false); } },
-        { text: 'Clock OUT', onPress: () => { Alert.alert('Success', 'Clocked OUT'); setScanned(false); } },
+    Alert.alert('Scanned', `Employee: ${data}`, [
+        { text: 'Clock IN', onPress: () => handleAttendance(data, 'IN') },
+        { text: 'Clock OUT', onPress: () => handleAttendance(data, 'OUT') },
         { text: 'Cancel', onPress: () => setScanned(false) }
     ]);
   };

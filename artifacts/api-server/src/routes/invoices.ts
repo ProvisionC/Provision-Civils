@@ -1,10 +1,13 @@
 import { Router, type IRouter } from "express";
 import { db, invoicesTable, jobsTable, notificationsTable, jobWorkersTable } from "@workspace/db";
 import { eq, inArray, isNull } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth.js";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// Only admin/PM can see/create invoices
+router.use(requireRole("admin", "project_manager", "supervisor"));
 
 function parseId(raw: string | string[]): number {
   const s = Array.isArray(raw) ? raw[0] : raw;

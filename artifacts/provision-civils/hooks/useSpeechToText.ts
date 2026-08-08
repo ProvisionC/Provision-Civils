@@ -50,18 +50,19 @@ export function useSpeechToText(): SpeechToTextResult {
   // ── Availability check on mount ───────────────────────────────────────────
   useEffect(() => {
     const m = getNativeModule();
+    console.log("[Voice] Checking module availability...");
     if (!m) {
-      console.log("[Voice] native module not found — requires custom dev build");
+      console.log("[Voice] native module NOT FOUND");
       setModuleAvailable(false);
       return;
     }
     m.isAvailableAsync()
       .then((ok: boolean) => {
-        console.log("[Voice] isAvailableAsync:", ok);
+        console.log("[Voice] isAvailableAsync returned:", ok);
         setModuleAvailable(ok);
       })
       .catch((err: unknown) => {
-        console.log("[Voice] isAvailableAsync error:", err);
+        console.error("[Voice] isAvailableAsync ERROR:", err);
         setModuleAvailable(false);
       });
   }, []);

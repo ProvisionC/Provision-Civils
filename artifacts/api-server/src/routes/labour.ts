@@ -75,17 +75,28 @@ function formatEntry(e: typeof labourEntriesTable.$inferSelect & { employee?: ty
 
 // GET /labour-entries
 router.get("/labour-entries", requireAuth, async (req, res): Promise<void> => {
+  const auth = (req as AuthReq).auth;
   const jobId = req.query.jobId ? parseInt(req.query.jobId as string, 10) : undefined;
   const employeeId = req.query.employeeId ? parseInt(req.query.employeeId as string, 10) : undefined;
+
+  // Enforce role-based scoping
+  let effectiveEmployeeId = employeeId;
+  if (auth.role === "worker") {
+    if (employeeId && employeeId !== auth.userId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+    effectiveEmployeeId = auth.userId;
+  }
 
   const rows = await db
     .select({ entry: labourEntriesTable, employee: usersTable })
     .from(labourEntriesTable)
     .leftJoin(usersTable, eq(labourEntriesTable.employeeId, usersTable.id))
     .where(
-      jobId && employeeId ? and(eq(labourEntriesTable.jobId, jobId), eq(labourEntriesTable.employeeId, employeeId))
+      jobId && effectiveEmployeeId ? and(eq(labourEntriesTable.jobId, jobId), eq(labourEntriesTable.employeeId, effectiveEmployeeId))
         : jobId ? eq(labourEntriesTable.jobId, jobId)
-        : employeeId ? eq(labourEntriesTable.employeeId, employeeId)
+        : effectiveEmployeeId ? eq(labourEntriesTable.employeeId, effectiveEmployeeId)
         : undefined
     )
     .orderBy(labourEntriesTable.date);
