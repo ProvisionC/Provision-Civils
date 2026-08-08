@@ -178,10 +178,12 @@ async function registerPushNotification(authToken: string) {
     }
 
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    console.log("[push] existing permission status:", existingStatus);
     let finalStatus = existingStatus;
     
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
+      console.log("[push] new permission status:", status);
       finalStatus = status;
     }
 
@@ -194,7 +196,7 @@ async function registerPushNotification(authToken: string) {
       projectId: "a6093da0-719f-4eee-86e4-a87d0059c219",
     });
 
-    console.log("[push] token acquired", { tokenPrefix: expoToken.data.slice(0, 12) });
+    console.log("[push] token acquired", { token: expoToken.data });
 
     const platform = Platform.OS === "ios" ? "ios" : "android";
     const response = await fetch(`${API_URL}/push-tokens`, {
