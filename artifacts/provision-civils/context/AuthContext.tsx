@@ -98,7 +98,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           setToken(storedToken);
           setUser(JSON.parse(storedUser) as AuthUser);
+          
+          // Use an async function to get the current token state from state
           setAuthTokenGetter(() => storedToken);
+          
           resetInactivityTimer();
           await registerPushNotification(storedToken);
         }
