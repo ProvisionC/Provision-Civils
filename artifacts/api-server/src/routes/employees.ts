@@ -1,8 +1,8 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable, employeeBankingTable } from "@workspace/db";
 import { eq, isNull } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { requireAuth, requireRole, type AuthPayload } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
@@ -33,7 +33,6 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     payrollType: u.payrollType ?? null,
     hourlyRate: u.hourlyRate ? String(u.hourlyRate) : null,
     meterRate: u.meterRate ? String(u.meterRate) : null,
-    photoUrl: u.photoUrl ?? null,
     createdAt: u.createdAt.toISOString(),
   };
 }
@@ -63,7 +62,7 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     employeeNumber, clockNumber, idNumber, dateOfBirth,
     homeAddress, emergencyContactName, emergencyContactNumber,
     jobTitle, department, supervisorId, employmentStartDate,
-    employmentStatus, payrollType, hourlyRate, meterRate, photoUrl,
+    employmentStatus, payrollType, hourlyRate, meterRate,
   } = req.body as Record<string, string | number | undefined>;
 
   if (!name || !email || !role || !password) {
@@ -93,7 +92,6 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
       payrollType: payrollType as "hourly" | "piece_work" | undefined,
       hourlyRate: hourlyRate ? String(hourlyRate) : undefined,
       meterRate: meterRate ? String(meterRate) : undefined,
-      photoUrl: photoUrl as string | undefined,
     }).returning();
     res.status(201).json(formatUser(user));
   } catch (error: any) {
@@ -115,7 +113,7 @@ router.put("/employees/:id", requireAuth, requireRole("admin"), async (req, res)
     employeeNumber, clockNumber, idNumber, dateOfBirth,
     homeAddress, emergencyContactName, emergencyContactNumber,
     jobTitle, department, supervisorId, employmentStartDate,
-    employmentStatus, payrollType, hourlyRate, meterRate, photoUrl,
+    employmentStatus, payrollType, hourlyRate, meterRate,
   } = req.body as Record<string, string | number | undefined>;
 
   const [user] = await db.update(usersTable).set({
@@ -138,7 +136,6 @@ router.put("/employees/:id", requireAuth, requireRole("admin"), async (req, res)
     ...(payrollType !== undefined && { payrollType: payrollType as "hourly" | "piece_work" }),
     ...(hourlyRate !== undefined && { hourlyRate: hourlyRate ? String(hourlyRate) : null }),
     ...(meterRate !== undefined && { meterRate: meterRate ? String(meterRate) : null }),
-    ...(photoUrl !== undefined && { photoUrl: photoUrl as string | null }),
   }).where(eq(usersTable.id, id)).returning();
   if (!user) { res.status(404).json({ error: "Employee not found" }); return; }
   res.json(formatUser(user));

@@ -33,6 +33,10 @@ router.post("/attendance", requireAuth, async (req, res): Promise<void> => {
         employeeId: employee.id,
         clockIn: now,
         date: now.split("T")[0],
+        payrollType: employee.payrollType ?? 'hourly',
+        jobId: 1, // Defaulting as a placeholder, should ideally come from client
+        createdById: employee.id,
+        workType: 'other',
     });
   } else {
     // OUT: must have an active clockIn
@@ -48,9 +52,10 @@ router.post("/attendance", requireAuth, async (req, res): Promise<void> => {
   if (gps) {
     await db.insert(gpsLogsTable).values({
         userId: employee.id,
-        lat: gps.lat.toString(),
-        lng: gps.lng.toString(),
-        timestamp: now
+        jobId: 1, // Defaulting as placeholder
+        arrivalLat: gps.lat.toString(),
+        arrivalLng: gps.lng.toString(),
+        arrivalTime: new Date(now),
     });
   }
 
