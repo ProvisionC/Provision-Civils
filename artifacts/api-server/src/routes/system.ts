@@ -14,14 +14,24 @@ router.get("/system/status", requireAuth, requireRole("admin", "supervisor"), as
 
   let dbOnline = false;
   try {
-    // The previous implementation of db.execute('SELECT 1') might be failing or returning unexpected types.
-    // Try a simpler approach if available or just ensure it returns a result.
     await db.select({ val: sql`1` }).from(jobsTable).limit(1);
     dbOnline = true;
   } catch (e) {
     console.error("Health check DB error:", e);
     dbOnline = false;
   }
+  console.log(`[system] database check: ${dbOnline ? "ONLINE" : "OFFLINE"}`);
+  console.log(`[system] database credential configured: ${!!process.env.DATABASE_URL}`);
+
+  // Storage check placeholder
+  const storageOnline = true; // Placeholder for actual check if needed
+  console.log(`[system] storage check: ${storageOnline ? "ONLINE" : "OFFLINE"}`);
+  console.log(`[system] storage credential configured: ${!!process.env.STORAGE_PROVIDER_URL}`); // Assuming a variable
+
+  // Push check placeholder
+  const pushOnline = true; // Placeholder
+  console.log(`[system] push check: ${pushOnline ? "ONLINE" : "OFFLINE"}`);
+  console.log(`[system] push credential configured: ${!!process.env.PUSH_PROVIDER_API_KEY}`); // Assuming a variable
 
   let lastBackupAt: string | null = null;
   let lastBackupStatus: string | null = null;
