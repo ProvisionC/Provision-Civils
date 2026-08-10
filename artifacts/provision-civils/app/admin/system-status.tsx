@@ -55,10 +55,27 @@ export default function SystemStatusScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data: status, isLoading, refetch, isFetching, error } = useGetSystemStatus({
-    query: { queryKey: ["system-status"], refetchInterval: 30000 },
+    query: { 
+      queryKey: ["system-status"], 
+      refetchInterval: 30000,
+      retry: false, // Ensure we see the error immediately
+    },
   });
 
   const [apiServerStatus, setApiServerStatus] = React.useState<'checking' | 'online' | 'offline'>('checking');
+
+  // Diagnostic logging for authenticated request
+  React.useEffect(() => {
+    if (error) {
+      console.error("SYSTEM STATUS AUTHENTICATED API ERROR:");
+      // @ts-ignore
+      console.log("URL:", error.url);
+      // @ts-ignore
+      console.log("HTTP STATUS:", error.status);
+      // @ts-ignore
+      console.log("RESPONSE BODY:", JSON.stringify(error.data));
+    }
+  }, [error]);
 
   const checkApiHealth = React.useCallback(async () => {
     setApiServerStatus('checking');
@@ -66,7 +83,7 @@ export default function SystemStatusScreen() {
       const response = await fetch("https://provision-api-ckpk.onrender.com/health");
       const data = await response.json();
       
-      console.log("SYSTEM STATUS:");
+      console.log("SYSTEM STATUS (UNAUTHENTICATED /health):");
       console.log("URL: https://provision-api-ckpk.onrender.com/health");
       console.log("HTTP STATUS:", response.status);
       console.log("RESPONSE:", JSON.stringify(data));
@@ -77,7 +94,7 @@ export default function SystemStatusScreen() {
         setApiServerStatus('offline');
       }
     } catch (e) {
-      console.error("SYSTEM STATUS ERROR:", e);
+      console.error("SYSTEM STATUS ERROR (/health):", e);
       setApiServerStatus('offline');
     }
   }, []);
@@ -100,7 +117,7 @@ export default function SystemStatusScreen() {
         </TouchableOpacity>
       </View>
 
-      {isLoading ? (
+      {isLoading && apiServerStatus === 'checking' ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -118,9 +135,9 @@ export default function SystemStatusScreen() {
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SERVICES</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <StatusRow label="API Server" value={apiServerStatus === 'online' ? "Responding normally" : apiServerStatus === 'checking' ? "Checking..." : "Not responding"} ok={apiServerStatus === 'online'} />
-            <StatusRow label="Database" value={status?.database ? "Connected" : "Connection failed"} ok={status?.database ?? false} />
-            <StatusRow label="Storage" value={status?.storage ? "Available" : "Unavailable"} ok={status?.storage ?? false} />
-            <StatusRow label="Push Notifications" value={status?.pushNotifications ? "Active" : "Disabled"} ok={status?.pushNotifications ?? false} />
+            <StatusRow label="Database" value={status?.database ? "Connected" : (error ? "Auth Error (403)" : "Connection failed")} ok={status?.database ?? false} />
+            <StatusRow label="Storage" value={status?.storage ? "Available" : (error ? "Auth Error (403)" : "Unavailable")} ok={status?.storage ?? false} />
+            <StatusRow label="Push Notifications" value={status?.pushNotifications ? "Active" : (error ? "Auth Error (403)" : "Disabled")} ok={status?.pushNotifications ?? false} />
           </View>
 
           {/* Info */}
