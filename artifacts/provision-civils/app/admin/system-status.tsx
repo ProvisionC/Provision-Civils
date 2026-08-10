@@ -54,9 +54,21 @@ export default function SystemStatusScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { data: status, isLoading, refetch, isFetching } = useGetSystemStatus({
+  const { data: status, isLoading, refetch, isFetching, error } = useGetSystemStatus({
     query: { queryKey: ["system-status"], refetchInterval: 30000 },
   });
+
+  React.useEffect(() => {
+    if (error) {
+      console.error("System Status API Error:", error);
+      // @ts-ignore
+      console.log("Status URL:", error.url);
+      // @ts-ignore
+      console.log("Status Code:", error.status);
+      // @ts-ignore
+      console.log("Response Body:", error.data);
+    }
+  }, [error]);
 
   const overallOk = status ? status.api && status.database : false;
 
