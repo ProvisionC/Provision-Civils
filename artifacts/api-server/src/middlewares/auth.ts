@@ -1,6 +1,8 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { isWorkerAllowedRoute } from "../utils/workerAccess.js";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const JWT_SECRET = process.env.SESSION_SECRET ?? "provision-civils-secret";
 
@@ -9,7 +11,7 @@ export interface AuthPayload {
   role: string;
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
@@ -18,15 +20,26 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const token = authHeader.slice(7);
   try {
     const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
-    (req as Request & { auth: AuthPayload }).auth = payload;
+    
+    // Fetch latest user role from DB
+    const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
+    
+    if (!user) {
+        res.status(401).json({ error: "User not found" });
+        return;
+    }
+    
+    const authPayload = { userId: payload.userId, role: user.role };
+    (req as Request & { auth: AuthPayload }).auth = authPayload;
 
-    if (payload.role === "worker" && !isWorkerAllowedRoute(req.path)) {
+    if (authPayload.role === "worker" && !isWorkerAllowedRoute(req.path)) {
       res.status(403).json({ error: "Worker access denied" });
       return;
     }
 
     next();
-  } catch {
+  } catch (err) {
+    console.error("Auth error:", err);
     res.status(401).json({ error: "Invalid token" });
   }
 }
