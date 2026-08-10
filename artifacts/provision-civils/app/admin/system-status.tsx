@@ -58,8 +58,13 @@ export default function SystemStatusScreen() {
     query: { 
       queryKey: ["system-status"], 
       refetchInterval: 30000,
-      retry: false, // Ensure we see the error immediately
+      retry: false, 
     },
+    request: {
+      headers: {
+        // Just checking how this is passed
+      }
+    }
   });
 
   const [apiServerStatus, setApiServerStatus] = React.useState<'checking' | 'online' | 'offline'>('checking');
@@ -74,6 +79,8 @@ export default function SystemStatusScreen() {
       console.log("HTTP STATUS:", error.status);
       // @ts-ignore
       console.log("RESPONSE BODY:", JSON.stringify(error.data));
+      // @ts-ignore
+      console.log("AUTH HEADER PRESENT:", error.headers?.has("Authorization"));
     }
   }, [error]);
 
