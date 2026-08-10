@@ -55,6 +55,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const auth = (req as Request & { auth?: AuthPayload }).auth;
+    
+    console.log(`[auth] requireRole check, endpoint: ${req.method} ${req.path}`);
+    console.log(`[auth] requireRole allowed: [${roles.join(", ")}], actual: ${auth?.role}`);
+    
     if (!auth || !roles.includes(auth.role)) {
       console.log(`[auth] 403 reason: role ${auth?.role} not in allowed roles [${roles.join(", ")}], userId: ${auth?.userId}`);
       res.status(403).json({ error: "Forbidden" });
