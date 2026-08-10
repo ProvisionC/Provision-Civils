@@ -6,9 +6,6 @@ import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-// Only admin/PM can see/create invoices
-router.use(requireRole("admin", "project_manager", "supervisor"));
-
 function parseId(raw: string | string[]): number {
   const s = Array.isArray(raw) ? raw[0] : raw;
   return parseInt(s, 10);
@@ -54,7 +51,7 @@ function formatInvoice(inv: typeof invoicesTable.$inferSelect, job?: typeof jobs
   return base;
 }
 
-router.get("/invoices", requireAuth, async (_req, res): Promise<void> => {
+router.get("/invoices", requireAuth, requireRole("admin", "project_manager", "supervisor"), async (_req, res): Promise<void> => {
   const rows = await db
     .select({ inv: invoicesTable, job: jobsTable })
     .from(invoicesTable)
@@ -64,7 +61,7 @@ router.get("/invoices", requireAuth, async (_req, res): Promise<void> => {
   res.json(rows.map(r => formatInvoice(r.inv, r.job ?? undefined)));
 });
 
-router.post("/invoices", requireAuth, async (req, res): Promise<void> => {
+router.post("/invoices", requireAuth, requireRole("admin", "project_manager", "supervisor"), async (req, res): Promise<void> => {
   const { jobId, labourCost, materialsCost, equipmentCost, vat, notes } = req.body as {
     jobId: number; labourCost: number; materialsCost: number; equipmentCost: number; vat: number; notes?: string;
   };
@@ -105,7 +102,7 @@ router.post("/invoices", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(formatInvoice(inv, fullJob));
 });
 
-router.get("/invoices/:id", requireAuth, async (req, res): Promise<void> => {
+router.get("/invoices/:id", requireAuth, requireRole("admin", "project_manager", "supervisor"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
   if (!inv) {
@@ -116,7 +113,7 @@ router.get("/invoices/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(formatInvoice(inv, job));
 });
 
-router.put("/invoices/:id", requireAuth, async (req, res): Promise<void> => {
+router.put("/invoices/:id", requireAuth, requireRole("admin", "project_manager", "supervisor"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const { status, notes, labourCost, materialsCost, equipmentCost, vat } = req.body as {
     status?: string; notes?: string; labourCost?: number; materialsCost?: number; equipmentCost?: number; vat?: number;
