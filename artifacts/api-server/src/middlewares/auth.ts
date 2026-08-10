@@ -21,18 +21,26 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   try {
     const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
     
-    // Fetch latest user role from DB
-    const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
+    // Fetch latest user from DB to get fresh role
+    const [user] = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
     
     if (!user) {
+        console.log(`[auth] 403 reason: user not found in DB, userId: ${payload.userId}`);
         res.status(401).json({ error: "User not found" });
         return;
     }
     
     const authPayload = { userId: payload.userId, role: user.role };
     (req as Request & { auth: AuthPayload }).auth = authPayload;
+    
+    console.log(`[auth] endpoint: ${req.method} ${req.path}`);
+    console.log(`[auth] token userId: ${payload.userId}`);
+    console.log(`[auth] database user found: true`);
+    console.log(`[auth] database role: ${user.role}`);
+    console.log(`[auth] final auth role: ${authPayload.role}`);
 
     if (authPayload.role === "worker" && !isWorkerAllowedRoute(req.path)) {
+      console.log(`[auth] 403 reason: worker access denied, userId: ${authPayload.userId}, role: ${authPayload.role}`);
       res.status(403).json({ error: "Worker access denied" });
       return;
     }
@@ -48,6 +56,7 @@ export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const auth = (req as Request & { auth?: AuthPayload }).auth;
     if (!auth || !roles.includes(auth.role)) {
+      console.log(`[auth] 403 reason: role ${auth?.role} not in allowed roles [${roles.join(", ")}], userId: ${auth?.userId}`);
       res.status(403).json({ error: "Forbidden" });
       return;
     }
