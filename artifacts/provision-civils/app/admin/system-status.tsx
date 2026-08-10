@@ -58,19 +58,35 @@ export default function SystemStatusScreen() {
     query: { queryKey: ["system-status"], refetchInterval: 30000 },
   });
 
-  React.useEffect(() => {
-    if (error) {
-      console.error("System Status API Error:", error);
-      // @ts-ignore
-      console.log("Status URL:", error.url);
-      // @ts-ignore
-      console.log("Status Code:", error.status);
-      // @ts-ignore
-      console.log("Response Body:", error.data);
-    }
-  }, [error]);
+  const [apiServerStatus, setApiServerStatus] = React.useState<'checking' | 'online' | 'offline'>('checking');
 
-  const overallOk = status ? status.api && status.database : false;
+  const checkApiHealth = React.useCallback(async () => {
+    setApiServerStatus('checking');
+    try {
+      const response = await fetch("https://provision-api-ckpk.onrender.com/health");
+      const data = await response.json();
+      
+      console.log("SYSTEM STATUS:");
+      console.log("URL: https://provision-api-ckpk.onrender.com/health");
+      console.log("HTTP STATUS:", response.status);
+      console.log("RESPONSE:", JSON.stringify(data));
+
+      if (response.ok && data.status === "ok") {
+        setApiServerStatus('online');
+      } else {
+        setApiServerStatus('offline');
+      }
+    } catch (e) {
+      console.error("SYSTEM STATUS ERROR:", e);
+      setApiServerStatus('offline');
+    }
+  }, []);
+
+  React.useEffect(() => {
+    checkApiHealth();
+  }, [checkApiHealth]);
+
+  const overallOk = (apiServerStatus === 'online') && (status?.database ?? false);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -79,8 +95,8 @@ export default function SystemStatusScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>System Status</Text>
-        <TouchableOpacity onPress={() => refetch()} style={styles.refreshBtn} disabled={isFetching}>
-          {isFetching ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={20} color={colors.primary} />}
+        <TouchableOpacity onPress={() => { refetch(); checkApiHealth(); }} style={styles.refreshBtn} disabled={isFetching || apiServerStatus === 'checking'}>
+          {(isFetching || apiServerStatus === 'checking') ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={20} color={colors.primary} />}
         </TouchableOpacity>
       </View>
 
@@ -101,7 +117,7 @@ export default function SystemStatusScreen() {
           {/* Services */}
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SERVICES</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <StatusRow label="API Server" value={status?.api ? "Responding normally" : "Not responding"} ok={status?.api ?? false} />
+            <StatusRow label="API Server" value={apiServerStatus === 'online' ? "Responding normally" : apiServerStatus === 'checking' ? "Checking..." : "Not responding"} ok={apiServerStatus === 'online'} />
             <StatusRow label="Database" value={status?.database ? "Connected" : "Connection failed"} ok={status?.database ?? false} />
             <StatusRow label="Storage" value={status?.storage ? "Available" : "Unavailable"} ok={status?.storage ?? false} />
             <StatusRow label="Push Notifications" value={status?.pushNotifications ? "Active" : "Disabled"} ok={status?.pushNotifications ?? false} />
