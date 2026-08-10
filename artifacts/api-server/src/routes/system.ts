@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { db, backupsTable, jobsTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { requireAuth, requireRole, type AuthPayload } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
@@ -9,6 +9,9 @@ const APP_VERSION = "2.0.0";
 const startedAt = Date.now();
 
 router.get("/system/status", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
+  const auth = (req as Request & { auth: AuthPayload }).auth;
+  console.log(`[system/status] Access attempt by user: ${auth.userId}, role: ${auth.role}`);
+
   let dbOnline = false;
   try {
     // The previous implementation of db.execute('SELECT 1') might be failing or returning unexpected types.
