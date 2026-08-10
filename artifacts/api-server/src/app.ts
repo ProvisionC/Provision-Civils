@@ -7,6 +7,7 @@ import express, {
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import healthRouter from "./routes/health.js"; // Import health router explicitly
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -35,6 +36,7 @@ app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
 // Health Check
+app.use(healthRouter); // Mount health router directly here
 app.get("/", (_req, res) => {
   res.json({
     status: "online",
