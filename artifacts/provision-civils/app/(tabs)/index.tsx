@@ -24,10 +24,15 @@ export default function DashboardScreen() {
   const isAdmin = user?.role === "admin";
   const isPM = user?.role === "project_manager";
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useGetDashboardStats();
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useGetDashboardStats({
+    query: { enabled: true }
+  });
   const s = stats as any;
   const { data: jobs, isLoading: jobsLoading, refetch: refetchJobs } = useListJobs(
     { status: "active" },
+    {
+      query: { enabled: true }
+    }
   );
 
   const [refreshing, setRefreshing] = React.useState(false);
@@ -91,56 +96,62 @@ export default function DashboardScreen() {
 
       {/* Operational stats */}
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Operations</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statsRow}>
-          <StatCard
-            label="Active Jobs"
-            value={stats?.activeJobs ?? 0}
-            color={colors.primary}
-            icon={<Feather name="briefcase" size={20} color={colors.primary} />}
-            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { status: "active" } } as any)}
-          />
-          <StatCard
-            label="Completed"
-            value={stats?.completedJobs ?? 0}
-            color={colors.success}
-            icon={<Feather name="check-circle" size={20} color={colors.success} />}
-            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { status: "completed" } } as any)}
-          />
+      {statsLoading ? (
+        <View style={[styles.loadingBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading statistics...</Text>
         </View>
-        <View style={styles.statsRow}>
-          <StatCard
-            label="Overdue"
-            value={stats?.overdueJobs ?? 0}
-            color={colors.destructive}
-            icon={<Feather name="clock" size={20} color={colors.destructive} />}
-            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { dateFilter: "overdue" } } as any)}
-          />
-          <StatCard
-            label="Due Today"
-            value={stats?.jobsDueToday ?? 0}
-            color={colors.warning}
-            icon={<Feather name="calendar" size={20} color={colors.warning} />}
-            onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { dateFilter: "today" } } as any)}
-          />
+      ) : (
+        <View style={styles.statsGrid}>
+          <View style={styles.statsRow}>
+            <StatCard
+              label="Active Jobs"
+              value={stats?.activeJobs ?? 0}
+              color={colors.primary}
+              icon={<Feather name="briefcase" size={20} color={colors.primary} />}
+              onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { status: "active" } } as any)}
+            />
+            <StatCard
+              label="Completed"
+              value={stats?.completedJobs ?? 0}
+              color={colors.success}
+              icon={<Feather name="check-circle" size={20} color={colors.success} />}
+              onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { status: "completed" } } as any)}
+            />
+          </View>
+          <View style={styles.statsRow}>
+            <StatCard
+              label="Overdue"
+              value={stats?.overdueJobs ?? 0}
+              color={colors.destructive}
+              icon={<Feather name="clock" size={20} color={colors.destructive} />}
+              onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { dateFilter: "overdue" } } as any)}
+            />
+            <StatCard
+              label="Due Today"
+              value={stats?.jobsDueToday ?? 0}
+              color={colors.warning}
+              icon={<Feather name="calendar" size={20} color={colors.warning} />}
+              onPress={() => router.push({ pathname: "/(tabs)/jobs", params: { dateFilter: "today" } } as any)}
+            />
+          </View>
+          <View style={styles.statsRow}>
+            <StatCard
+              label="Team"
+              value={stats?.totalEmployees ?? 0}
+              color={colors.secondary}
+              icon={<Feather name="users" size={20} color={colors.secondary} />}
+              onPress={() => router.push("/(tabs)/employees" as any)}
+            />
+            <StatCard
+              label="Invoices"
+              value={stats?.totalInvoices ?? 0}
+              color="#7B1FA2"
+              icon={<Feather name="file-text" size={20} color="#7B1FA2" />}
+              onPress={() => router.push("/(tabs)/invoices" as any)}
+            />
+          </View>
         </View>
-        <View style={styles.statsRow}>
-          <StatCard
-            label="Team"
-            value={stats?.totalEmployees ?? 0}
-            color={colors.secondary}
-            icon={<Feather name="users" size={20} color={colors.secondary} />}
-            onPress={() => router.push("/(tabs)/employees" as any)}
-          />
-          <StatCard
-            label="Invoices"
-            value={stats?.totalInvoices ?? 0}
-            color="#7B1FA2"
-            icon={<Feather name="file-text" size={20} color="#7B1FA2" />}
-            onPress={() => router.push("/(tabs)/invoices" as any)}
-          />
-        </View>
-      </View>
+      )}
 
       {/* Financial overview (admin only) */}
       {isAdmin && (

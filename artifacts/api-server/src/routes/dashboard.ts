@@ -21,7 +21,7 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
     })
     .from(jobsTable)
     .where(isNull(jobsTable.deletedAt)),
-    db.select({ count: count() }).from(usersTable),
+    db.select({ count: count() }).from(usersTable).where(isNull(usersTable.deletedAt)),
     db.select({ count: count() }).from(invoicesTable),
   ]);
 

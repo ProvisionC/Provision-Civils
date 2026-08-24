@@ -180,13 +180,12 @@ async function registerPushNotification(authToken: string) {
       return;
     }
 
+    // 1. Request permissions explicitly
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    console.log("[push] existing permission status:", existingStatus);
     let finalStatus = existingStatus;
     
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
-      console.log("[push] new permission status:", status);
       finalStatus = status;
     }
 
@@ -195,12 +194,15 @@ async function registerPushNotification(authToken: string) {
       return;
     }
 
+    // 2. Generate token with correct projectId
+    const projectId = "a6093da0-719f-4eee-86e4-a87d0059c219";
     const expoToken = await Notifications.getExpoPushTokenAsync({
-      projectId: "a6093da0-719f-4eee-86e4-a87d0059c219",
+      projectId,
     });
 
     console.log("[push] token acquired", { token: expoToken.data });
 
+    // 3. Send token to backend
     const platform = Platform.OS === "ios" ? "ios" : "android";
     const response = await fetch(`${API_URL}/push-tokens`, {
       method: "POST",
@@ -215,8 +217,7 @@ async function registerPushNotification(authToken: string) {
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Push registration failed (${response.status}): ${text}`);
+      throw new Error(`Push registration failed (${response.status}): ${await response.text()}`);
     }
 
     console.log("[push] registration successfully synced with server");

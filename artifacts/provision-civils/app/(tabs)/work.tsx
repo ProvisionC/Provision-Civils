@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 // Mock API Call - replace with real API hook later
 async function fetchWorkerPayroll() {
@@ -64,6 +65,13 @@ export default function WorkScreen() {
       ) : (
         <View style={styles.empty}><Text style={{ color: colors.mutedForeground }}>No payslips found.</Text></View>
       )}
+
+      <TouchableOpacity
+        style={[styles.scanBtn, { backgroundColor: colors.primary }]}
+        onPress={() => router.push("/employee/scan")}
+      >
+        <Feather name="maximize" size={24} color="#FFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -82,4 +90,5 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
   entryCard: { padding: 16, borderRadius: 8, borderWidth: 1, marginBottom: 10 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center" },
+  scanBtn: { position: "absolute", bottom: 100, right: 20, width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", elevation: 5 },
 });

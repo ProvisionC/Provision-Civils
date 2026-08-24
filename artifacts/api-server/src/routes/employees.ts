@@ -69,6 +69,16 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     res.status(400).json({ error: "Name, email, role, and password required" });
     return;
   }
+
+  // Pre-validate uniqueness
+  const existingEmail = await db.select().from(usersTable).where(eq(usersTable.email, (email as string).toLowerCase())).limit(1);
+  if (existingEmail.length > 0) { res.status(400).json({ error: "Email already in use" }); return; }
+
+  if (clockNumber) {
+    const existingClock = await db.select().from(usersTable).where(eq(usersTable.clockNumber, clockNumber as string)).limit(1);
+    if (existingClock.length > 0) { res.status(400).json({ error: "Clock number already in use" }); return; }
+  }
+
   const passwordHash = await bcrypt.hash(password as string, 10);
   try {
     const [user] = await db.insert(usersTable).values({
@@ -95,12 +105,6 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     }).returning();
     res.status(201).json(formatUser(user));
   } catch (error: any) {
-    if (error.code === "23505") {
-      const detail = error.detail || "";
-      if (detail.includes("email")) { res.status(400).json({ error: "Email already in use" }); return; }
-      if (detail.includes("employee_number")) { res.status(400).json({ error: "Employee number already in use" }); return; }
-      if (detail.includes("clock_number")) { res.status(400).json({ error: "Clock number already in use" }); return; }
-    }
     console.error("Failed to create employee:", error);
     res.status(500).json({ error: "Failed to create employee" });
   }

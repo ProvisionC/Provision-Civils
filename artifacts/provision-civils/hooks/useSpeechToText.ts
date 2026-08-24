@@ -177,7 +177,7 @@ export function useSpeechToText(): SpeechToTextResult {
   // ── startListening ─────────────────────────────────────────────────────────
   const startListening = useCallback(
     async (onResult: (text: string) => void, lang = "af-ZA") => {
-      console.log("[Voice] startListening — lang:", lang, "moduleAvailable:", moduleAvailable);
+      console.log("[Voice] startListening — lang:", lang);
 
       const normalizedLang = lang === "af" ? "af-ZA" : lang;
       const m = getNativeModule();
@@ -196,6 +196,20 @@ export function useSpeechToText(): SpeechToTextResult {
       bestRef.current = "";
 
       try {
+        // 1. Request permissions first!
+        const { granted } = await m.requestPermissionsAsync();
+        console.log("[Voice] mic permission granted:", granted);
+        if (!granted) {
+          Alert.alert(
+            "Microphone Permission Required",
+            "Allow microphone access to use voice notes.\n\nGo to Settings → Apps → Provision Civils → Permissions → Microphone → Allow.",
+            [{ text: "OK" }]
+          );
+          onResultRef.current = null;
+          return;
+        }
+
+        // 2. Now check availability
         const available = await m.isAvailableAsync();
         console.log("[Voice] isAvailableAsync (pre-start):", available);
         if (!available) {
@@ -203,18 +217,6 @@ export function useSpeechToText(): SpeechToTextResult {
           Alert.alert(
             "Voice Not Supported",
             "Speech recognition is not supported on this device.",
-            [{ text: "OK" }]
-          );
-          onResultRef.current = null;
-          return;
-        }
-
-        const { granted } = await m.requestPermissionsAsync();
-        console.log("[Voice] mic permission granted:", granted);
-        if (!granted) {
-          Alert.alert(
-            "Microphone Permission Required",
-            "Allow microphone access to use voice notes.\n\nGo to Settings → Apps → Provision Civils → Permissions → Microphone → Allow.",
             [{ text: "OK" }]
           );
           onResultRef.current = null;
@@ -234,7 +236,7 @@ export function useSpeechToText(): SpeechToTextResult {
         );
       }
     },
-    [moduleAvailable]
+    []
   );
 
   // ── stopListening ──────────────────────────────────────────────────────────
