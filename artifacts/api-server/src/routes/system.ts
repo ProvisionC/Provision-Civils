@@ -29,8 +29,8 @@ router.get("/system/status", requireAuth, requireRole("admin", "supervisor"), as
   console.log(`[system] storage credential configured: ${!!process.env.STORAGE_PROVIDER_URL}`); // Assuming a variable
 
   // Push check placeholder
-  const pushOnline = true; // Placeholder
-  console.log(`[system] push check: ${pushOnline ? "ONLINE" : "OFFLINE"}`);
+  const pushOnline = false; // Status is manually set to false as connectivity is not verified.
+  console.log(`[system] push check: ${pushOnline ? "ONLINE" : "OFFLINE (Status unverified)"}`);
   console.log(`[system] push credential configured: ${!!process.env.PUSH_PROVIDER_API_KEY}`); // Assuming a variable
 
   let lastBackupAt: string | null = null;
@@ -54,7 +54,7 @@ router.get("/system/status", requireAuth, requireRole("admin", "supervisor"), as
     api: true,
     database: dbOnline,
     storage: true,
-    pushNotifications: true,
+    pushNotifications: pushOnline,
     lastBackupAt,
     lastBackupStatus,
     appVersion: APP_VERSION,

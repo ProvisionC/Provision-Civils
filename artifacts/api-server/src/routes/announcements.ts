@@ -29,12 +29,25 @@ async function sendPush(token: string, title: string, body: string, data?: Recor
 
     const [ticket] = tickets;
     if (ticket?.status === "ok") {
-      console.log("[push] delivery success", { title, tokenPrefix: token.slice(0, 12) });
-    } else if (ticket?.status === "error" && (ticket.details?.error === "DeviceNotRegistered" || ticket.details?.error === "InvalidCredentials")) {
-      console.warn("[push] device unregistered, removing token", { tokenPrefix: token.slice(0, 12) });
-      await db.delete(pushTokensTable).where(eq(pushTokensTable.token, token));
-    } else {
-      console.error("[push] delivery failed", { status: ticket?.status, message: ticket?.message });
+      console.log("[push] delivery accepted", { title, tokenPrefix: token.slice(0, 12) });
+      
+      // Asynchronous receipt polling (simplified for this context)
+      const receipts = await expo.getPushNotificationReceiptsAsync([ticket.id]);
+      const receipt = receipts[ticket.id];
+      
+      if (receipt?.status === "error") {
+        if (receipt.details?.error === "DeviceNotRegistered") {
+          console.warn("[push] device unregistered, removing token", { tokenPrefix: token.slice(0, 12) });
+          await db.delete(pushTokensTable).where(eq(pushTokensTable.token, token));
+        } else {
+          console.error("[push] delivery failed at receipt", { status: receipt.status, message: receipt.message, details: receipt.details });
+        }
+      }
+    } else if (ticket?.status === "error") {
+       console.error("[push] delivery failed at submission", { message: ticket.message });
+       if (ticket.details?.error === "DeviceNotRegistered") {
+         await db.delete(pushTokensTable).where(eq(pushTokensTable.token, token));
+       }
     }
   } catch (error) {
     console.error("[push] delivery error", error);

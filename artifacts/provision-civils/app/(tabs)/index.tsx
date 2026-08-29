@@ -25,13 +25,29 @@ export default function DashboardScreen() {
   const isPM = user?.role === "project_manager";
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useGetDashboardStats({
-    query: { enabled: true }
+    query: {
+      enabled: true,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      queryKey: ['dashboardStats']
+    }
   });
   const s = stats as any;
+  const [jobsEnabled, setJobsEnabled] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (stats) {
+      setJobsEnabled(true);
+    }
+  }, [stats]);
+
   const { data: jobs, isLoading: jobsLoading, refetch: refetchJobs } = useListJobs(
     { status: "active" },
     {
-      query: { enabled: true }
+      query: { 
+        enabled: jobsEnabled,
+        staleTime: 2 * 60 * 1000, // 2 minutes
+        queryKey: ['activeJobs']
+      }
     }
   );
 
