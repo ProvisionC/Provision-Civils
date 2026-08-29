@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, gpsLogsTable, labourEntriesTable } from "@workspace/db";
 import { eq, and, isNull, desc } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth.js";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
-router.post("/attendance", requireAuth, async (req, res): Promise<void> => {
+router.post("/attendance", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
   const { clockNumber, type, gps } = req.body as { 
     clockNumber: string; 
     type: 'IN' | 'OUT'; 
