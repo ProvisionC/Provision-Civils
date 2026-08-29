@@ -42,7 +42,10 @@ export default function CreateEmployeeScreen() {
         qc.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
         router.back();
       },
-      onError: () => Alert.alert("Error", "Failed to create employee. Email may already be in use."),
+      onError: (error: any) => {
+        const message = error.response?.data?.error || "Failed to create employee";
+        Alert.alert("Error", message);
+      },
     },
   });
 

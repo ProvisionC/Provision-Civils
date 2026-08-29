@@ -38,18 +38,6 @@ function formatUser(u: typeof usersTable.$inferSelect) {
 }
 
 router.get("/employees", requireAuth, async (req, res): Promise<void> => {
-  const auth = (req as Request & { auth: AuthPayload }).auth;
-
-  if (auth.role === "worker") {
-    const user = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
-    if (!user[0]) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-    res.json([formatUser(user[0])]);
-    return;
-  }
-
   const users = await db.select().from(usersTable)
     .where(isNull(usersTable.deletedAt))
     .orderBy(usersTable.name);
@@ -68,15 +56,6 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
   if (!name || !email || !role || !password) {
     res.status(400).json({ error: "Name, email, role, and password required" });
     return;
-  }
-
-  // Pre-validate uniqueness
-  const existingEmail = await db.select().from(usersTable).where(eq(usersTable.email, (email as string).toLowerCase())).limit(1);
-  if (existingEmail.length > 0) { res.status(400).json({ error: "Email already in use" }); return; }
-
-  if (clockNumber) {
-    const existingClock = await db.select().from(usersTable).where(eq(usersTable.clockNumber, clockNumber as string)).limit(1);
-    if (existingClock.length > 0) { res.status(400).json({ error: "Clock number already in use" }); return; }
   }
 
   const passwordHash = await bcrypt.hash(password as string, 10);
@@ -105,7 +84,17 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     }).returning();
     res.status(201).json(formatUser(user));
   } catch (error: any) {
-    console.error("Failed to create employee:", error);
+    if (error.code === '23505') {
+       if (error.detail?.includes('users_email_unique')) {
+          res.status(400).json({ error: "Email already in use" });
+          return;
+       }
+       if (error.detail?.includes('users_clock_number_unique')) {
+          res.status(400).json({ error: "Clock number already in use" });
+          return;
+       }
+    }
+    console.error("[employees] POST /employees, failed: database error", error);
     res.status(500).json({ error: "Failed to create employee" });
   }
 });
