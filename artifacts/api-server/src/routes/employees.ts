@@ -84,25 +84,19 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     }).returning();
     res.status(201).json(formatUser(user));
   } catch (error: any) {
-    console.error("[employees] POST /employees INSERT FAILED", {
+    // Diagnostic logging for production debugging
+    console.error("[EMPLOYEE_CREATE_DB_ERROR]", {
       code: error.code,
       constraint: error.constraint,
       column: error.column,
-      message: error.message,
-      detail: error.detail
+      table: error.table,
+      detail: error.detail,
+      hint: error.hint,
+      message: error.message
     });
     
-    if (error.code === '23505') {
-       if (error.detail?.includes('users_email_unique')) {
-          res.status(400).json({ error: "Email already in use" });
-          return;
-       }
-       if (error.detail?.includes('users_clock_number_unique')) {
-          res.status(400).json({ error: "Clock number already in use" });
-          return;
-       }
-    }
-    res.status(500).json({ error: "Failed to create employee: " + (error.message || "Unknown error") });
+    // Maintain safe client response
+    res.status(500).json({ error: "Failed to create employee" });
   }
 });
 
