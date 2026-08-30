@@ -84,6 +84,14 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     }).returning();
     res.status(201).json(formatUser(user));
   } catch (error: any) {
+    console.error("[employees] POST /employees INSERT FAILED", {
+      code: error.code,
+      constraint: error.constraint,
+      column: error.column,
+      message: error.message,
+      detail: error.detail
+    });
+    
     if (error.code === '23505') {
        if (error.detail?.includes('users_email_unique')) {
           res.status(400).json({ error: "Email already in use" });
@@ -94,8 +102,7 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
           return;
        }
     }
-    console.error("[employees] POST /employees, failed: database error", error);
-    res.status(500).json({ error: "Failed to create employee" });
+    res.status(500).json({ error: "Failed to create employee: " + (error.message || "Unknown error") });
   }
 });
 
