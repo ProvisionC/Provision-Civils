@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "job_type" text DEFAULT 'project' NOT NULL;

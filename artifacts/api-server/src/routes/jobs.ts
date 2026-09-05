@@ -63,6 +63,7 @@ function formatJob(job: typeof jobsTable.$inferSelect) {
     description: job.description ?? null,
     notes: job.notes ?? null,
     labourHours: job.labourHours != null ? Number(job.labourHours) : null,
+    jobType: job.jobType,
     status: job.status,
     supervisorId: job.supervisorId ?? null,
     startDate: j.startDate ?? null,
@@ -145,6 +146,7 @@ router.post("/jobs", requireAuth, requireRole("admin", "supervisor"), async (req
     description?: string;
     notes?: string;
     labourHours?: number;
+    jobType?: 'project' | 'maintenance';
     supervisorId?: number;
     startDate?: string;
     dueDate?: string;
@@ -164,6 +166,7 @@ router.post("/jobs", requireAuth, requireRole("admin", "supervisor"), async (req
   const jobNumber = await generateJobNumber();
   const [job] = await db.insert(jobsTable).values({
     jobNumber,
+    jobType: jobData.jobType ?? 'project',
     clientId: jobData.clientId,
     clientName: jobData.clientName,
     clientPhone: jobData.clientPhone,

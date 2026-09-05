@@ -241,6 +241,7 @@ export const CreateJobBody = zod.object({
   "description": zod.string().optional(),
   "notes": zod.string().optional(),
   "labourHours": zod.number().optional(),
+  "jobType": zod.enum(['project', 'maintenance']).optional(),
   "supervisorId": zod.number().optional(),
   "startDate": zod.string().optional(),
   "dueDate": zod.string().optional(),
@@ -350,6 +351,7 @@ export const GetJobResponse = zod.object({
   "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
   "hourlyRate": zod.string().nullish(),
   "meterRate": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
   "createdAt": zod.string()
 })),
   "materials": zod.array(zod.object({
@@ -785,6 +787,7 @@ export const ListEmployeesResponseItem = zod.object({
   "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
   "hourlyRate": zod.string().nullish(),
   "meterRate": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
@@ -813,7 +816,8 @@ export const CreateEmployeeBody = zod.object({
   "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']).optional(),
   "payrollType": zod.enum(['hourly', 'piece_work']).optional(),
   "hourlyRate": zod.number().optional(),
-  "meterRate": zod.number().optional()
+  "meterRate": zod.number().optional(),
+  "photoUrl": zod.string().optional()
 })
 
 export const CreateEmployeeResponse = zod.object({
@@ -837,6 +841,7 @@ export const CreateEmployeeResponse = zod.object({
   "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
   "hourlyRate": zod.string().nullish(),
   "meterRate": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -867,7 +872,8 @@ export const UpdateEmployeeBody = zod.object({
   "employmentStatus": zod.enum(['active', 'suspended', 'resigned', 'dismissed']).optional(),
   "payrollType": zod.enum(['hourly', 'piece_work']).optional(),
   "hourlyRate": zod.number().optional(),
-  "meterRate": zod.number().optional()
+  "meterRate": zod.number().optional(),
+  "photoUrl": zod.string().optional()
 })
 
 export const UpdateEmployeeResponse = zod.object({
@@ -891,6 +897,7 @@ export const UpdateEmployeeResponse = zod.object({
   "payrollType": zod.enum(['hourly', 'piece_work', 'null']).nullish(),
   "hourlyRate": zod.string().nullish(),
   "meterRate": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
   "createdAt": zod.string()
 })
 

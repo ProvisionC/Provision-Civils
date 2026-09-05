@@ -42,6 +42,7 @@ export default function CreateJobScreen() {
     poNumber: "",
     clientOrderNumber: "",
     contractValue: "",
+    jobType: "project" as "project" | "maintenance",
     wayleaveRequired: false,
   });
 
@@ -92,6 +93,7 @@ export default function CreateJobScreen() {
     }
     createJob.mutate({
       data: {
+        jobType: form.jobType,
         clientId: form.clientId ? Number(form.clientId) : undefined,
         clientName: form.clientName.trim(),
         clientPhone: form.clientPhone || undefined,
@@ -123,6 +125,20 @@ export default function CreateJobScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 100, gap: 14 }}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Section: Job Type */}
+        <SectionHeader label="Job Classification" icon="layers" colors={colors} />
+        <View style={[styles.segmented, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          {(["project", "maintenance"] as const).map(type => (
+            <TouchableOpacity
+              key={type}
+              style={[styles.segmentedOption, form.jobType === type && { backgroundColor: colors.card }]}
+              onPress={() => set("jobType", type)}
+            >
+              <Text style={{ color: form.jobType === type ? colors.primary : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_600SemiBold", textTransform: "capitalize" }}>{type}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Section: Client */}
         <SectionHeader label="Client Details" icon="users" colors={colors} />
         <TouchableOpacity

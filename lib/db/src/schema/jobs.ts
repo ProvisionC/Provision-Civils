@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 export const jobsTable = pgTable("jobs", {
   id: serial("id").primaryKey(),
   jobNumber: text("job_number").notNull().unique(),
+  jobType: text("job_type", { enum: ["project", "maintenance"] }).notNull().default("project"),
   clientId: integer("client_id"),
   clientName: text("client_name").notNull(),
   clientPhone: text("client_phone"),

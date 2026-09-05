@@ -1,16 +1,20 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db, usersTable, gpsLogsTable, labourEntriesTable } from "@workspace/db";
-import { eq, and, isNull, desc } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { eq, desc } from "drizzle-orm";
+import { requireAuth, requireRole, type AuthPayload } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
-router.post("/attendance", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
-  const { clockNumber, type, gps } = req.body as { 
-    clockNumber: string; 
-    type: 'IN' | 'OUT'; 
-    gps?: { lat: number, lng: number } 
+router.post("/attendance", requireAuth, requireRole("admin", "supervisor"), async (req: Request, res: Response): Promise<void> => {
+  const { clockNumber, type, gps, jobId } = req.body as {
+    clockNumber: string;
+    type: 'IN' | 'OUT';
+    gps?: { lat: number, lng: number };
+    jobId: number;
   };
+
+  const auth = (req as Request & { auth: AuthPayload }).auth;
+  const supervisorId = auth.userId;
 
   const [employee] = await db.select().from(usersTable).where(eq(usersTable.clockNumber, clockNumber));
   if (!employee) { res.status(404).json({ error: "Employee not found" }); return; }
@@ -34,8 +38,8 @@ router.post("/attendance", requireAuth, requireRole("admin", "supervisor"), asyn
         clockIn: now,
         date: now.split("T")[0],
         payrollType: employee.payrollType ?? 'hourly',
-        jobId: 1, // Defaulting as a placeholder, should ideally come from client
-        createdById: employee.id,
+        jobId: jobId,
+        createdById: supervisorId,
         workType: 'other',
     });
   } else {
@@ -52,7 +56,7 @@ router.post("/attendance", requireAuth, requireRole("admin", "supervisor"), asyn
   if (gps) {
     await db.insert(gpsLogsTable).values({
         userId: employee.id,
-        jobId: 1, // Defaulting as placeholder
+        jobId: jobId,
         arrivalLat: gps.lat.toString(),
         arrivalLng: gps.lng.toString(),
         arrivalTime: new Date(now),

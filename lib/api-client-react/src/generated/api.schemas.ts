@@ -279,6 +279,8 @@ export interface Employee {
   hourlyRate?: string | null;
   /** @nullable */
   meterRate?: string | null;
+  /** @nullable */
+  photoUrl?: string | null;
   createdAt: string;
 }
 
@@ -358,6 +360,14 @@ export interface JobDetail {
   equipment: JobEquipment[];
 }
 
+export type JobInputJobType = typeof JobInputJobType[keyof typeof JobInputJobType];
+
+
+export const JobInputJobType = {
+  project: 'project',
+  maintenance: 'maintenance',
+} as const;
+
 export type JobInputStatus = typeof JobInputStatus[keyof typeof JobInputStatus];
 
 
@@ -405,6 +415,7 @@ export interface JobInput {
   description?: string;
   notes?: string;
   labourHours?: number;
+  jobType?: JobInputJobType;
   supervisorId?: number;
   startDate?: string;
   dueDate?: string;
@@ -609,6 +620,7 @@ export interface EmployeeInput {
   payrollType?: EmployeeInputPayrollType;
   hourlyRate?: number;
   meterRate?: number;
+  photoUrl?: string;
 }
 
 export type EmployeeUpdateRole = typeof EmployeeUpdateRole[keyof typeof EmployeeUpdateRole];
@@ -659,6 +671,7 @@ export interface EmployeeUpdate {
   payrollType?: EmployeeUpdatePayrollType;
   hourlyRate?: number;
   meterRate?: number;
+  photoUrl?: string;
 }
 
 export type EmployeeBankingAccountType = typeof EmployeeBankingAccountType[keyof typeof EmployeeBankingAccountType];

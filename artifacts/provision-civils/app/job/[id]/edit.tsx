@@ -27,6 +27,7 @@ export default function EditJobScreen() {
     siteAddress: "", description: "", notes: "",
     labourHours: "", dueDate: "", kickOffMeetingDate: "", supervisorId: "",
     gpsLat: "", gpsLng: "",
+    jobType: "project" as "project" | "maintenance",
   });
   const [selectedWorkers, setSelectedWorkers] = useState<number[]>([]);
   const [materials, setMaterials] = useState<{ name: string; quantity: string; unit: string; cost: string }[]>([]);
@@ -47,6 +48,7 @@ export default function EditJobScreen() {
       supervisorId: job.supervisorId != null ? String(job.supervisorId) : "",
       gpsLat: (job as any).gpsLat != null ? String((job as any).gpsLat) : "",
       gpsLng: (job as any).gpsLng != null ? String((job as any).gpsLng) : "",
+      jobType: (job as any).jobType ?? "project",
     });
     const detail = job as any;
     if (detail.workers) setSelectedWorkers(detail.workers.map((w: any) => w.id));
@@ -74,6 +76,7 @@ export default function EditJobScreen() {
     updateJob.mutate({
       id: jobId,
       data: {
+        jobType: form.jobType,
         clientName: form.clientName.trim(),
         clientPhone: form.clientPhone || undefined,
         clientEmail: form.clientEmail || undefined,
@@ -96,6 +99,16 @@ export default function EditJobScreen() {
   return (
     <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
       <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Job Classification</Text>
+        <View style={[styles.chips, { marginBottom: 10 }]}>
+          {(["project", "maintenance"] as const).map(type => (
+            <TouchableOpacity key={type}
+              style={[styles.chip, { backgroundColor: form.jobType === type ? colors.primary : colors.muted, borderColor: colors.border }]}
+              onPress={() => update("jobType", type)}>
+              <Text style={{ color: form.jobType === type ? "#FFF" : colors.foreground, fontFamily: "Inter_500Medium", fontSize: 13, textTransform: "capitalize" }}>{type}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Client Information</Text>
         <Field label="Client Name *" value={form.clientName} onChange={v => update("clientName", v)} colors={colors} />
         <Field label="Phone" value={form.clientPhone} onChange={v => update("clientPhone", v)} keyboard="phone-pad" colors={colors} />

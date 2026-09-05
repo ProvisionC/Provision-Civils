@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import {
-  useGetJob, useDeleteJob, useUpdateJob, useListJobPhotos,
+  useGetJob, useDeleteJob, useUpdateJob, useListJobPhotos, useListLabourEntries,
   getListJobsQueryKey, getGetJobQueryKey, getListJobPhotosQueryKey,
   getGetDashboardStatsQueryKey,
 } from "@workspace/api-client-react";
@@ -181,6 +181,9 @@ export default function JobDetailScreen() {
   const materials: any[] = detail.materials ?? [];
   const usedMaterials = materials.filter((m: any) => m.checked && Number(m.quantity) > 0);
 
+  const { data: labourEntries } = useListLabourEntries({ jobId }, { query: { queryKey: ["labour-entries", "job", jobId] } });
+  const totalMeters = (labourEntries ?? []).filter((e: any) => e.status === "complete").reduce((s: number, e: any) => s + (e.metersCompleted ? Number(e.metersCompleted) : 0), 0) ?? 0;
+
   const isActive = job.status === "active" || job.status === "in_progress" || job.status === "pending";
   const isWaitingWayleave = job.status === "waiting_for_wayleave";
   const isCompleted = job.status === "completed";
@@ -294,6 +297,15 @@ export default function JobDetailScreen() {
 
         {/* Quick actions */}
         <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+            onPress={() => router.push({ pathname: "/employee/scan", params: { jobId } })}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: "#FFF2" }]}>
+              <Feather name="maximize" size={20} color="#FFF" />
+            </View>
+            <Text style={[styles.actionLabel, { color: "#FFF" }]}>Scan</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => router.push(`/job/${jobId}/photos` as any)}
@@ -584,6 +596,25 @@ export default function JobDetailScreen() {
           </View>
         )}
 
+        {/* Measurements Summary */}
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Feather name="activity" size={15} color="#8B5CF6" />
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Measurements Summary</Text>
+              </View>
+            </View>
+            <View style={styles.measureRow}>
+              <Text style={[styles.measureLabel, { color: colors.mutedForeground }]}>Total Meters Completed</Text>
+              <Text style={[styles.measureValue, { color: colors.foreground }]}>{totalMeters.toFixed(1)} m</Text>
+            </View>
+            <TouchableOpacity
+                style={[styles.measureCta, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}
+                onPress={() => router.push(`/job/${jobId}/labour` as any)}>
+                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>View Labour Entries</Text>
+            </TouchableOpacity>
+        </View>
+
         {materials.length === 0 && (
           <TouchableOpacity
             style={[styles.card, styles.materialsCta, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -761,6 +792,10 @@ const styles = StyleSheet.create({
   matQty: { fontSize: 13, fontFamily: "Inter_500Medium" },
   moreLink: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 8, textAlign: "center" },
   materialsCta: { flexDirection: "row", alignItems: "center", gap: 12 },
+  measureRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  measureLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  measureValue: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  measureCta: { padding: 10, borderRadius: 8, alignItems: "center", borderWidth: 1 },
   ctaTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   ctaSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   exportCard: { marginHorizontal: 12, marginBottom: 10, borderRadius: 14, padding: 14, borderWidth: 1 },

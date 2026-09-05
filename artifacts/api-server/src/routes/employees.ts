@@ -33,6 +33,7 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     payrollType: u.payrollType ?? null,
     hourlyRate: u.hourlyRate ? String(u.hourlyRate) : null,
     meterRate: u.meterRate ? String(u.meterRate) : null,
+    photoUrl: u.photoUrl ?? null,
     createdAt: u.createdAt.toISOString(),
   };
 }
@@ -51,6 +52,7 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
     homeAddress, emergencyContactName, emergencyContactNumber,
     jobTitle, department, supervisorId, employmentStartDate,
     employmentStatus, payrollType, hourlyRate, meterRate,
+    photoUrl,
   } = req.body as Record<string, string | number | undefined>;
 
   if (!name || !email || !role || !password) {
@@ -81,6 +83,7 @@ router.post("/employees", requireAuth, requireRole("admin"), async (req, res): P
       payrollType: payrollType as "hourly" | "piece_work" | undefined,
       hourlyRate: hourlyRate ? String(hourlyRate) : undefined,
       meterRate: meterRate ? String(meterRate) : undefined,
+      photoUrl: photoUrl as string | undefined,
     }).returning();
     res.status(201).json(formatUser(user));
   } catch (error: any) {

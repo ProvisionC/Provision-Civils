@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import * as Location from 'expo-location';
 
@@ -12,6 +12,7 @@ export default function AttendanceScannerScreen() {
   const [scanned, setScanned] = useState(false);
   const colors = useColors();
   const { token } = useAuth();
+  const { jobId } = useLocalSearchParams<{ jobId?: string }>();
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -26,6 +27,11 @@ export default function AttendanceScannerScreen() {
   }
 
   const handleAttendance = async (clockNumber: string, type: 'IN' | 'OUT') => {
+    if (!jobId) {
+      Alert.alert('Error', 'Job context is missing. Please navigate from the job details page.');
+      return;
+    }
+
     try {
         let gps = undefined;
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -37,9 +43,9 @@ export default function AttendanceScannerScreen() {
         const response = await fetch(`https://provision-api-ckpk.onrender.com/attendance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ clockNumber, type, gps })
+            body: JSON.stringify({ clockNumber, type, gps, jobId: Number(jobId) })
         });
-        
+
         if (!response.ok) throw new Error(await response.text());
         Alert.alert('Success', `Employee clocked ${type} successfully`);
     } catch (e: any) {

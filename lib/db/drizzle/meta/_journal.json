@@ -8,6 +8,20 @@
       "when": 1785946209964,
       "tag": "0000_groovy_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788607217984,
+      "tag": "0001_flaky_praxagora",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788607218000,
+      "tag": "0002_add_job_type",
+      "breakpoints": true
     }
   ]
 }

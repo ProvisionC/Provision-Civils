@@ -2318,6 +2318,9 @@ components:
           type: string
         labourHours:
           type: number
+        jobType:
+          type: string
+          enum: [project, maintenance]
         supervisorId:
           type: integer
         startDate:
@@ -2658,6 +2661,8 @@ components:
           type: ["string", "null"]
         meterRate:
           type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
         createdAt:
           type: string
 
@@ -2708,6 +2713,8 @@ components:
           type: number
         meterRate:
           type: number
+        photoUrl:
+          type: string
 
     EmployeeUpdate:
       type: object
@@ -2753,6 +2760,8 @@ components:
           type: number
         meterRate:
           type: number
+        photoUrl:
+          type: string
 
     EmployeeBanking:
       type: object
