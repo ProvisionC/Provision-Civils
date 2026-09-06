@@ -175,14 +175,38 @@ export default function JobDetailScreen() {
     );
   }
 
-  const detail = job as any;
-  const photoList = photos ?? [];
-  const thumbPhotos = photoList.slice(0, 8);
-  const materials: any[] = detail.materials ?? [];
-  const usedMaterials = materials.filter((m: any) => m.checked && Number(m.quantity) > 0);
+ const { data: labourEntries } = useListLabourEntries(
+  { jobId },
+  { query: { queryKey: ["labour-entries", "job", jobId] } }
+);
 
-  const { data: labourEntries } = useListLabourEntries({ jobId }, { query: { queryKey: ["labour-entries", "job", jobId] } });
-  const totalMeters = (labourEntries ?? []).filter((e: any) => e.status === "complete").reduce((s: number, e: any) => s + (e.metersCompleted ? Number(e.metersCompleted) : 0), 0) ?? 0;
+if (!job) {
+  return (
+    <View style={[styles.center, { backgroundColor: colors.background }]}>
+      <Text style={{ color: colors.mutedForeground }}>Job not found</Text>
+    </View>
+  );
+}
+
+const detail = job as any;
+
+const photoList = photos ?? [];
+
+const thumbPhotos = photoList.slice(0, 8);
+
+const materials: any[] = detail.materials ?? [];
+
+const usedMaterials = materials.filter(
+  (m: any) => m.checked && Number(m.quantity) > 0
+);
+
+const totalMeters = (labourEntries ?? [])
+  .filter((e: any) => e.status === "complete")
+  .reduce(
+    (s: number, e: any) =>
+      s + (e.metersCompleted ? Number(e.metersCompleted) : 0),
+    0
+  ) ?? 0;
 
   const isActive = job.status === "active" || job.status === "in_progress" || job.status === "pending";
   const isWaitingWayleave = job.status === "waiting_for_wayleave";
