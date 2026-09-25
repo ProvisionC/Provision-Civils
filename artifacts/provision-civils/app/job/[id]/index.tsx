@@ -50,12 +50,17 @@ export default function JobDetailScreen() {
   const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   const { data: job, isLoading } = useGetJob(jobId, {
-    query: { queryKey: getGetJobQueryKey(jobId) },
+    query: { queryKey: getGetJobQueryKey(jobId), enabled: !!jobId },
   });
 
   const { data: photos } = useListJobPhotos(jobId, undefined, {
-    query: { queryKey: getListJobPhotosQueryKey(jobId) },
+    query: { queryKey: getListJobPhotosQueryKey(jobId), enabled: !!jobId },
   });
+
+  const { data: labourEntries } = useListLabourEntries(
+    { jobId },
+    { query: { queryKey: ["labour-entries", "job", jobId], enabled: !!jobId } }
+  );
 
   const deleteJob = useDeleteJob({
     mutation: {
@@ -174,19 +179,6 @@ export default function JobDetailScreen() {
       </View>
     );
   }
-
- const { data: labourEntries } = useListLabourEntries(
-  { jobId },
-  { query: { queryKey: ["labour-entries", "job", jobId] } }
-);
-
-if (!job) {
-  return (
-    <View style={[styles.center, { backgroundColor: colors.background }]}>
-      <Text style={{ color: colors.mutedForeground }}>Job not found</Text>
-    </View>
-  );
-}
 
 const detail = job as any;
 
