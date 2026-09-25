@@ -23,6 +23,7 @@ const API_URL = API_DOMAIN.startsWith("http")
   : API_DOMAIN.includes(":")
     ? `http://${API_DOMAIN}`
     : `https://${API_DOMAIN}`;
+const API_BASE_URL = `${API_URL}/api`;
 
 setBaseUrl(API_URL);
 
@@ -103,7 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setAuthTokenGetter(() => storedToken);
           
           resetInactivityTimer();
-          await registerPushNotification(storedToken);
+          // Push is best-effort and must never delay restoring an offline session.
+          void registerPushNotification(storedToken);
         }
       } catch {
       } finally {
@@ -204,17 +206,25 @@ async function registerPushNotification(authToken: string) {
 
     // 3. Send token to backend
     const platform = Platform.OS === "ios" ? "ios" : "android";
-    const response = await fetch(`${API_URL}/push-tokens`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        token: expoToken.data,
-        platform,
-      }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/push-tokens`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          token: expoToken.data,
+          platform,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       throw new Error(`Push registration failed (${response.status}): ${await response.text()}`);
@@ -240,7 +250,8 @@ const login = async (newToken: string, newUser: AuthUser) => {
 
   console.log("BEFORE REGISTER");
 
-  await registerPushNotification(newToken);
+  // The session is already durable. Do not keep the login UI waiting for push.
+  void registerPushNotification(newToken);
 
   console.log("AFTER REGISTER");
 };

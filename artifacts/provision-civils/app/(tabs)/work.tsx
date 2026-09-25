@@ -1,70 +1,42 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useColors } from "@/hooks/useColors";
-import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
-
-// Mock API Call - replace with real API hook later
-async function fetchWorkerPayroll() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        summary: { totalHours: 160, totalMeters: 500, totalEarnings: 15000 },
-        entries: [
-          { id: 1, date: "2025-08-01", jobName: "Site A", hoursWorked: 8, metersCompleted: 50, amountPayable: 1250 },
-          { id: 2, date: "2025-08-02", jobName: "Site B", hoursWorked: 8, metersCompleted: 45, amountPayable: 1125 },
-        ]
-      });
-    }, 1000);
-  });
-}
-
-// ... (fetchWorkerPayroll mock)
+import { getListLabourEntriesQueryKey, useListLabourEntries } from "@workspace/api-client-react";
 
 export default function WorkScreen() {
   const colors = useColors();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"timesheets" | "payslips">("timesheets");
+  const { data: entries, isLoading } = useListLabourEntries({}, {
+    query: { queryKey: getListLabourEntriesQueryKey({}), retry: false },
+  });
+  const currentEntries = entries ?? [];
+  const summary = currentEntries.reduce((total, entry) => ({
+    totalHours: total.totalHours + Number(entry.hoursWorked ?? 0),
+    totalMeters: total.totalMeters + Number(entry.metersCompleted ?? 0),
+    totalEarnings: total.totalEarnings + Number(entry.amountPayable ?? 0),
+  }), { totalHours: 0, totalMeters: 0, totalEarnings: 0 });
 
-  useEffect(() => {
-    fetchWorkerPayroll().then(setData).finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />;
+  if (isLoading && currentEntries.length === 0) return <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.title, { color: colors.foreground }]}>My Work</Text>
       
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={[styles.tab, activeTab === "timesheets" && styles.activeTab]} onPress={() => setActiveTab("timesheets")}>
-          <Text style={styles.tabText}>Timesheets</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, activeTab === "payslips" && styles.activeTab]} onPress={() => setActiveTab("payslips")}>
-          <Text style={styles.tabText}>Payslips</Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === "timesheets" ? (
-        <ScrollView>
+      <ScrollView>
           <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.stat}><Text style={styles.statLabel}>Hours</Text><Text style={styles.statVal}>{data.summary.totalHours}</Text></View>
-            <View style={styles.stat}><Text style={styles.statLabel}>Meters</Text><Text style={styles.statVal}>{data.summary.totalMeters}</Text></View>
-            <View style={styles.stat}><Text style={styles.statLabel}>Total</Text><Text style={[styles.statVal, { color: colors.primary }]}>R {data.summary.totalEarnings}</Text></View>
+            <View style={styles.stat}><Text style={styles.statLabel}>Hours</Text><Text style={styles.statVal}>{summary.totalHours.toFixed(2)}</Text></View>
+            <View style={styles.stat}><Text style={styles.statLabel}>Meters</Text><Text style={styles.statVal}>{summary.totalMeters.toFixed(1)}</Text></View>
+            <View style={styles.stat}><Text style={styles.statLabel}>Total</Text><Text style={[styles.statVal, { color: colors.primary }]}>R {summary.totalEarnings.toFixed(2)}</Text></View>
           </View>
 
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Entries</Text>
-          {data.entries.map((entry: any) => (
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This Month</Text>
+          {currentEntries.map(entry => (
             <View key={entry.id} style={[styles.entryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={{ color: colors.foreground }}>{entry.date} - {entry.jobName}</Text>
-              <Text style={{ color: colors.mutedForeground }}>{entry.hoursWorked} hrs | {entry.metersCompleted} m | R{entry.amountPayable}</Text>
+              <Text style={{ color: colors.foreground }}>{entry.date}</Text>
+              <Text style={{ color: colors.mutedForeground }}>{entry.hoursWorked ?? "0"} hrs | {entry.metersCompleted ?? "0"} m | R{entry.amountPayable ?? "0"}</Text>
             </View>
           ))}
-        </ScrollView>
-      ) : (
-        <View style={styles.empty}><Text style={{ color: colors.mutedForeground }}>No payslips found.</Text></View>
-      )}
+          {currentEntries.length === 0 && <View style={styles.empty}><Text style={{ color: colors.mutedForeground }}>No attendance entries this month.</Text></View>}
+      </ScrollView>
     </View>
   );
 }

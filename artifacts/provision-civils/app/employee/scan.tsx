@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import * as Location from 'expo-location';
+import { getBaseUrl } from '@workspace/api-client-react';
 
 export default function AttendanceScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -33,18 +34,24 @@ export default function AttendanceScannerScreen() {
     }
 
     try {
-        let gps = undefined;
+        let gps: { lat: number; lng: number } | undefined;
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-            const loc = await Location.getCurrentPositionAsync({});
-            gps = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+            const loc = await Promise.race([
+                Location.getCurrentPositionAsync({}),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('GPS timeout')), 5000)),
+            ]).catch(() => null);
+            if (loc) gps = { lat: loc.coords.latitude, lng: loc.coords.longitude };
         }
 
-        const response = await fetch(`https://provision-api-ckpk.onrender.com/attendance`, {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(`${getBaseUrl()}/api/attendance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ clockNumber, type, gps, jobId: Number(jobId) })
-        });
+            body: JSON.stringify({ clockNumber, type, gps, jobId: Number(jobId) }),
+            signal: controller.signal,
+        }).finally(() => clearTimeout(timeout));
 
         if (!response.ok) throw new Error(await response.text());
         Alert.alert('Success', `Employee clocked ${type} successfully`);

@@ -5,7 +5,6 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -21,17 +20,9 @@ import { UpdateBanner } from "@/components/UpdateBanner";
 import { UpdateModal } from "@/components/UpdateModal";
 import { useAppUpdate } from "@/hooks/useAppUpdate";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
+import { OfflineQueryProvider } from "@/components/OfflineQueryProvider";
 
 SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 30000,
-    },
-  },
-});
 
 function UpdateController() {
   const { isForceUpdate, isOtaReady, serverVersion, localVersion, applyOtaUpdate } = useAppUpdate();
@@ -97,7 +88,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <CrashReporter>
         <ErrorBoundary>
-          <QueryClientProvider client={queryClient}>
+          <OfflineQueryProvider>
             <AuthProvider>
               <PhotoUploadProvider>
                 <GestureHandlerRootView style={{ flex: 1 }}>
@@ -107,7 +98,7 @@ export default function RootLayout() {
                 </GestureHandlerRootView>
               </PhotoUploadProvider>
             </AuthProvider>
-          </QueryClientProvider>
+          </OfflineQueryProvider>
         </ErrorBoundary>
       </CrashReporter>
     </SafeAreaProvider>

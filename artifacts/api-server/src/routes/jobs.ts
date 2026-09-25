@@ -128,7 +128,7 @@ router.get("/jobs", requireAuth, async (req, res): Promise<void> => {
   res.json(jobs.map(formatJob));
 });
 
-router.post("/jobs", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
+router.post("/jobs", requireAuth, requireRole("admin", "project_manager", "supervisor"), async (req, res): Promise<void> => {
   const { workerIds, materials, equipment, ...jobData } = req.body as {
     clientId?: number;
     clientName: string;
@@ -256,7 +256,7 @@ router.get("/jobs/:id", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
-router.put("/jobs/:id", requireAuth, requireRole("admin", "supervisor"), async (req, res): Promise<void> => {
+router.put("/jobs/:id", requireAuth, requireRole("admin", "project_manager", "supervisor"), async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
   const { workerIds, materials, equipment, ...jobData } = req.body as {
     clientId?: number;

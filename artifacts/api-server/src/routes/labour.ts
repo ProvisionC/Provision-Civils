@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, labourEntriesTable, usersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lt } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthPayload } from "../middlewares/auth.js";
 import type { Request } from "express";
 
@@ -87,6 +87,27 @@ router.get("/labour-entries", requireAuth, async (req, res): Promise<void> => {
       return;
     }
     effectiveEmployeeId = auth.userId;
+
+    // This is enforced on the server, so a modified mobile client cannot
+    // retrieve a worker's historic records or another employee's entries.
+    const current = new Date();
+    const monthStart = `${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    const nextMonth = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + 1, 1));
+    const nextMonthStart = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    const workerRows = await db
+      .select({ entry: labourEntriesTable, employee: usersTable })
+      .from(labourEntriesTable)
+      .leftJoin(usersTable, eq(labourEntriesTable.employeeId, usersTable.id))
+      .where(and(
+        eq(labourEntriesTable.employeeId, effectiveEmployeeId),
+        gte(labourEntriesTable.date, monthStart),
+        lt(labourEntriesTable.date, nextMonthStart),
+        ...(jobId ? [eq(labourEntriesTable.jobId, jobId)] : []),
+      ))
+      .orderBy(labourEntriesTable.date);
+
+    res.json(workerRows.map(r => formatEntry({ ...r.entry, employee: r.employee })));
+    return;
   }
 
   const rows = await db

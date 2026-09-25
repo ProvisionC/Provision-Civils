@@ -150,7 +150,7 @@ export default function JobDetailScreen() {
       return;
     }
 
-    if (!job?.gpsLat || !job?.gpsLng) {
+    if (job?.gpsLat == null || job?.gpsLng == null) {
       Alert.alert(
         "No Location",
         "This job does not have a site address or GPS coordinates recorded yet. Add them by editing the job.",

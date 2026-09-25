@@ -4,7 +4,14 @@ import { isWorkerAllowedRoute } from "../utils/workerAccess.js";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-const JWT_SECRET = process.env.SESSION_SECRET ?? "provision-civils-secret";
+function getJwtSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error("SESSION_SECRET must be configured");
+  }
+  return secret;
+}
+const JWT_SECRET = getJwtSecret();
 
 export interface AuthPayload {
   userId: number;
@@ -39,7 +46,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     console.log(`[auth] database role: ${user.role}`);
     console.log(`[auth] final auth role: ${authPayload.role}`);
 
-    if (authPayload.role === "worker" && !isWorkerAllowedRoute(req.path)) {
+    // Route modules are mounted below /api, while req.path omits that mount
+    // point. Use the complete mounted path so worker self-service routes are
+    // evaluated against the policy correctly.
+    const requestPath = `${req.baseUrl}${req.path}`;
+    if (authPayload.role === "worker" && !isWorkerAllowedRoute(requestPath)) {
       console.log(`[auth] 403 reason: worker access denied, userId: ${authPayload.userId}, role: ${authPayload.role}`);
       res.status(403).json({ error: "Worker access denied" });
       return;

@@ -10,6 +10,7 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
+const DEFAULT_REQUEST_TIMEOUT_MS = 8000;
 
 // ---------------------------------------------------------------------------
 // Module-level configuration
@@ -365,7 +366,21 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  // React Native fetch has no useful offline timeout by default. A bounded
+  // request lets React Query retain and render cached data instead of waiting
+  // indefinitely for an unreachable API.
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  init.signal?.addEventListener("abort", abortFromCaller, { once: true });
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(input, { ...init, method, headers, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+    init.signal?.removeEventListener("abort", abortFromCaller);
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
